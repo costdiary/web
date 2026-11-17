@@ -34,7 +34,7 @@ export async function render(box) {
   if (!items.length) {
     box.append(h('section', { class: 'sheet' }, emptyBlock({
       title: '아직 등록한 식자재가 없습니다',
-      text: '거래명세서 사진을 올리면 한 번에 등록됩니다. 쓰던 앱이나 엑셀 파일이 있으면 그대로 가져올 수도 있고, 하나씩 직접 넣어도 됩니다.',
+      text: '거래명세서 사진 한 장만 올리면 한 번에 등록됩니다. 쓰던 앱이나 엑셀 파일이 있다면 그대로 가져오고, 없으면 하나씩 입력해도 됩니다.',
       actions: [h('a', { class: 'btn', href: '#/invoice' }, '명세서로 등록'), h('a', { class: 'btn ghost', href: '#/import' }, '엑셀·다른 앱에서 가져오기'), h('button', { class: 'btn ghost', type: 'button', disabled: !canWrite, onclick: () => openIngredientEditor(null, refreshRoute) }, '직접 등록')],
     })));
     return;

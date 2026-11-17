@@ -157,8 +157,8 @@ export async function render(box) {
   box.append(h('div', { class: 'page-h' }, h('h1', null, '도매마켓'),
     h('button', { class: 'btn ghost sm', type: 'button', onclick: () => openMarketNotice({ onDone: refreshRoute }) }, '안내 다시 보기')));
   box.append(h('p', { class: 'small muted', style: 'margin-top:-4px' },
-    '우리 식당이 쓰는 품목을 등록하면, 같은 품목을 쓰는 다른 사장님들과 묶여 익명으로 수요가 집계되고 평균 매입가보다 싼 ',
-    h('a', { href: '#/market/offers' }, '단가 제안'), '을 받을 수 있습니다.'));
+    '우리 식당이 쓰는 품목을 등록해 두면 같은 품목을 쓰는 다른 사장님들과 익명으로 묶여 수요가 잡히고, 평균 매입가보다 싼 ',
+    h('a', { href: '#/market/offers' }, '단가 제안'), '이 오기 시작합니다.'));
 
   const body = h('div', { style: 'margin-top:4px' });
   async function paint() {
@@ -278,7 +278,7 @@ export async function renderOffers(box) {
     fill(checklistBody,
       h('p', { class: 'small muted', style: 'margin-bottom:8px' }, onCount
         ? `${onCount}개 식자재가 단가 제안을 받고 있습니다.`
-        : '식자재마다 단가 제안받기를 켜면, 같은 원산지·등급을 쓰는 다른 사장님들과 묶여 익명으로 수요가 집계됩니다.'),
+        : '식자재마다 단가 제안받기를 켜 두면, 같은 원산지·등급을 쓰는 다른 사장님들과 익명으로 묶여 수요가 잡힙니다.'),
       list);
   }
 

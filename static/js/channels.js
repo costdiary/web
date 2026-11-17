@@ -131,7 +131,7 @@ function channelCard(entry, ctx) {
   const body = h('form', { class: 'chan-body', novalidate: true, hidden: !st0.enabled, onsubmit: onSubmit },
     err,
     entry.fee_verified ? null
-      : h('p', { class: 'chan-warn' }, h('b', null, '요율 확인 필요. '), '공식 안내 페이지에서 확인하지 못한 값입니다. 정산내역서와 비교해 맞는지 확인하세요.'),
+      : h('p', { class: 'chan-warn' }, h('b', null, '요율 확인 필요. '), '공식 안내 페이지에서 확인하지 못해 넣은 값이라, 정산내역서와 한 번 맞춰 보세요.'),
     labelIn ? field('앱 이름', labelIn) : null,
     tierSel ? h('div', { class: 'field' }, h('label', { for: (tierSel.id = `tier-${entry.key}`) }, '우리 가게 매출 구간'), tierSel, tierHint) : null,
     h('div', { class: 'two' },
@@ -238,10 +238,10 @@ export async function render(box) {
       h('h1', { style: 'font-size:1.125rem' }, '배달앱 수수료')),
     h('div', { class: 'banner info', role: 'note' }, h('div', null,
       h('b', null, `요율 기준일 ${asOfKo(asOf)}. `),
-      '배달앱과 연동하지 않습니다. 아래 값은 공개된 안내를 바탕으로 한 기본값이라, 정산내역서와 다르면 직접 고쳐 쓰세요. ',
-      '쓰는 앱을 켜 두면 메뉴마다 배달 주문 한 건에 실제로 남는 돈을 계산합니다.')),
+      '배달앱과 직접 연동하는 건 아니고, 아래 값은 공개된 안내 기준의 기본값이에요. 정산내역서와 다르면 직접 고쳐 쓰시면 됩니다. ',
+      '쓰는 앱을 켜 두면 배달 주문 한 건에 실제로 남는 돈을 메뉴마다 계산해 드립니다.')),
     items.some((it) => it.stale && it.state.enabled)
-      ? h('div', { class: 'banner warn', role: 'status' }, h('div', null, h('b', null, '요율 확인한 지 90일이 지났습니다. '), '배달앱은 요율을 자주 바꿉니다. 최근 정산내역서와 비교해 수수료를 확인하고 \'확인한 날\'을 갱신해 주세요.'))
+      ? h('div', { class: 'banner warn', role: 'status' }, h('div', null, h('b', null, '요율 확인한 지 90일이 지났어요. '), '배달앱은 요율을 수시로 바꾸니, 최근 정산내역서와 한 번 맞춰 보고 \'확인한 날\'을 갱신해 주세요.'))
       : null,
     ...items.map((it) => channelCard({ ...it, as_of: asOf }, ctx)),
     h('details', { class: 'sheet more how' },

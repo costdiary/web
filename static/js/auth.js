@@ -26,7 +26,7 @@ export function openForgotPassword() {
   const err = errorBox();
   const email = h('input', { class: 'input', type: 'email', name: 'email', autocomplete: 'email', required: true });
   const submit = h('button', { class: 'btn block', type: 'submit' }, '재설정 링크 받기');
-  const done = h('p', { class: 'hint', hidden: true }, '입력하신 이메일로 재설정 안내를 보냈습니다. 받은 편지함(스팸함도)을 확인해 주세요.');
+  const done = h('p', { class: 'hint', hidden: true }, '입력하신 이메일로 재설정 안내를 보냈어요. 안 보이면 스팸함도 한 번 확인해 주세요.');
   const form = h('form', { novalidate: true }, err, field('가입한 이메일', email), submit, done);
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();

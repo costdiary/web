@@ -170,7 +170,7 @@ export async function render(box) {
         h('a', { class: 'btn ghost sm', href: '/api/export/menus.csv', download: '' }, icon('download', 18), '메뉴 CSV'),
         h('a', { class: 'btn ghost sm', href: '/api/export/recipes.csv', download: '' }, icon('download', 18), '레시피 CSV'),
         h('a', { class: 'btn ghost sm', href: '#/import' }, '다른 앱·엑셀에서 가져오기')),
-      h('p', { class: 'hint', style: 'margin-top:10px' }, '엑셀에서 바로 열 수 있습니다. 체험이 끝난 뒤에도 내려받을 수 있습니다.')),
+      h('p', { class: 'hint', style: 'margin-top:10px' }, '엑셀에서 바로 열립니다. 체험 기간이 끝나도 내려받기는 계속 가능해요.')),
     h('section', { class: 'sheet' },
       h('div', { class: 'sheet-h' }, h('h2', null, '계정')),
       h('div', { class: 'btn-row' },

@@ -33,7 +33,7 @@ export async function render(box) {
       h('section', { class: 'sheet' },
         h('div', { class: 'drop' },
           icon('receipt', 40),
-          h('p', null, '납품받은 거래명세서를 사진으로 올리면 품목·규격·단가를 읽어 옵니다. 읽은 내용은 반영하기 전에 직접 확인합니다.'),
+          h('p', null, '납품받은 거래명세서를 사진으로 올리면 품목·규격·단가를 읽어 옵니다. 읽은 내용을 확인한 다음에 반영됩니다.'),
           h('div', { class: 'btn-row', style: 'justify-content:center' },
             touch ? h('button', { class: 'btn', type: 'button', disabled: !canWrite, onclick: () => camera.click() }, icon('camera', 20), '사진 찍기') : null,
             h('button', { class: touch ? 'btn ghost' : 'btn', type: 'button', disabled: !canWrite, onclick: () => album.click() }, icon('image', 20), touch ? '앨범에서 고르기' : '사진 고르기'),

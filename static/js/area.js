@@ -92,7 +92,7 @@ export async function render(box) {
         a.sources.geocode ? h('div', { style: 'margin-top:10px' }, field(loc ? '주소 바꾸기' : '가게 주소', addr, '"주소 찾기"를 누를 때만 입력한 주소가 네이버 지도 서버로 전달되고, 위치는 내 계정에만 저장됩니다.'), h('div', { class: 'btn-row' }, findBtn), found)
           : h('p', { class: 'small muted' }, '주소 검색은 아직 켜져 있지 않습니다. 아래에서 위도·경도를 직접 넣어 주세요.'),
         a.sources.geocode ? h('div', { style: 'margin-top:8px' }, manual) : h('div', { open: true }, manual)),
-      !a.sources.semas ? h('div', { class: 'banner info', role: 'status' }, h('div', null, h('b', null, '주변 상가 자료 연결이 아직 안 되어 있습니다. '), '운영자가 공공데이터 키를 넣으면 반경 안 음식점 분포가 여기에 나옵니다.')) : null,
+      !a.sources.semas ? h('div', { class: 'banner info', role: 'status' }, h('div', null, h('b', null, '주변 상가 자료는 아직 연결 전이에요. '), '운영자가 공공데이터 키를 넣으면 반경 안 음식점 분포가 여기에 보입니다.')) : null,
       loc && a.sources.semas && !st && !a.errors.length ? h('p', { class: 'small muted' }, '불러오는 중이거나 이 반경에 자료가 없습니다.') : null,
       a.errors.length ? h('div', { class: 'banner', role: 'alert' }, h('div', null, a.errors.map((e) => h('div', null, e)))) : null,
       summary, ...extras,

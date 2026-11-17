@@ -92,19 +92,19 @@ function onboarding() {
     h('ul', { class: 'rows', style: 'margin-top:8px' },
       h('li', null, h('div', { class: 'row' },
         h('div', { class: 'row-main' }, h('span', { class: 'row-title' }, '예시 데이터로 둘러보기'),
-          h('div', { class: 'row-sub' }, '가상의 한식당 메뉴 5개와 식자재 14개가 들어갑니다. 필요 없으면 직접 지울 수 있습니다.')), seed)),
+          h('div', { class: 'row-sub' }, '가상의 한식당 메뉴 5개, 식자재 14개가 한 번에 들어가요. 마음에 안 들면 그냥 지우면 됩니다.')), seed)),
       h('li', null, h('a', { class: 'row', href: '#/invoice' },
         h('div', { class: 'row-main' }, h('span', { class: 'row-title' }, '거래명세서 사진으로 시작'),
-          h('div', { class: 'row-sub' }, '사진 속 품목과 단가가 식자재로 등록됩니다.')), h('span', { class: 'btn ghost sm' }, '올리기'))),
+          h('div', { class: 'row-sub' }, '사진에 찍힌 품목과 단가를 그대로 식자재로 등록해 드려요.')), h('span', { class: 'btn ghost sm' }, '올리기'))),
       h('li', null, h('a', { class: 'row', href: '#/import' },
         h('div', { class: 'row-main' }, h('span', { class: 'row-title' }, '쓰던 앱·엑셀에서 가져오기'),
-          h('div', { class: 'row-sub' }, '식자재 단가표나 메뉴 레시피 파일을 올리면 그대로 옮겨 옵니다.')), h('span', { class: 'btn ghost sm' }, '가져오기'))),
+          h('div', { class: 'row-sub' }, '쓰던 단가표나 레시피 파일, 그대로 올리면 옮겨 드립니다.')), h('span', { class: 'btn ghost sm' }, '가져오기'))),
       h('li', null, h('a', { class: 'row', href: '#/menus/photo' },
         h('div', { class: 'row-main' }, h('span', { class: 'row-title' }, '요리 사진으로 메뉴 만들기'),
-          h('div', { class: 'row-sub' }, '재료별 양을 몰라도 됩니다. 사진을 보고 재료와 양을 짐작해 초안을 만듭니다.')), h('span', { class: 'btn ghost sm' }, '사진 올리기'))),
+          h('div', { class: 'row-sub' }, '재료 양을 몰라도 괜찮아요. 사진만 보고 어림잡아 초안을 잡아 드립니다.')), h('span', { class: 'btn ghost sm' }, '사진 올리기'))),
       h('li', null, h('a', { class: 'row', href: '#/ingredients' },
         h('div', { class: 'row-main' }, h('span', { class: 'row-title' }, '식자재부터 직접 등록'),
-          h('div', { class: 'row-sub' }, '구매 규격과 가격만 넣으면 kg·L·개당 단가를 계산합니다.')), h('span', { class: 'btn ghost sm' }, '등록')))));
+          h('div', { class: 'row-sub' }, '구매 규격과 가격만 넣으면 kg·L·개당 단가는 계산해 드려요.')), h('span', { class: 'btn ghost sm' }, '등록')))));
 }
 
 export async function render(box) {

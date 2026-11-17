@@ -40,7 +40,7 @@ export async function render(box) {
   /* 고정비 합계 = 직접 넣은 항목 + 직원 급여 화면에서 계산한 인건비(주휴수당 포함) */
   const fixedTotal = () => manualTotal() + labor.total;
   const dupWarn = h('p', { class: 'note-warn', role: 'status', hidden: true },
-    '직원 급여 화면의 인건비가 이미 더해지고 있습니다. 아래에 직접 넣은 인건비·급여 항목이 같은 돈이라면 지워야 두 번 계산되지 않습니다.');
+    '직원 급여 화면의 인건비가 이미 여기에 더해지고 있어요. 아래 항목 중 같은 돈을 가리키는 게 있다면 지워 주세요, 안 그러면 두 번 잡힙니다.');
   const checkDup = () => {
     dupWarn.hidden = !(labor.total > 0 && rows.some((r) => /인건비|급여|알바/.test(r.l.value) && (parseNum(r.a.value) || 0) > 0));
   };
@@ -60,13 +60,13 @@ export async function render(box) {
     const total = fixedTotal();
     checkDup();
     if (stats.cm_store == null) {
-      fill(out, h('div', { class: 'banner info', role: 'status' }, h('div', null, h('b', null, '메뉴 원가가 필요합니다. '),
-        '판매가와 재료가 모두 들어간 메뉴가 있어야 계산할 수 있습니다. ', h('a', { href: '#/menus' }, '메뉴 보기'))));
+      fill(out, h('div', { class: 'banner info', role: 'status' }, h('div', null, h('b', null, '메뉴 원가가 아직 없어요. '),
+        '판매가와 재료가 둘 다 들어간 메뉴가 있어야 계산해 드릴 수 있습니다. ', h('a', { href: '#/menus' }, '메뉴 보기'))));
       return;
     }
     if (res.breakeven_sales == null) {
-      fill(out, h('div', { class: 'banner', role: 'status' }, h('div', null, h('b', null, '지금 가격과 원가로는 팔수록 손해입니다. '),
-        '메뉴 한 개를 팔 때 남는 돈이 0 이하라서 손익분기 매출을 계산할 수 없습니다. 판매가나 원가를 먼저 조정하세요.')));
+      fill(out, h('div', { class: 'banner', role: 'status' }, h('div', null, h('b', null, '지금 가격과 원가로는 팔수록 손해예요. '),
+        '한 개 팔 때 남는 돈이 0 이하라 손익분기 매출 자체를 계산할 수 없습니다. 판매가를 올리거나 원가를 먼저 낮춰 보세요.')));
       return;
     }
     fill(out,
@@ -111,7 +111,7 @@ export async function render(box) {
       h('h1', { style: 'font-size:1.125rem' }, '손익분기·목표 매출')),
     h('section', { class: 'sheet' },
       h('h2', null, '한 달 고정비'),
-      h('p', { class: 'hint' }, '매출과 상관없이 매달 나가는 돈입니다. 월세·전기세·수도세·인터넷비·기타 잡비처럼 나눠 넣으세요. 인건비는 아래 직원 급여에서 계산한 값이 더해집니다.'),
+      h('p', { class: 'hint' }, '매출과 상관없이 매달 나가는 돈이에요. 월세·전기세·수도세·인터넷비·기타 잡비 등으로 나눠 넣으시면 되고, 인건비는 아래 직원 급여 쪽 계산값이 자동으로 더해집니다.'),
       err, list,
       h('div', { class: 'be-labor', style: 'margin-top:8px' },
         h('div', null, h('div', { class: 'small' }, h('b', null, '직원 급여 (주휴수당 포함)')),

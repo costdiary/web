@@ -4,8 +4,8 @@ import { h, api, app, field, numInput, parseNum, selectOf, n0, n1, n3, nT, busy,
 import { laborMonth, WEEKS_PER_MONTH } from './calc.js';
 import { num, stmt } from './ui.js';
 
-const DISCLAIMER = '이 계산은 참고용이며 법률 상담이 아닙니다. 주휴수당은 그 주에 정한 근무일을 모두 나왔다고 가정해 계산했습니다. '
-  + '실제 지급액·4대보험·가산수당은 가게 사정에 따라 달라지므로 고용노동부 고객상담센터(국번 없이 1350)나 공인노무사에게 꼭 확인하세요.';
+const DISCLAIMER = '이 계산은 참고용이며 법률 상담이 아닙니다. 주휴수당 금액은 그 주에 정한 근무일을 모두 나왔다고 가정하고 계산했습니다. '
+  + '실제로 받을 금액이나 4대보험, 가산수당은 가게 사정에 따라 다르니, 고용노동부 고객상담센터(국번 없이 1350)나 공인노무사에게 한 번 더 확인해 보시길 권합니다.';
 
 /* 직원 한 명의 계산 내역: 왜 이 금액인지 보이도록 기본급·주휴수당·야간수당을 나눠 보여 줍니다. */
 function payStmt(wage, hours, pay, fivePlus) {
@@ -182,7 +182,7 @@ export async function render(box) {
           h('p', { class: 'small', style: 'margin-top:10px' }, '이 금액은 손익분기 계산의 고정비에 자동으로 더해집니다. ', h('a', { href: '#/breakeven' }, '손익분기 매출 보기')),
         ] : h('p', { class: 'small muted' }, '아직 등록한 직원이 없습니다. 아래에서 아르바이트 직원의 시급과 주 근무시간을 넣어 주세요.')),
       data.staff.length ? h('section', { class: 'sheet' }, h('h2', null, '직원별 급여'), h('ul', { class: 'staff-list' }, data.staff.map(staffCard))) : null,
-      h('section', { class: 'sheet' }, h('h2', null, '직원 추가'), addForm),
+      h('section', { class: 'sheet' }, h('h2', null, '새 직원 등록'), h('p', { class: 'small muted' }, '아래 칸을 채우고 맨 밑의 \'직원 추가\' 버튼을 누르면 저장됩니다.'), addForm),
       h('section', { class: 'sheet' },
         h('h2', null, '계산 기준'),
         h('ul', { class: 'plain' },

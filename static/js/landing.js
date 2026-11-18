@@ -45,12 +45,17 @@ function simulator() {
     porkV.textContent = `${n0(p)}원`;
     priceV.textContent = `${n0(pr)}원`;
     out.replaceChildren(
-      h('div', { class: 'sim-ratio' },
-        h('span', { class: 'nu' }, h('span', { class: 'n' }, n1(s.ratio)), h('span', { class: 'u' }, '%')),
-        stamp(statusOf(s.ratio), 'big')),
+      h('div', { class: 'money-row' },
+        h('div', { class: 'money-item' },
+          h('dt', null, '판매가'),
+          h('dd', null, h('span', { class: 'n' }, n0(pr)), h('span', { class: 'u' }, '원'))),
+        h('div', { class: 'money-item' },
+          h('dt', null, '재료비'),
+          h('dd', null, h('span', { class: 'n' }, n0(s.cost)), h('span', { class: 'u' }, '원')))),
+      h('p', { class: 'ratio-line' },
+        '원가율 ', h('span', { class: 'n' }, n1(s.ratio)), '%', stamp(statusOf(s.ratio))),
       marginBar({ ratio: s.ratio, target: TARGET, big: true }),
       h('dl', { class: 'sim-facts' },
-        h('div', null, h('dt', null, '재료비'), h('dd', null, num(n0(s.cost), '원'))),
         h('div', null, h('dt', null, '한 그릇에 남는 돈'), h('dd', null, num(n0(s.margin), '원'))),
         h('div', null, h('dt', null, `원가율 ${TARGET}%로 맞추려면`), h('dd', null, num(n0(s.rec), '원')))));
     tbody.replaceChildren(...s.rows.map(([name, amt, perK, cost]) =>

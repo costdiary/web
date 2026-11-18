@@ -116,7 +116,7 @@ export async function render(box) {
     return;
   }
 
-  const kpi = h('section', { class: 'sheet', 'aria-label': '메뉴 평균 원가율' });
+  const kpi = h('section', { class: 'sheet', 'aria-label': '이번 달 요약' });
   if (s.avg_cost_ratio == null) {
     kpi.append(emptyBlock({
       title: '메뉴를 등록하면 원가율이 계산됩니다',
@@ -125,10 +125,29 @@ export async function render(box) {
     }));
   } else {
     const st = s.avg_cost_ratio <= s.target ? 'good' : s.avg_cost_ratio <= s.target + 5 ? 'warn' : 'bad';
+    const hasSales = (s.sales_total || 0) > 0;
+    const estCost = s.sales_ingredient_cost != null ? s.sales_ingredient_cost : (hasSales ? s.sales_total * s.avg_cost_ratio / 100 : null);
+    const costLabel = s.sales_ingredient_cost != null ? '재료비' : '재료비(추정)';
+    const ratioNow = s.sales_ingredient_cost != null ? (s.sales_ingredient_cost / s.sales_total) * 100 : s.avg_cost_ratio;
     kpi.append(
-      h('p', { class: 'kpi-label' }, '메뉴 평균 원가율'),
-      h('div', { class: 'kpi-val' }, h('span', { class: 'nu' }, h('span', { class: 'n' }, n1(s.avg_cost_ratio)), h('span', { class: 'u' }, '%')), stamp(st, 'big')),
-      marginBar({ ratio: s.avg_cost_ratio, target: s.target, big: true, labels: true }),
+      h('p', { class: 'kpi-label' }, hasSales ? '이번 달 매출' : '메뉴 평균 원가율'));
+    if (hasSales) {
+      kpi.append(
+        h('div', { class: 'money-row' },
+          h('div', { class: 'money-item' },
+            h('dt', null, '판매금액'),
+            h('dd', null, h('span', { class: 'n' }, n0(s.sales_total)), h('span', { class: 'u' }, '원'))),
+          h('div', { class: 'money-item' },
+            h('dt', null, costLabel),
+            h('dd', null, h('span', { class: 'n' }, n0(estCost)), h('span', { class: 'u' }, '원')))),
+        h('p', { class: 'ratio-line' }, '원가율 ', h('span', { class: 'n' }, n1(ratioNow)), '%', stamp(st)));
+    } else {
+      kpi.append(
+        h('p', { class: 'ratio-line' }, '원가율 ', h('span', { class: 'n' }, n1(s.avg_cost_ratio)), '%', stamp(st)),
+        h('p', { class: 'kpi-sub', style: 'margin-top:0' }, h('a', { href: '#/sales' }, '이번 달 매출을 입력'), '하면 판매금액·재료비가 여기 먼저 보여요.'));
+    }
+    kpi.append(
+      marginBar({ ratio: ratioNow, target: s.target, big: true, labels: true }),
       h('p', { class: 'kpi-sub' }, s.over_target
         ? `목표 ${nT(s.target)}%를 넘는 메뉴가 ${s.menu_count}개 중 ${s.over_target}개입니다.`
         : `메뉴 ${s.menu_count}개가 모두 목표 ${nT(s.target)}% 안에 있습니다.`),

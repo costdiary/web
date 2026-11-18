@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from . import auth, channels, config, costing, market, ocr, security, seed, services, units
 from .db import ISO, get_db, now_iso, transaction
 from .deps import current_user, writable_user
+from .routes_sales import _summary as _sales_summary
 from .schemas import IngredientIn, InvoiceConfirmIn, MenuIn
 
 log = logging.getLogger("wongaenote")
@@ -379,6 +380,7 @@ def dashboard(user: dict = Depends(current_user), db=Depends(get_db)):
                              "net_ratio": r["net_ratio"], "sale_price": r["sale_price"], "recommended_price": r["recommended_price"]})
     loss.sort(key=lambda x: x["profit"])
     unpriced = db.execute("SELECT COUNT(*) AS c FROM ingredients WHERE user_id = ? AND unit_price IS NULL", (uid,)).fetchone()["c"]
+    sales = _sales_summary(db, user, None)  # 이번 달 매출·재료비 — 홈 화면은 원가율보다 이 금액을 메인으로 보여 준다
     return {
         "summary": {
             "menu_count": len(menus),
@@ -388,6 +390,10 @@ def dashboard(user: dict = Depends(current_user), db=Depends(get_db)):
             "rising_count": len(alerts),
             "stale_count": len(stale),
             "target": target,
+            "sales_total": sales["total"],
+            "sales_ingredient_cost": sales["total_ingredient_cost"],
+            "sales_net_profit": sales["total_net_profit"],
+            "sales_entered_days": sales["entered_days"],
         },
         "alerts": alerts[:8],
         "worst_menus": [_slim(m) for m in worst],

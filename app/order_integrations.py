@@ -79,11 +79,21 @@ def sync_platform(db, uid: int, platform: str) -> int:
 
 
 def recompute_costs(db, uid: int) -> None:
-    """저장된 주문을 메뉴 이름으로 연결하고(같은 이름의 메뉴가 있으면), 재료비·순이익·마진율을 다시 계산한다."""
+    """저장된 주문을 메뉴 이름으로 연결하고(같은 이름의 메뉴가 있으면), 재료비·순이익·마진율을 다시 계산한다.
+    메뉴 이름은 유니크 제약이 없어 같은 이름을 가진 메뉴가 둘 이상일 수 있다. 그런 이름은 어느 메뉴를
+    가리키는지 알 수 없으므로 자동 연결하지 않는다(엉뚱한 메뉴의 원가로 잘못 집계되는 것보다,
+    '미인식'으로 남겨 두는 쪽이 안전하다)."""
     user = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     if not user:
         return
-    menus_by_name = {m["name"]: m["id"] for m in db.execute("SELECT id, name FROM menus WHERE user_id = ?", (uid,)).fetchall()}
+    name_counts: dict[str, int] = {}
+    menus_by_name: dict[str, int] = {}
+    for m in db.execute("SELECT id, name FROM menus WHERE user_id = ?", (uid,)).fetchall():
+        name_counts[m["name"]] = name_counts.get(m["name"], 0) + 1
+        menus_by_name[m["name"]] = m["id"]
+    for name, count in name_counts.items():
+        if count > 1:
+            menus_by_name.pop(name, None)
     cost_by_menu = {mv["id"]: mv["cost"] for mv, _ in costing.load_menus(db, user)}
     for o in db.execute("SELECT * FROM orders WHERE user_id = ?", (uid,)).fetchall():
         mid = menus_by_name.get(o["menu_name"])

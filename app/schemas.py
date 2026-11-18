@@ -251,6 +251,12 @@ class SalesDayIn(Base):
     orders: Optional[int] = Field(None, ge=0, le=1_000_000)
 
 
+class SalesItemIn(Base):
+    day: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    menu_id: int
+    qty: float = Field(ge=0, le=100_000)
+
+
 class LocationIn(Base):
     lat: float = Field(ge=33.0, le=38.7)
     lon: float = Field(ge=124.5, le=132.0)

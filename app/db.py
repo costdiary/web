@@ -195,6 +195,17 @@ CREATE TABLE IF NOT EXISTS daily_sales (
   PRIMARY KEY (user_id, day, channel)
 );
 
+-- 하루 매출을 입력할 때 메뉴별로 몇 개 팔렸는지 선택해 두면(선택 사항), 그 날 실제 원가를 빼서
+-- 순이익을 보여 줄 수 있다. daily_sales의 금액(amount)과는 독립적으로 저장하고 비교만 한다.
+CREATE TABLE IF NOT EXISTS sales_items (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  day TEXT NOT NULL,
+  menu_id INTEGER NOT NULL REFERENCES menus(id) ON DELETE CASCADE,
+  qty REAL NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, day, menu_id)
+);
+CREATE INDEX IF NOT EXISTS idx_sales_items_user_day ON sales_items (user_id, day);
+
 -- 직원(아르바이트) 급여: 시급과 주 근무시간으로 한 달 인건비(주휴수당 포함)를 계산해 손익분기 고정비에 더합니다
 CREATE TABLE IF NOT EXISTS staff (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

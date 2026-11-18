@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
 
-from . import auth, config, market, market_catalog, ocr, payments, security, units, wholesale_verify
+from . import auth, config, market, market_catalog, ocr, payments, security, services, units, wholesale_verify
 from .db import connect, get_db, now_iso, transaction
 from .deps import current_wholesaler, verified_wholesaler
 from .schemas import AdIn, AdPayIn, BidIn, LoginIn, OutcomeIn, PgConfirmIn, RespondIn, WsProfileIn, WsSignupIn, WsVerifyIn
@@ -23,6 +23,7 @@ router = APIRouter(prefix="/api/ws")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 VERIFY_RETRY_DAILY = 5
 VERIFY_RETRY_TOTAL = 15
+VERIFY_OCR_DAILY = 10  # 사업자등록증 OCR은 외부 유료 API를 호출하므로 하루 호출 수를 따로 제한한다.
 
 
 def _set_ws_cookie(response: Response, token: str) -> None:
@@ -166,6 +167,17 @@ def verify_ocr(ws: dict = Depends(current_wholesaler), file: UploadFile = File(.
         raise HTTPException(400, "파일이 비어 있습니다.")
     if len(data) > ocr.MAX_UPLOAD_BYTES:
         raise HTTPException(413, "사진 용량이 너무 큽니다(12MB 이하).")
+    # 외부 OCR API를 실제로 호출하기 전에: 1) 짧은 시간에 몰리는 요청(버스트)과
+    # 2) 하루 호출 수를 둘 다 막는다(없으면 쓰레기 이미지 대량 업로드로 비용이 샐 수 있음).
+    if services.user_rate_hit(f"wsocr:{ws['id']}", 6, 60):
+        raise HTTPException(429, "요청이 너무 많습니다. 1분 뒤에 다시 시도해 주세요.")
+    today_cut = now_iso()[:10] + "T00:00:00Z"
+    today_ocr_count = db.execute(
+        "SELECT COUNT(*) AS c FROM ws_verifications WHERE ws_id = ? AND step = 'ocr_done' AND created_at > ?",
+        (ws["id"], today_cut),
+    ).fetchone()["c"]
+    if today_ocr_count >= VERIFY_OCR_DAILY:
+        raise HTTPException(429, "오늘 사업자등록증 인식 횟수를 모두 썼습니다. 내일 다시 시도해 주세요.")
     try:
         jpeg = ocr.prepare_image(data)
     except ocr.OcrError as e:

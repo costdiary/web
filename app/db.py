@@ -642,7 +642,7 @@ def connect() -> sqlite3.Connection:
 #     적용됨(ALTER 불필요). 번호만 올린다.
 # 14: 소셜 로그인(oauth_accounts)·비밀번호 찾기(password_resets) — 둘 다 새 표라 SCHEMA의
 #     CREATE TABLE IF NOT EXISTS로 적용됨(ALTER 불필요). 번호만 올린다.
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -743,6 +743,14 @@ def migrate(conn: sqlite3.Connection) -> None:
             if "from_prep_id" not in _columns(conn, "ingredients"):
                 conn.execute("ALTER TABLE ingredients ADD COLUMN from_prep_id INTEGER REFERENCES preps(id) ON DELETE CASCADE")
         # v13: order_platforms/orders는 SCHEMA가 이미 만들어 뒀다(새 표). 추가 ALTER 없음.
+        if conn.execute("PRAGMA user_version").fetchone()[0] < 15:
+            # [2026-11-18] 정육 원산지 세분화(한우/육우 + 수입국 확대). 새로 추가된 등급 용어만
+            # 들어가고 기존 행은 그대로 둔다(INSERT OR IGNORE).
+            for category, origin, code, label in market_catalog.GRADE_TERMS_SEED:
+                conn.execute(
+                    "INSERT OR IGNORE INTO mk_grade_terms(category, origin, code, label, norm_label) VALUES (?,?,?,?,?)",
+                    (category, origin, code, label, market_catalog.norm(label)),
+                )
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.execute("COMMIT")
     except BaseException:

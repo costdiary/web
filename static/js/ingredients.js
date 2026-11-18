@@ -1,6 +1,6 @@
 /* 식자재: 목록·검색, 추가/수정 대화상자(단가 계산, 가격 이력, 쓰는 메뉴) */
 import {
-  h, api, app, field, numInput, selectOf, parseNum, n0, n3, nPrice, ago, ymd, daysSince, openDialog, confirmDialog,
+  h, api, app, field, numInput, selectOf, comboSelect, parseNum, n0, n3, nPrice, ago, ymd, daysSince, openDialog, confirmDialog,
   busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS, DISPLAY, icon, refreshRoute, fill, MARKET_ENABLED,
 } from './core.js';
 import { chg, num, emptyBlock, termInput } from './ui.js';
@@ -94,8 +94,14 @@ export async function openIngredientEditor(id, onChange, preset = {}) {
   const name = h('input', { class: 'input', type: 'text', maxLength: 60, autocomplete: 'off', value: it?.name ?? preset.name ?? '' });
   const supplier = h('input', { class: 'input', type: 'text', maxLength: 60, autocomplete: 'off', value: it?.supplier ?? preset.supplier ?? '', placeholder: '예: 한우리유통' });
   const category = termInput({ kind: 'category', maxLength: 30, value: it?.category ?? '', placeholder: '예: 정육, 채소, 양념' });
-  const originSel = selectOf([['', '선택 안 함'], ...(catalog?.origins.map((o) => [o.code, o.label]) ?? [])], it?.origin ?? preset.origin ?? '');
   const catVal = () => category.control.value.trim();
+  // 정육은 원산지가 국가별로 훨씬 다양하고(한우/육우 포함) 다른 식자재와 체계가 달라서 목록을 따로 쓴다.
+  const generalOrigins = [['', '선택 안 함'], ...(catalog?.origins.map((o) => [o.code, o.label]) ?? [])];
+  const meatOrigins = [['', '선택 안 함'], ...(catalog?.meat_origins.map((o) => [o.code, o.label]) ?? [])];
+  const originSel = comboSelect(catVal() === '정육' ? meatOrigins : generalOrigins, it?.origin ?? preset.origin ?? '', { placeholder: '검색 또는 선택' });
+  category.control.addEventListener('input', () => {
+    originSel.setOptions(catVal() === '정육' ? meatOrigins : generalOrigins);
+  });
   const gradeInput = termInput({ kind: 'grade', category: catVal, maxLength: 10, value: it?.grade ?? preset.grade ?? '', placeholder: '예: 1++, Prime (선택)' });
   const cut = termInput({ kind: 'cut', category: catVal, maxLength: 40, value: it?.cut ?? preset.cut ?? '', placeholder: '예: 등심, 삼겹살, 안심 (선택)' });
   const size = numInput({ value: it ? (it.pack_size == null ? '' : n3(it.pack_size)) : preset.pack_size ? n3(preset.pack_size) : '', placeholder: '예: 15' });

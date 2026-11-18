@@ -199,6 +199,60 @@ export function selectOf(options, value, props = {}) {
   return el;
 }
 
+/* 검색되는 드롭다운: selectOf처럼 정해진 [코드, 라벨] 목록 중에서만 고르지만, 글자를 치면
+   라벨로 걸러 준다(목록이 길 때 - 예: 원산지 국가 목록). termInput과 달리 서버를 부르지 않고
+   받아 둔 options 배열 안에서만 검색하고, 목록에 없는 값을 직접 입력할 수는 없다(blur하면
+   마지막으로 고른 값으로 되돌아간다). wrap.value로 코드를 읽고 쓸 수 있고, wrap.setOptions(opts)로
+   목록 자체를 바꿀 수 있다(분류에 따라 원산지 후보가 달라질 때 씀). field()에 넘기면 라벨은
+   wrap.control(입력칸)에 연결된다. */
+let comboUid = 0;
+export function comboSelect(options, value = '', props = {}) {
+  const listId = `cb-${++comboUid}`;
+  const input = h('input', { class: 'input', type: 'text', autocomplete: 'off', placeholder: props.placeholder || '',
+    role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': listId });
+  const list = h('ul', { class: 'ti-list', id: listId, role: 'listbox', hidden: true });
+  const wrap = h('div', { class: 'ti' }, input, list);
+  wrap.control = input;
+  let opts = options;
+  let code = '';
+  let cur = -1;
+  let shown = [];
+  const labelOf = (c) => opts.find(([v]) => v === c)?.[1] ?? '';
+  const setCode = (c) => { code = opts.some(([v]) => v === c) ? c : ''; input.value = labelOf(code); };
+  setCode(value);
+  const mark = (i) => {
+    cur = i;
+    [...list.children].forEach((li, j) => li.setAttribute('aria-selected', String(j === i)));
+    if (i >= 0) input.setAttribute('aria-activedescendant', list.children[i].id); else input.removeAttribute('aria-activedescendant');
+  };
+  const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); mark(-1); };
+  const pick = (c) => { setCode(c); close(); input.dispatchEvent(new Event('change', { bubbles: true })); };
+  const render = () => {
+    const q = input.value.trim().toLowerCase();
+    shown = opts.filter(([, label]) => !q || label.toLowerCase().includes(q));
+    fill(list, shown.map(([v, label], i) => h('li', { id: `${listId}-${i}`, role: 'option', 'aria-selected': 'false',
+      onmousedown: (e) => { e.preventDefault(); pick(v); } }, label)));
+    list.hidden = !shown.length;
+    input.setAttribute('aria-expanded', String(shown.length > 0));
+    mark(-1);
+  };
+  input.addEventListener('focus', () => { input.select(); render(); });
+  input.addEventListener('input', render);
+  input.addEventListener('blur', () => { close(); input.value = labelOf(code); }); // 직접 입력은 못 하니 원래 값으로 되돌림
+  input.addEventListener('keydown', (e) => {
+    const n = list.hidden ? 0 : shown.length;
+    if (e.key === 'Escape' && n) { e.stopPropagation(); close(); }
+    else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) { e.preventDefault(); mark((cur + 1 + (e.key === 'ArrowDown' ? 1 : n)) % (n + 1) - 1); }
+    else if (e.key === 'Enter' && cur >= 0) { e.preventDefault(); pick(shown[cur][0]); }
+  });
+  Object.defineProperty(wrap, 'value', { get: () => code, set: setCode });
+  wrap.setOptions = (next, keepIfPresent = true) => {
+    opts = next;
+    setCode(keepIfPresent ? code : '');
+  };
+  return wrap;
+}
+
 /* ---------- 대화상자·알림 ---------- */
 
 export function openDialog({ title, content, wide = false, onClose }) {

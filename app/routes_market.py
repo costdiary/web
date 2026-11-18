@@ -79,6 +79,7 @@ def get_catalog(q: str = "", unit_kind: str = "", user: dict = Depends(current_u
             for i in items
         ],
         "origins": [{"code": c, "label": lbl} for c, lbl in market_catalog.ORIGINS.items()],
+        "meat_origins": [{"code": c, "label": lbl} for c, lbl in market_catalog.MEAT_ORIGINS.items()],
         "grades": {cat: [{"code": c, "label": lbl} for c, lbl in grades] for cat, grades in market_catalog.GRADES.items()},
         "categories": [{"code": c, "label": c, "group": market_catalog.CATEGORY_GROUPS.get(c, c)} for c in market_catalog.GRADES],
     }

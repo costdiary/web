@@ -249,6 +249,7 @@ def ws_catalog(q: str = "", ws: dict = Depends(current_wholesaler), db=Depends(g
     return {
         "items": [dict(r) for r in items],
         "origins": [{"code": c, "label": lbl} for c, lbl in market_catalog.ORIGINS.items()],
+        "meat_origins": [{"code": c, "label": lbl} for c, lbl in market_catalog.MEAT_ORIGINS.items()],
         "grades": {cat: [{"code": c, "label": lbl} for c, lbl in grades] for cat, grades in market_catalog.GRADES.items()},
     }
 

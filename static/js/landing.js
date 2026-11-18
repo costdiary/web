@@ -177,7 +177,7 @@ export function renderLanding(root, onAuth) {
     h('section', { class: 'hero', 'aria-labelledby': 'hero-t' },
       h('div', { class: 'hero-in' },
         h('div', null,
-          h('h1', { id: 'hero-t' }, '재료값이 오른 날, 어느 메뉴 마진이 깎였는지 바로 보입니다'),
+          h('h1', { id: 'hero-t' }, '재료값 오르면, 어떤 메뉴를 얼마에 팔아야 남는지 바로 알려 드립니다'),
           h('p', { class: 'hero-lead' }, '명세서 사진 한 장만 올리면 식자재 단가가 바뀌고, 메뉴마다 원가율과 올려야 할 판매가가 다시 계산됩니다. 쓰던 엑셀도 그대로 가져올 수 있고, 사진만 있는 메뉴는 양을 어림잡아 채워 줍니다.'),
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn', type: 'button', onclick: start }, '무료로 시작하기'),

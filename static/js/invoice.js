@@ -1,16 +1,22 @@
 /* 거래명세서: 사진 올리기 → 읽은 내용 확인 → 단가 반영 */
 import {
-  h, api, app, numInput, selectOf, parseNum, n0, n3, nPrice, openDialog, busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS,
+  h, api, app, numInput, selectOf, comboSelect, parseNum, n0, n3, nPrice, openDialog, busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS,
   DISPLAY, KIND_HINT, icon, refreshMe, ymd, refreshRoute, fill, MARKET_ENABLED,
 } from './core.js';
-import { chg, num, emptyBlock } from './ui.js';
+import { chg, num, emptyBlock, termInput } from './ui.js';
 
 const MAX_BYTES = 12 * 1024 * 1024;
 
 export async function render(box) {
-  const [ingRes, invRes] = await Promise.all([api('/api/ingredients'), api('/api/invoices')]);
+  const [ingRes, invRes, catalog] = await Promise.all([
+    api('/api/ingredients'), api('/api/invoices'),
+    api('/api/market/catalog').catch(() => null), // 원산지 목록이 없어도 명세서 반영 자체는 막지 않습니다.
+  ]);
   const ings = ingRes.items;
   const ingById = new Map(ings.map((i) => [i.id, i]));
+  // 정육은 원산지가 국가별로 훨씬 다양하고(한우/육우 포함) 다른 식자재와 체계가 달라서 목록을 따로 쓴다.
+  const generalOrigins = [['', '선택 안 함'], ...(catalog?.origins.map((o) => [o.code, o.label]) ?? [])];
+  const meatOrigins = [['', '선택 안 함'], ...(catalog?.meat_origins.map((o) => [o.code, o.label]) ?? [])];
   const canWrite = app.me.plan.writable;
   const stage = h('div');
   box.append(h('div', { class: 'page-h' }, h('h1', null, '거래명세서')), stage);
@@ -134,9 +140,12 @@ export async function render(box) {
     const size = numInput({ value: line.pack_size ? n3(line.pack_size) : '', 'aria-label': '구매 수량' });
     const unit = selectOf(ALL_UNITS, line.pack_unit ?? 'kg', { 'aria-label': '단위' });
     const price = numInput({ value: line.pack_price ? n3(line.pack_price) : '', 'aria-label': '구매 가격' });
-    const origin = h('input', { class: 'input', type: 'text', maxLength: 10, autocomplete: 'off', value: line.origin ?? '', 'aria-label': '원산지' });
-    const grade = h('input', { class: 'input', type: 'text', maxLength: 10, autocomplete: 'off', value: line.grade ?? '', 'aria-label': '등급' });
-    const cut = h('input', { class: 'input', type: 'text', maxLength: 40, autocomplete: 'off', value: line.cut ?? '', 'aria-label': '부위' });
+    // 연결할 식자재의 분류를 따라 원산지 목록을 고른다(새 식자재면 아직 분류를 몰라 일반 목록을 쓴다).
+    const catOf = () => (link.value === 'new' ? null : ingById.get(Number(link.value)))?.category ?? '';
+    const origin = comboSelect(catOf() === '정육' ? meatOrigins : generalOrigins, line.origin ?? '', { placeholder: '검색 또는 선택', 'aria-label': '원산지' });
+    const grade = termInput({ kind: 'grade', category: catOf, maxLength: 10, value: line.grade ?? '', placeholder: '예: 1++, Prime' });
+    const cut = termInput({ kind: 'cut', category: catOf, maxLength: 40, value: line.cut ?? '', placeholder: '예: 등심, 삼겹살, 안심' });
+    link.addEventListener('change', () => origin.setOptions(catOf() === '정육' ? meatOrigins : generalOrigins));
     const delta = h('div', { class: 'delta', 'aria-live': 'polite' });
     const newRow = h('div', { class: 'inv-new' },
       h('label', { class: 'lbl xs', style: 'display:block;margin-bottom:3px' }, '새 식자재 이름'), newName,
@@ -170,7 +179,7 @@ export async function render(box) {
         return {
           apply: true, ingredient_id: ing ? ing.id : null, name: ing ? ing.name : newName.value.trim(), alias: line.name,
           pack_size: parseNum(size.value), pack_unit: unit.value, pack_price: parseNum(price.value),
-          origin: origin.value.trim(), grade: grade.value.trim(), cut: cut.value.trim(),
+          origin: origin.value.trim(), grade: grade.control.value.trim(), cut: cut.control.value.trim(),
         };
       },
     };

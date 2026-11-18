@@ -227,8 +227,9 @@ export function comboSelect(options, value = '', props = {}) {
   };
   const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); mark(-1); };
   const pick = (c) => { setCode(c); close(); input.dispatchEvent(new Event('change', { bubbles: true })); };
-  const render = () => {
-    const q = input.value.trim().toLowerCase();
+  const render = (all = false) => {
+    // 포커스 직후(all=true)는 지금 골라진 값의 글자로 걸러지면 안 되니 전체를 보여준다.
+    const q = all ? '' : input.value.trim().toLowerCase();
     shown = opts.filter(([, label]) => !q || label.toLowerCase().includes(q));
     fill(list, shown.map(([v, label], i) => h('li', { id: `${listId}-${i}`, role: 'option', 'aria-selected': 'false',
       onmousedown: (e) => { e.preventDefault(); pick(v); } }, label)));
@@ -236,8 +237,8 @@ export function comboSelect(options, value = '', props = {}) {
     input.setAttribute('aria-expanded', String(shown.length > 0));
     mark(-1);
   };
-  input.addEventListener('focus', () => { input.select(); render(); });
-  input.addEventListener('input', render);
+  input.addEventListener('focus', () => { input.select(); render(true); });
+  input.addEventListener('input', () => render());
   input.addEventListener('blur', () => { close(); input.value = labelOf(code); }); // 직접 입력은 못 하니 원래 값으로 되돌림
   input.addEventListener('keydown', (e) => {
     const n = list.hidden ? 0 : shown.length;
@@ -249,6 +250,7 @@ export function comboSelect(options, value = '', props = {}) {
   wrap.setOptions = (next, keepIfPresent = true) => {
     opts = next;
     setCode(keepIfPresent ? code : '');
+    if (!list.hidden) render(true); // 목록이 펼쳐진 채로 분류가 바뀌면 새 목록으로 다시 그린다
   };
   return wrap;
 }

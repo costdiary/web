@@ -693,7 +693,9 @@ def connect() -> sqlite3.Connection:
 #     MockProvider로만 동작(화면/표만 먼저 완성, 실 결제는 나중에 get_provider()만 교체).
 # 17: OCR 인식 로그(ocr_logs) — 새 표라 ALTER 불필요, 번호만 올린다. 사장님이 올린 사진을
 #     (줄인 크기로) 서버에 남기기 시작하는 변경이라, ocr.py 맨 위 설명도 같이 고쳤다.
-SCHEMA_VERSION = 17
+# 18: donations.amount_public — 후원 금액을 순위에 공개할지를 운영자 환경변수가 아니라 후원하는
+#     사장님이 후원할 때마다 직접 고르게 바꾸면서 생긴 칸. 기존 행(있다면)은 공개(1)로 채운다.
+SCHEMA_VERSION = 18
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -802,6 +804,9 @@ def migrate(conn: sqlite3.Connection) -> None:
                     "INSERT OR IGNORE INTO mk_grade_terms(category, origin, code, label, norm_label) VALUES (?,?,?,?,?)",
                     (category, origin, code, label, market_catalog.norm(label)),
                 )
+        if conn.execute("PRAGMA user_version").fetchone()[0] < 18:
+            if "amount_public" not in _columns(conn, "donations"):
+                conn.execute("ALTER TABLE donations ADD COLUMN amount_public INTEGER NOT NULL DEFAULT 1")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.execute("COMMIT")
     except BaseException:

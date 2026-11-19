@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/donations")
 
 @router.post("")
 def start_donation(body: DonationIn, user: dict = Depends(current_user), db=Depends(get_db)):
-    donation_id = donations.create_donation(db, user["id"], body.nickname, body.amount, body.message)
+    donation_id = donations.create_donation(db, user["id"], body.nickname, body.amount, body.message, body.amount_public)
     provider = payments.get_provider()
     order_id = payments.make_order_id("don", donation_id)
     donations.set_order_id(db, donation_id, order_id)

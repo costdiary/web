@@ -397,6 +397,7 @@ class DonationIn(Base):
     nickname: str = Field(min_length=1, max_length=30)
     amount: int = Field(ge=1000, le=1000000)
     message: str = Field("", max_length=200)
+    amount_public: bool = True
 
 
 class RespondIn(Base):

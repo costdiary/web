@@ -29,12 +29,12 @@ function amountPicker(initial) {
   return wrap;
 }
 
-function rankRow(rank, item, showAmount) {
+function rankRow(rank, item) {
   return h('li', null, h('div', { class: 'row' },
     h('div', { class: 'row-main' },
       h('span', { class: 'row-title' }, h('span', { class: 'xs muted' }, `${rank}. `), item.nickname),
       item.count > 1 ? h('div', { class: 'row-sub' }, `${item.count}번 후원`) : null),
-    showAmount ? h('div', { class: 'row-end' }, num(n0(item.amount), '원')) : null));
+    item.amount != null ? h('div', { class: 'row-end' }, num(n0(item.amount), '원')) : null));
 }
 
 async function loadLeaderboard(box, period) {
@@ -45,7 +45,7 @@ async function loadLeaderboard(box, period) {
     box.replaceChildren(emptyBlock({ title: '아직 순위가 없습니다', text: period === 'day' ? '오늘의 첫 후원을 기다리고 있습니다.' : '이번 달의 첫 후원을 기다리고 있습니다.' }));
     return;
   }
-  box.replaceChildren(h('ul', { class: 'rows' }, res.items.map((it, i) => rankRow(i + 1, it, res.amount_public))));
+  box.replaceChildren(h('ul', { class: 'rows' }, res.items.map((it, i) => rankRow(i + 1, it))));
 }
 
 export async function render(box) {
@@ -59,6 +59,7 @@ export async function render(box) {
   const nickname = h('input', { class: 'input', type: 'text', maxLength: 30, placeholder: '닉네임', value: app.me.store_name || '' });
   const amt = amountPicker(PRESETS[1]);
   const message = h('input', { class: 'input', type: 'text', maxLength: 200, placeholder: '응원 메시지(선택)' });
+  const amountPublic = h('input', { type: 'checkbox', checked: true });
   const submit = h('button', { class: 'btn primary', type: 'button' }, icon('heart', 18), '후원하기');
 
   submit.addEventListener('click', () => busy(submit, async () => {
@@ -68,7 +69,7 @@ export async function render(box) {
     if (!amount || amount < 1000) { toast('1,000원 이상으로 입력해 주세요.', 'err'); return; }
     let created;
     try {
-      created = await api('/api/donations', { method: 'POST', body: { nickname: name, amount, message: message.value.trim() } });
+      created = await api('/api/donations', { method: 'POST', body: { nickname: name, amount, message: message.value.trim(), amount_public: amountPublic.checked } });
     } catch (e) { toast(errMsg(e), 'err'); return; }
     try {
       // 실제 결제 연동 전까지는, 결제위젯이 돌려줄 paymentKey 자리에 테스트 값을 넣어 바로 승인한다.
@@ -84,6 +85,8 @@ export async function render(box) {
     h('div', { class: 'field' }, h('label', null, '닉네임'), nickname),
     h('div', { class: 'field' }, h('label', null, '금액'), amt),
     h('div', { class: 'field' }, h('label', null, '메시지'), message),
+    h('label', { class: 'chk' }, amountPublic, '후원 금액을 순위에 공개할게요'),
+    h('p', { class: 'hint' }, '끄면 순위·닉네임만 보이고 금액은 나만 볼 수 있습니다.'),
     h('div', { class: 'btn-row', style: 'margin-top:10px' }, submit)));
 
   const boardBox = h('div', null);

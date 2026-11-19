@@ -14,9 +14,10 @@ export function setMarketEnabled(v) { MARKET_ENABLED = !!v; }
 export let ORDERS_ENABLED = false;
 export function setOrdersEnabled(v) { ORDERS_ENABLED = !!v; }
 
-/* 같은 방식의 버전 플래그: 후원(도네이션). 결제사가 아직 정해지지 않아 기본은 꺼짐 —
-   화면/DB는 다 만들어 두고, 서버 환경변수(DONATION_ENABLED)만 켜면 재배포 없이 노출된다. */
-export let DONATE_ENABLED = false;
+/* 같은 방식의 버전 플래그: 후원(도네이션). 기본은 켜짐 — 숨기고 싶을 때만 서버
+   환경변수(DONATION_ENABLED=0)로 끈다. 후원 금액을 순위에 공개할지는 운영자가 미리 정하는 게
+   아니라, 후원하는 사장님이 후원할 때마다 직접 고른다(donate.js). */
+export let DONATE_ENABLED = true;
 export function setDonateEnabled(v) { DONATE_ENABLED = !!v; }
 
 /* ---------- 요소 만들기 (사용자 입력은 항상 글자로만 넣습니다) ---------- */

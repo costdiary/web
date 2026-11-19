@@ -126,9 +126,11 @@ export async function render(box) {
   } else {
     const st = s.avg_cost_ratio <= s.target ? 'good' : s.avg_cost_ratio <= s.target + 5 ? 'warn' : 'bad';
     const hasSales = (s.sales_total || 0) > 0;
-    const estCost = s.sales_ingredient_cost != null ? s.sales_ingredient_cost : (hasSales ? s.sales_total * s.avg_cost_ratio / 100 : null);
-    const costLabel = s.sales_ingredient_cost != null ? '재료비' : '재료비(추정)';
-    const ratioNow = s.sales_ingredient_cost != null ? (s.sales_ingredient_cost / s.sales_total) * 100 : s.avg_cost_ratio;
+    // sales_ingredient_cost는 "메뉴별 판매 수량"만 입력해도 채워지는데, 총 매출(sales_total)은
+    // 안 넣었을 수 있다 — 그러면 분모가 0이라 Infinity%가 나온다. 매출이 실제로 있을 때만 쓴다.
+    const estCost = hasSales && s.sales_ingredient_cost != null ? s.sales_ingredient_cost : (hasSales ? s.sales_total * s.avg_cost_ratio / 100 : null);
+    const costLabel = hasSales && s.sales_ingredient_cost != null ? '재료비' : '재료비(추정)';
+    const ratioNow = hasSales && s.sales_ingredient_cost != null ? (s.sales_ingredient_cost / s.sales_total) * 100 : s.avg_cost_ratio;
     kpi.append(
       h('p', { class: 'kpi-label' }, hasSales ? '이번 달 매출' : '메뉴 평균 원가율'));
     if (hasSales) {

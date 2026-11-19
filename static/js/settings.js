@@ -178,5 +178,5 @@ export async function render(box) {
         h('button', { class: 'btn ghost', type: 'button', onclick: async (ev) => busy(ev.currentTarget, async () => { await api('/api/auth/logout', { method: 'POST' }); bus.dispatchEvent(new Event('logged-out')); }) }, '로그아웃'),
         h('button', { class: 'btn ghost', type: 'button', title: '다른 기기를 포함해 모든 곳에서 로그아웃합니다. 로그인을 도난당한 것 같을 때 쓰세요.', onclick: async (ev) => busy(ev.currentTarget, async () => { await api('/api/auth/logout-all', { method: 'POST' }); bus.dispatchEvent(new Event('logged-out')); }) }, '모든 기기에서 로그아웃'),
         h('button', { class: 'btn danger', type: 'button', onclick: openDelete }, '계정 삭제')),
-      h('p', { style: 'margin-top:12px' }, h('button', { class: 'link-btn small', type: 'button', onclick: openDataNotice }, '데이터 이용 안내'), ' · ', h('button', { class: 'link-btn small', type: 'button', onclick: openTerms }, '이용약관·개인정보처리방침')))));
+      h('p', { style: 'margin-top:12px' }, h('button', { class: 'link-btn small', type: 'button', onclick: openDataNotice }, '개인정보처리방침'), ' · ', h('button', { class: 'link-btn small', type: 'button', onclick: openTerms }, '이용약관')))));
 }

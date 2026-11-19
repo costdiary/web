@@ -440,6 +440,7 @@ def parse_invoice(file: UploadFile = File(...), user: dict = Depends(writable_us
     demo = not ocr.enabled()
     if demo:
         parsed = ocr.demo_invoice()
+        ocr.log_attempt(db, uid, "invoice", "demo", jpeg, result=parsed)
     else:
         if services.user_rate_hit(f"ai:{uid}", 6, 60):
             raise HTTPException(429, "자동 인식 요청이 너무 많습니다. 1분 뒤에 다시 시도해 주세요.")
@@ -449,9 +450,11 @@ def parse_invoice(file: UploadFile = File(...), user: dict = Depends(writable_us
             parsed = ocr.parse_invoice(jpeg)
         except BaseException as e:
             services.ocr_release(db, uid)
+            ocr.log_attempt(db, uid, "invoice", "error", jpeg, error=str(e))
             if isinstance(e, ocr.OcrError):
                 raise HTTPException(502, str(e))
             raise
+        ocr.log_attempt(db, uid, "invoice", "ok", jpeg, result=parsed)
 
     ings = db.execute("SELECT id, name, unit_kind FROM ingredients WHERE user_id = ?", (uid,)).fetchall()
     by_id = {r["id"]: r for r in ings}

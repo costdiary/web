@@ -14,6 +14,11 @@ export function setMarketEnabled(v) { MARKET_ENABLED = !!v; }
 export let ORDERS_ENABLED = false;
 export function setOrdersEnabled(v) { ORDERS_ENABLED = !!v; }
 
+/* 같은 방식의 버전 플래그: 후원(도네이션). 결제사가 아직 정해지지 않아 기본은 꺼짐 —
+   화면/DB는 다 만들어 두고, 서버 환경변수(DONATION_ENABLED)만 켜면 재배포 없이 노출된다. */
+export let DONATE_ENABLED = false;
+export function setDonateEnabled(v) { DONATE_ENABLED = !!v; }
+
 /* ---------- 요소 만들기 (사용자 입력은 항상 글자로만 넣습니다) ---------- */
 
 function put(el, kids) {
@@ -73,6 +78,7 @@ const PATHS = {
   bell: 'M6 9a6 6 0 1 1 12 0v4.5l1.5 3h-15l1.5-3zM10 19.5a2 2 0 0 0 4 0',
   market: 'M3 9l1.5-5h15L21 9M4 9h16v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM6 13v7h12v-7M9 13v7',
   tag: 'M20.5 12 13 4.5a2 2 0 0 0-2.8 0L4.5 10.2a2 2 0 0 0 0 2.8L12 20.5a2 2 0 0 0 2.8 0L20.5 14.8a2 2 0 0 0 0-2.8zM9 9h.01',
+  heart: 'M12 20.3s-7.3-4.4-9.4-8.8A5 5 0 0 1 12 6a5 5 0 0 1 9.4 5.5c-2.1 4.4-9.4 8.8-9.4 8.8z',
 };
 
 export function icon(name, size = 22) {

@@ -45,6 +45,7 @@ def estimate(
     demo = not ocr.enabled()
     if demo:
         est = recipe_ai.demo_estimate(hint)
+        ocr.log_attempt(db, uid, "recipe", "demo", jpeg, result=est)
     else:
         if services.user_rate_hit(f"ai:{uid}", 6, 60):
             raise HTTPException(429, "사진 인식 요청이 너무 많습니다. 1분 뒤에 다시 시도해 주세요.")
@@ -54,9 +55,12 @@ def estimate(
             est = recipe_ai.estimate_live(jpeg, hint, [dict(r) for r in ings])
         except BaseException as e:
             services.ocr_release(db, uid)
+            ocr.log_attempt(db, uid, "recipe", "error", jpeg, error=str(e))
             if isinstance(e, ocr.OcrError):
                 raise HTTPException(502, str(e))
             raise
+        ocr.log_attempt(db, uid, "recipe", "ok" if est["lines"] else "error", jpeg, result=est,
+                         error=None if est["lines"] else "재료를 알아보지 못함(요리 사진이 아닐 수 있음)")
 
     if not est["lines"]:
         raise HTTPException(422, "요리 사진으로 보이지 않거나 재료를 알아보지 못했습니다. 요리가 잘 보이게 위에서 다시 찍어 주세요.")

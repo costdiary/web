@@ -19,7 +19,9 @@ import * as market from './market.js';
 import { openMarketNotice } from './market.js';
 import * as preps from './preps.js';
 import * as orders from './orders.js';
-import { MARKET_ENABLED, setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled } from './core.js';
+import * as donate from './donate.js';
+import * as admin from './admin.js';
+import { MARKET_ENABLED, setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled, DONATE_ENABLED, setDonateEnabled } from './core.js';
 import { openResetPassword } from './auth.js';
 
 const root = document.getElementById('app');
@@ -35,6 +37,7 @@ function getNav() {
     ['#/menus', '메뉴', 'list', 'tab'],
     ['#/revenue', '매출관리', 'trend', 'tab'],
     ...(MARKET_ENABLED ? [['#/market', '도매마켓', 'market', 'tab'], ['#/market/offers', '단가제안받기', 'tag', 'tab']] : []),
+    ...(DONATE_ENABLED ? [['#/donate', '후원하기', 'heart', 'tab']] : []),
     ['#/settings', '설정', 'sliders', 'tab'],
   ];
 }
@@ -65,6 +68,10 @@ function getRoutes() {
       { re: /^#\/market\/offers\/?$/, tab: '#/market/offers', title: '단가제안받기', run: (box) => market.renderOffers(box) },
       { re: /^#\/market\/connections\/?$/, tab: '#/market', title: '연결 요청', run: (box) => market.renderConnections(box) },
     ] : []),
+    ...(DONATE_ENABLED ? [{ re: /^#\/donate\/?$/, tab: '#/donate', title: '후원하기', run: (box) => donate.render(box) }] : []),
+    // 사이드바에는 안 보이고, 운영자가 주소를 직접 쳐서 들어가는 화면(권한은 서버가 막음).
+    { re: /^#\/admin\/ocr\/?$/, tab: '#/admin/ocr', title: 'OCR 인식 로그', run: (box) => admin.renderOcrLogs(box) },
+    { re: /^#\/admin\/ocr\/(\d+)\/?$/, tab: '#/admin/ocr', title: 'OCR 인식 로그', run: (box, m) => admin.renderOcrLog(box, Number(m[1])) },
   ];
 }
 
@@ -148,6 +155,7 @@ async function boot() {
   try { app.pub = await api('/api/public'); } catch { app.pub = {}; }
   setMarketEnabled(app.pub.market_enabled);
   setOrdersEnabled(app.pub.orders_enabled);
+  setDonateEnabled(app.pub.donation_enabled);
   app.me = null;
   if (app.pub.logged_in) {
     try { await refreshMe(); } catch { app.me = null; }

@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from . import market, payments
+from . import donations, market, payments
 from .db import get_db
 
 log = logging.getLogger("wongaenote.routes_payments")
@@ -33,14 +33,20 @@ async def toss_webhook(request: Request, db=Depends(get_db)):
     if not order_id:
         return JSONResponse({"detail": "orderId가 없습니다."}, status_code=400)
 
+    # order_id는 payments.make_order_id("kind", row_id) 모양("wongae-kind-id")이라, kind로
+    # 어느 기능의 결제인지 구분한다. 후원(don)이 아니면 기존처럼 떨이 광고(market)로 보낸다.
+    is_donation = order_id.startswith("wongae-don-")
+    confirm_fn = donations.confirm_pg_payment if is_donation else market.confirm_pg_payment
+    fail_fn = donations.fail_pg_payment if is_donation else market.fail_pg_payment
+
     try:
         if status in ("DONE", "WAITING_FOR_DEPOSIT"):
-            result = market.confirm_pg_payment(
+            result = confirm_fn(
                 db, order_id, str(data.get("paymentKey") or data.get("payment_key") or ""),
                 data.get("totalAmount") or data.get("amount"),
             )
         else:
-            result = market.fail_pg_payment(db, order_id, f"webhook status={status}")
+            result = fail_fn(db, order_id, f"webhook status={status}")
     except ValueError as e:
         log.warning("toss 웹훅 처리 실패(%s): %s", order_id, e)
         return JSONResponse({"detail": str(e)}, status_code=404)

@@ -620,6 +620,41 @@ CREATE TABLE IF NOT EXISTS orders (
   UNIQUE (user_id, platform, external_order_id)
 );
 CREATE INDEX IF NOT EXISTS idx_orders_user_day ON orders(user_id, ordered_at);
+
+-- 후원(도네이션) — 결제사는 아직 정하지 않아 UI/표만 먼저 만든다. payments.py의
+-- PaymentProvider 추상화(지금은 MockProvider)를 그대로 재사용하므로, 나중에 실제
+-- PG를 붙일 때도 이 표/코드는 바뀔 일이 없고 get_provider()만 바꾸면 된다.
+CREATE TABLE IF NOT EXISTS donations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  nickname TEXT NOT NULL,
+  message TEXT NOT NULL DEFAULT '',
+  amount INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested', 'paid', 'failed', 'cancelled')),
+  pg_order_id TEXT UNIQUE,
+  pg_tx_id TEXT,
+  created_at TEXT NOT NULL,
+  paid_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_donations_paid_day ON donations(status, paid_at);
+
+-- OCR 인식 로그 — 사장님이 올린 거래명세서/요리 사진마다 남겨서, 운영자(ADMIN_EMAILS)가
+-- 인식이 이상할 때 원본 사진과 모델 응답을 같이 볼 수 있게 한다. image는 ocr.py가 이미
+-- API로 보내기 전에 줄인 JPEG(긴 변 1568px 이하)라서 원본보다 훨씬 작다.
+-- 사진을 서버에 남기는 건 ocr.py 원래 설계(저장 안 함)에서 바뀐 부분이라는 점을 기억할 것 —
+-- 사장님께 안내할 개인정보 처리 방침과 함께 다뤄야 한다.
+CREATE TABLE IF NOT EXISTS ocr_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('invoice', 'recipe')),
+  status TEXT NOT NULL CHECK (status IN ('ok', 'demo', 'error')),
+  summary TEXT NOT NULL DEFAULT '',
+  result_json TEXT,
+  error_text TEXT,
+  image BLOB,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ocr_logs_user_day ON ocr_logs(user_id, created_at);
 """
 
 
@@ -653,7 +688,12 @@ def connect() -> sqlite3.Connection:
 #     적용됨(ALTER 불필요). 번호만 올린다.
 # 14: 소셜 로그인(oauth_accounts)·비밀번호 찾기(password_resets) — 둘 다 새 표라 SCHEMA의
 #     CREATE TABLE IF NOT EXISTS로 적용됨(ALTER 불필요). 번호만 올린다.
-SCHEMA_VERSION = 15
+# 16: 후원(donations) — 새 표라 SCHEMA의 CREATE TABLE IF NOT EXISTS로 기존 DB에도 바로
+#     적용됨(ALTER 불필요). 번호만 올린다. 결제사는 미정이라 지금은 payments.py의
+#     MockProvider로만 동작(화면/표만 먼저 완성, 실 결제는 나중에 get_provider()만 교체).
+# 17: OCR 인식 로그(ocr_logs) — 새 표라 ALTER 불필요, 번호만 올린다. 사장님이 올린 사진을
+#     (줄인 크기로) 서버에 남기기 시작하는 변경이라, ocr.py 맨 위 설명도 같이 고쳤다.
+SCHEMA_VERSION = 17
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:

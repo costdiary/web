@@ -20,6 +20,12 @@ def writable_user(user: dict = Depends(current_user)) -> dict:
     return user
 
 
+def current_admin(user: dict = Depends(current_user)) -> dict:
+    if not auth.is_admin(user["email"]):
+        raise HTTPException(404)  # 운영자 화면이 있다는 사실 자체를 드러내지 않습니다(403 대신 404).
+    return user
+
+
 def current_wholesaler(request: Request, db=Depends(get_db)) -> dict:
     ws = auth.ws_for_token(db, request.cookies.get(auth.WS_COOKIE_NAME))
     if not ws:

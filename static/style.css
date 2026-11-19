@@ -285,6 +285,11 @@ a.row:hover, button.row:hover { background: var(--sheet-2); }
 .btn.block { width: 100%; }
 .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn.ghost.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* 후원하기: 금액 고르기(사전 정의 금액 버튼 + 직접 입력) */
+.donate-amt { display: grid; gap: 10px; }
+.donate-amt .input.num { max-width: 180px; }
 .social-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
 .icon-btn { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 0; background: none; color: var(--ink-2); border-radius: var(--r); transition: transform .1s ease-out; }
 .icon-btn:active { transform: scale(0.96); }

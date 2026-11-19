@@ -70,6 +70,7 @@ def me_payload(db, user: dict) -> dict:
     return {
         "email": user["email"],
         "store_name": user["store_name"],
+        "is_admin": auth.is_admin(user["email"]),
         "settings": {
             "target_cost_ratio": user["target_cost_ratio"],
             "alert_pct": user["alert_pct"],
@@ -315,6 +316,7 @@ def delete_account(body: DeleteAccountIn, request: Request, response: Response, 
             "menus", "ingredient_aliases", "price_history", "invoice_lines", "mk_matches", "mk_demand_signals",
             "mk_buyer_settings", "ws_ad_deliveries", "mk_connections", "ingredients", "invoices", "ocr_usage",
             "channels", "fixed_costs", "shop_profile", "daily_sales", "shop_location", "staff", "sessions",
+            "ocr_logs",  # 올린 명세서·요리 사진도 "입력 자료"이므로 탈퇴 시 함께 지운다(개인정보처리방침과 일치).
         ):
             db.execute(f"DELETE FROM {table} WHERE user_id = ?", (uid,))  # nosec B608
         db.execute("DELETE FROM users WHERE id = ?", (uid,))

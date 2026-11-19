@@ -229,3 +229,13 @@ def ocr_limit(state: str) -> int:
     if state == "paid":
         return config.env_int("OCR_LIMIT_PAID", 100)
     return config.env_int("OCR_LIMIT_FREE", config.env_int("OCR_LIMIT_TRIAL", 10))
+
+
+def is_admin(email: str | None) -> bool:
+    """앱에는 별도 role/관리자 개념이 없어서, ADMIN_EMAILS 환경변수(쉼표로 구분된 이메일 목록)에
+    있는 계정만 운영자 화면(OCR 인식 로그 등)을 볼 수 있게 합니다. 설정이 비어 있으면 아무도
+    통과하지 못합니다(설정 누락으로 전체 공개되는 사고를 막기 위함)."""
+    if not email:
+        return False
+    admins = {e.strip().lower() for e in config.env_str("ADMIN_EMAILS", "").split(",") if e.strip()}
+    return email.strip().lower() in admins

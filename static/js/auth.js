@@ -82,7 +82,7 @@ export function openSignup({ onDone } = {}) {
     field('가게 이름 (선택)', store),
     code ? field('가입 코드', code, '안내받은 초대 코드를 입력해 주세요.') : null,
     submit,
-    h('p', { class: 'hint', style: 'margin-top:12px' }, '카드 등록은 필요 없습니다. 가입하면 ', h('button', { class: 'link-btn small', type: 'button', onclick: openDataNotice }, '데이터 이용 안내'), '와 ', h('button', { class: 'link-btn small', type: 'button', onclick: openTerms }, '이용약관'), '에 동의한 것으로 봅니다.'),
+    h('p', { class: 'hint', style: 'margin-top:12px' }, '카드 등록은 필요 없습니다. 가입하면 ', h('button', { class: 'link-btn small', type: 'button', onclick: openDataNotice }, '개인정보처리방침'), '과 ', h('button', { class: 'link-btn small', type: 'button', onclick: openTerms }, '이용약관'), '에 동의한 것으로 봅니다.'),
     h('p', { style: 'margin-top:12px;font-size:.9375rem' }, '이미 계정이 있으세요? ',
       h('button', { class: 'link-btn', type: 'button', onclick: () => { dlg.close(); openLogin({ onDone }); } }, '로그인')));
   form.addEventListener('submit', async (ev) => {

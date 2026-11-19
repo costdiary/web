@@ -56,6 +56,7 @@ def public_config() -> dict:
         # 버전1(기본값 꺼짐)은 도매마켓을 화면에서 숨긴다. 재배포 없이 환경변수만으로 버전2로 되돌릴 수 있다.
         "market_enabled": env_bool("MARKET_ENABLED", False),
         "orders_enabled": env_bool("ORDERS_ENABLED", False),
+        "donation_enabled": env_bool("DONATION_ENABLED", False),
         # 키를 넣은 제공자만 True — 화면은 True인 것만 버튼으로 보여준다.
         "oauth_providers": oauth.configured_providers(),
     }

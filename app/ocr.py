@@ -1,7 +1,10 @@
 """거래명세서 사진 -> 품목·규격·단가. Claude(비전)로 읽고, 결과는 항상 사람이 확인한 뒤 반영합니다.
 
 ANTHROPIC_API_KEY가 없으면 예시(데모) 결과만 돌려줘서 화면 흐름을 먼저 써볼 수 있습니다.
-이미지는 서버 디스크에 저장하지 않습니다(메모리에서 줄이고 바로 API로 보냄).
+이미지는 파일로 저장하지 않고 API로 보내는 데만 메모리에서 씁니다 — 다만 인식이 이상할 때
+운영자가 확인할 수 있도록, 호출한 라우터가 log_attempt()을 불러서 (이미 줄인) 이미지와
+결과를 ocr_logs 표에 남깁니다. 이건 원래 "사진을 서버에 전혀 안 남긴다"던 설계에서 바뀐
+부분이라, 사장님께 안내하는 개인정보 처리 방침도 같이 손봐야 합니다.
 """
 from __future__ import annotations
 
@@ -16,6 +19,7 @@ import httpx
 from PIL import Image, ImageOps
 
 from . import config, units
+from .db import now_iso
 
 log = logging.getLogger("wongaenote.ocr")
 
@@ -256,6 +260,37 @@ def normalize_parsed(raw: dict) -> dict:
 
 def parse_invoice(jpeg: bytes) -> dict:
     return normalize_parsed(call_api(jpeg))
+
+
+def _summarize(kind: str, result: dict | None) -> str:
+    if not result:
+        return ""
+    if kind == "invoice":
+        supplier = result.get("supplier") or "거래처 미확인"
+        n = len(result.get("lines") or [])
+        total = result.get("total")
+        return f"{supplier} · {n}개 품목" + (f" · {int(total):,}원" if total else "")
+    dish = result.get("dish_name") or "요리명 미확인"
+    n = len(result.get("lines") or [])
+    return f"{dish} · 재료 {n}개"
+
+
+def log_attempt(db, user_id: int | None, kind: str, status: str, jpeg: bytes | None,
+                 result: dict | None = None, error: str | None = None) -> None:
+    """인식 시도마다(성공/데모/실패 모두) 운영자 확인용으로 남긴다. 로그 자체가 실패해도
+    OCR 흐름을 막으면 안 되므로 예외는 삼키고 경고만 남긴다."""
+    try:
+        db.execute(
+            "INSERT INTO ocr_logs(user_id, kind, status, summary, result_json, error_text, image, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (
+                user_id, kind, status, _summarize(kind, result),
+                json.dumps(result, ensure_ascii=False) if result is not None else None,
+                error, jpeg, now_iso(),
+            ),
+        )
+    except Exception:  # noqa: BLE001
+        log.warning("ocr log_attempt failed", exc_info=True)
 
 
 def demo_invoice() -> dict:

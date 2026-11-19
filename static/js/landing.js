@@ -359,7 +359,7 @@ export function renderLanding(root, onAuth) {
             ].map((t) => h('li', null, t))),
             h('p', { class: 'small muted', style: 'margin-top:10px' },
               '사진 자동 인식만 횟수를 둔 건 외부 API 비용 때문이고, 돈을 더 내라는 뜻은 아닙니다. ',
-              '나중에 상권분석처럼 완전히 새로운 기능이 생기면 그건 별도로 둘 수도 있지만, 위 기능들은 계속 무료입니다.'))),
+              '나중에 상권분석처럼 완전히 새로운 기능이 생기면 그건 별도로 둘 수도 있지만, 위 기능들은 계속 무료입니다.')))),
 
       h('section', { class: 'sec', 'aria-labelledby': 'faq-t' }, h('h2', { id: 'faq-t' }, '자주 묻는 질문'), faq),
 

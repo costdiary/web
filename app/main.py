@@ -27,10 +27,17 @@ for _ext, _mime in {
 }.items():
     mimetypes.add_type(_mime, _ext)
 
+# 토스 결제위젯(donate.js, TOSS_SECRET_KEY가 있을 때만 로딩됨)이 쓰는 도메인을 열어 둔다.
+# 직접 켜 보고 확인한 사실: 이게 없으면 js.tosspayments.com 스크립트 자체가 CSP에 막혀
+# 조용히 로딩 실패한다(화면엔 에러가 안 뜨고, onerror 콜백만 조용히 호출됨).
+# 와일드카드(*.tosspayments.com)로 넉넉히 열어 둔 것이라 — 토스 쪽에서 쓰는 정확한 서브도메인
+# 목록을 공식 문서로 확인하지는 못했다. 실제 키로 결제창을 띄워 보고, 브라우저 콘솔에 또 다른
+# CSP 차단 메시지가 남으면 거기 나오는 도메인만 더 좁혀서 추가해도 된다.
+TOSS_CSP = "https://*.tosspayments.com"
 CSP = (
-    "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
-    "script-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'self'; "
-    "form-action 'self'; frame-ancestors 'none'"
+    f"default-src 'self'; img-src 'self' data: blob: {TOSS_CSP}; style-src 'self' 'unsafe-inline' {TOSS_CSP}; "
+    f"script-src 'self' {TOSS_CSP}; font-src 'self' {TOSS_CSP}; connect-src 'self' {TOSS_CSP}; "
+    f"frame-src {TOSS_CSP}; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 )
 
 FIELD_LABELS = {

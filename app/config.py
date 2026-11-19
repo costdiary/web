@@ -58,6 +58,8 @@ def public_config() -> dict:
         "orders_enabled": env_bool("ORDERS_ENABLED", False),
         # 후원하기는 기본 켜짐 — 끄고 싶을 때만 환경변수로 끈다.
         "donation_enabled": env_bool("DONATION_ENABLED", True),
+        # 토스페이먼츠 키가 아직 없으면 화면에 "테스트로 처리됩니다" 안내를 보여준다(payments.get_provider()와 같은 기준).
+        "donation_real_pg": bool(env_str("TOSS_SECRET_KEY")),
         # 키를 넣은 제공자만 True — 화면은 True인 것만 버튼으로 보여준다.
         "oauth_providers": oauth.configured_providers(),
     }

@@ -15,6 +15,20 @@ import { num, emptyBlock } from './ui.js';
 
 const PRESETS = [3000, 5000, 10000, 30000];
 
+// 토스 결제창에서 흔히 돌아오는 실패 코드 → 한글 안내문(2026-11, docs.tosspayments.com/reference/error-codes
+// 에서 직접 대조한 값입니다. 전체 목록은 아니라서, 여기 없는 코드는 서버가 준 message를 그대로
+// 보여주고, 그것도 없으면 "알 수 없는 오류"로 안내합니다 — 코드를 그대로 노출하지 않습니다).
+const TOSS_FAIL_MESSAGES = {
+  PAY_PROCESS_CANCELED: '결제를 취소하셨습니다.',
+  PAY_PROCESS_ABORTED: '결제가 진행되지 않았습니다.',
+  REJECT_CARD_COMPANY: '카드사에서 결제를 거절했습니다. 카드사에 문의해 주세요.',
+  INVALID_CARD_EXPIRATION: '카드 유효기간을 다시 확인해 주세요.',
+  INVALID_STOPPED_CARD: '정지된 카드입니다. 다른 카드를 사용해 주세요.',
+  INVALID_CARD_LOST_OR_STOLEN: '분실 또는 도난 신고된 카드입니다. 다른 카드를 사용해 주세요.',
+  INVALID_CARD_NUMBER: '카드 번호를 다시 확인해 주세요.',
+  EXCEED_MAX_ONE_DAY_WITHDRAW_AMOUNT: '하루 결제(출금) 한도를 넘었습니다.',
+};
+
 let tossSdkPromise = null;
 function loadTossSdk() {
   if (window.TossPayments) return Promise.resolve(window.TossPayments);
@@ -42,7 +56,8 @@ async function handleTossReturn() {
   sessionStorage.removeItem('wongae_donate_pending');
   const failCode = params.get('code');
   if (failCode) {
-    toast(`결제가 완료되지 않았습니다: ${params.get('message') || failCode}`, 'err');
+    const friendly = TOSS_FAIL_MESSAGES[failCode] || params.get('message') || '알 수 없는 오류가 났습니다.';
+    toast(`결제가 완료되지 않았습니다: ${friendly}`, 'err');
     return;
   }
   const paymentKey = params.get('paymentKey');
@@ -66,26 +81,34 @@ async function openTossCheckout(created, amount) {
   const agreeBox = h('div', { id: 'toss-agreement' });
   const status = h('p', { class: 'hint' }, '결제 수단을 불러오는 중입니다…');
   const payBtn = h('button', { class: 'btn primary', type: 'button', disabled: true }, '결제하기');
+  // 결제 수단을 못 불러왔을 때(네트워크 일시 오류 등) 모달을 닫지 않고 바로 다시 시도할 수 있게.
+  const retryBtn = h('button', { class: 'btn ghost', type: 'button', hidden: true }, '다시 시도');
 
-  openDialog({ title: '후원 결제', content: h('div', { class: 'field' }, status, methodBox, agreeBox, h('div', { class: 'btn-row', style: 'margin-top:10px' }, payBtn)) });
+  openDialog({ title: '후원 결제', content: h('div', { class: 'field' }, status, methodBox, agreeBox, h('div', { class: 'btn-row', style: 'margin-top:10px' }, payBtn, retryBtn)) });
 
   let widgets;
-  try {
-    const TossPayments = await loadTossSdk();
-    const tossPayments = TossPayments(created.client_key);
-    // 비회원(저장된 카드 없는 1회성) 결제이므로 토스 문서가 안내하는 그대로 ANONYMOUS를 쓴다.
-    widgets = tossPayments.widgets({ customerKey: 'ANONYMOUS' });
-    await widgets.setAmount({ currency: 'KRW', value: amount });
-    await Promise.all([
-      widgets.renderPaymentMethods({ selector: '#toss-payment-method', variantKey: 'DEFAULT' }),
-      widgets.renderAgreement({ selector: '#toss-agreement', variantKey: 'AGREEMENT' }),
-    ]);
-    status.remove();
-    payBtn.disabled = false;
-  } catch (e) {
-    status.textContent = '결제 수단을 불러오지 못했습니다: ' + errMsg(e);
-    return;
+  async function loadWidgets() {
+    status.textContent = '결제 수단을 불러오는 중입니다…';
+    retryBtn.hidden = true;
+    try {
+      const TossPayments = await loadTossSdk();
+      const tossPayments = TossPayments(created.client_key);
+      // 비회원(저장된 카드 없는 1회성) 결제이므로 토스 문서가 안내하는 그대로 ANONYMOUS를 쓴다.
+      widgets = tossPayments.widgets({ customerKey: 'ANONYMOUS' });
+      await widgets.setAmount({ currency: 'KRW', value: amount });
+      await Promise.all([
+        widgets.renderPaymentMethods({ selector: '#toss-payment-method', variantKey: 'DEFAULT' }),
+        widgets.renderAgreement({ selector: '#toss-agreement', variantKey: 'AGREEMENT' }),
+      ]);
+      status.remove();
+      payBtn.disabled = false;
+    } catch (e) {
+      status.textContent = '결제 수단을 불러오지 못했습니다: ' + errMsg(e);
+      retryBtn.hidden = false;
+    }
   }
+  retryBtn.addEventListener('click', () => busy(retryBtn, loadWidgets));
+  await loadWidgets();
 
   payBtn.addEventListener('click', () => busy(payBtn, async () => {
     sessionStorage.setItem('wongae_donate_pending', JSON.stringify({ order_id: created.order_id, amount }));
@@ -102,12 +125,16 @@ async function openTossCheckout(created, amount) {
 function amountPicker(initial) {
   let value = initial;
   const btns = PRESETS.map((v) => {
-    const b = h('button', { class: 'btn ghost sm', type: 'button' }, `${n0(v)}원`);
+    const b = h('button', { class: 'btn ghost sm', type: 'button', 'aria-pressed': 'false' }, `${n0(v)}원`);
     return b;
   });
   const custom = h('input', { class: 'input num', type: 'text', inputmode: 'numeric', placeholder: '직접 입력', 'aria-label': '후원 금액 직접 입력' });
   const mark = () => {
-    btns.forEach((b, i) => b.classList.toggle('on', PRESETS[i] === value && !custom.value));
+    btns.forEach((b, i) => {
+      const on = PRESETS[i] === value && !custom.value;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false'); // 스크린리더도 선택된 금액을 알 수 있게
+    });
   };
   btns.forEach((b, i) => b.addEventListener('click', () => { value = PRESETS[i]; custom.value = ''; mark(); }));
   custom.addEventListener('input', () => {
@@ -153,7 +180,8 @@ export async function render(box) {
   const nickname = h('input', { class: 'input', type: 'text', maxLength: 30, placeholder: '닉네임', value: app.me.store_name || '' });
   const amt = amountPicker(PRESETS[1]);
   const message = h('input', { class: 'input', type: 'text', maxLength: 200, placeholder: '응원 메시지(선택)' });
-  const amountPublic = h('input', { type: 'checkbox', checked: true });
+  // 기본은 비공개 — 닉네임·금액을 전체 사용자에게 보여줄지는 후원자가 직접 켜서 고르게 한다.
+  const amountPublic = h('input', { type: 'checkbox' });
   const submit = h('button', { class: 'btn primary', type: 'button' }, icon('heart', 18), '후원하기');
 
   submit.addEventListener('click', () => busy(submit, async () => {
@@ -187,7 +215,7 @@ export async function render(box) {
     h('div', { class: 'field' }, h('label', null, '금액'), amt),
     h('div', { class: 'field' }, h('label', null, '메시지'), message),
     h('label', { class: 'chk' }, amountPublic, '후원 금액을 순위에 공개할게요'),
-    h('p', { class: 'hint' }, '끄면 순위·닉네임만 보이고 금액은 나만 볼 수 있습니다.'),
+    h('p', { class: 'hint' }, '켜면 순위에 닉네임과 함께 금액이 보입니다. 끄면(기본) 순위·닉네임만 보이고 금액은 나만 볼 수 있습니다.'),
     h('div', { class: 'btn-row', style: 'margin-top:10px' }, submit)));
 
   const boardBox = h('div', null);

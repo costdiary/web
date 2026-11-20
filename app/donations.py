@@ -10,7 +10,7 @@ from __future__ import annotations
 from .db import now_iso, transaction
 
 
-def create_donation(db, user_id: int | None, nickname: str, amount: int, message: str, amount_public: bool = True) -> int:
+def create_donation(db, user_id: int | None, nickname: str, amount: int, message: str, amount_public: bool = False) -> int:
     ts = now_iso()
     with transaction(db):
         cur = db.execute(

@@ -17,17 +17,20 @@
 }
 
 :root {
-  --paper: #eef3fa;
+  /* 바탕은 "책상", 흰 종이가 그 위에 놓인 명세표. 파랑은 괘선·도장·링크에만 쓰고
+     바탕과 글자에는 묻히지 않게 한다(예전엔 바탕·글자·테두리까지 전부 파래서,
+     전부 강조라 아무것도 강조가 아니었다). */
+  --paper: #ebe9e4;
   --sheet: #ffffff;
-  --sheet-2: #f5f8fd;
-  --ink: #14213d;
-  --ink-2: #4a5878;
-  --ink-3: #66738f;
-  --rule: #cfdaec;
-  --rule-2: #a9bcdc;
+  --sheet-2: #f6f5f2;
+  --ink: #191814;
+  --ink-2: #5b5852;
+  --ink-3: #817d74;
+  --rule: #e0ddd6;
+  --rule-2: #c3bfb6;
   --blue: #1d4e9e;
   --blue-2: #153b7a;
-  --blue-soft: #e2ebf9;
+  --blue-soft: #e8eefa;
   --btn: #1d4e9e;
   --btn-2: #153b7a;
   --red: #c92a2a;
@@ -39,44 +42,45 @@
   --amber-soft: #fff1b8;
   --hl: #ffe066;
   --hl-ink: #14213d;
-  --scrim: rgba(13, 21, 38, 0.55);
+  --scrim: rgba(25, 24, 20, 0.5);
   --font-ui: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Noto Sans CJK KR", "Malgun Gothic", system-ui, sans-serif;
   --font-num: "Barlow Condensed", "Arial Narrow", var(--font-ui);
-  /* 각진 괘선 대신 둥글둥글하고 살짝 입체적인 느낌으로: 반경 세 단계 + 그림자 세 단계 */
-  --r: 10px;
-  --r-sm: 6px;
-  --r-lg: 18px;
+  /* 서류다운 반듯함을 위해 모서리는 예전보다 덜 둥글게. 그림자도 파란끼를 빼고 옅게. */
+  --r: 8px;
+  --r-sm: 5px;
+  --r-lg: 12px;
   --rail: 232px;
-  --shadow-1: 0 1px 2px rgba(20, 33, 61, 0.05), 0 1px 1px rgba(20, 33, 61, 0.04);
-  --shadow-2: 0 8px 24px -10px rgba(20, 33, 61, 0.16), 0 2px 6px rgba(20, 33, 61, 0.06);
-  --shadow-3: 0 24px 56px -20px rgba(20, 33, 61, 0.28);
+  --shadow-1: 0 1px 2px rgba(32, 28, 20, 0.06), 0 1px 1px rgba(32, 28, 20, 0.04);
+  --shadow-2: 0 6px 18px -8px rgba(32, 28, 20, 0.16), 0 2px 5px rgba(32, 28, 20, 0.05);
+  --shadow-3: 0 24px 56px -20px rgba(32, 28, 20, 0.3);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #0d1526;
-    --sheet: #152038;
-    --sheet-2: #1a2845;
-    --ink: #e8eefa;
-    --ink-2: #aab7d3;
-    --ink-3: #8f9dbd;
-    --rule: #2b3c60;
-    --rule-2: #3d5282;
+    /* 어두울 때도 같은 원리: 바탕은 중립(남색 아님), 파랑은 표시에만. */
+    --paper: #161513;
+    --sheet: #201e1b;
+    --sheet-2: #2a2723;
+    --ink: #f0ece5;
+    --ink-2: #b4ada2;
+    --ink-3: #8d8780;
+    --rule: #36322d;
+    --rule-2: #4b4640;
     --blue: #8fb3f7;
     --blue-2: #b4cdfa;
-    --blue-soft: #1d2f55;
+    --blue-soft: #1e2a40;
     --btn: #2f66c8;
     --btn-2: #3a74dc;
     --red: #ff8f8f;
-    --red-soft: #3a1c26;
+    --red-soft: #3a2220;
     --green: #5fd49c;
     --green-bar: #35b57b;
-    --green-soft: #153a2c;
+    --green-soft: #17372a;
     --amber: #ffd66b;
-    --amber-soft: #3d3200;
-    --scrim: rgba(3, 7, 16, 0.7);
+    --amber-soft: #3a2f10;
+    --scrim: rgba(6, 5, 4, 0.72);
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 1px rgba(0, 0, 0, 0.25);
-    --shadow-2: 0 8px 24px -10px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+    --shadow-2: 0 6px 18px -8px rgba(0, 0, 0, 0.5), 0 2px 5px rgba(0, 0, 0, 0.35);
     --shadow-3: 0 24px 56px -20px rgba(0, 0, 0, 0.6);
   }
 }
@@ -101,6 +105,13 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 a { color: var(--blue); }
 img, svg { display: block; max-width: 100%; }
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+/* 브라우저가 기본으로 칠해 주는 것들(드래그 선택, 커서, 체크박스, 스크롤바)도 같은 팔레트로 맞춘다. */
+::selection { background: var(--hl); color: var(--hl-ink); }
+:root { accent-color: var(--blue); caret-color: var(--blue); scrollbar-color: var(--rule-2) transparent; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-thumb { background: var(--rule-2); border: 3px solid transparent; background-clip: content-box; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-3); background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
 [hidden] { display: none !important; }
 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -123,7 +134,7 @@ img, svg { display: block; max-width: 100%; }
   position: sticky; top: 0; z-index: 20;
   background: var(--sheet);
   border-bottom: 1px solid var(--rule);
-  box-shadow: 0 2px 8px rgba(20, 33, 61, 0.05);
+  box-shadow: 0 2px 8px rgba(32, 28, 20, 0.05);
   padding: env(safe-area-inset-top) 16px 0;
 }
 .topbar-in { height: 52px; max-width: 960px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
@@ -148,7 +159,7 @@ img, svg { display: block; max-width: 100%; }
   display: grid; grid-auto-flow: column; grid-auto-columns: minmax(64px, 1fr);
   overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
   background: var(--sheet); border-top: 1px solid var(--rule);
-  box-shadow: 0 -2px 8px rgba(20, 33, 61, 0.05);
+  box-shadow: 0 -2px 8px rgba(32, 28, 20, 0.05);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .tabbar::-webkit-scrollbar { display: none; }
@@ -169,15 +180,15 @@ img, svg { display: block; max-width: 100%; }
     top: 0; right: auto; bottom: 0; width: var(--rail);
     display: flex; flex-direction: column; gap: 2px;
     border-top: 0; border-right: 1px solid var(--rule);
-    box-shadow: 2px 0 8px rgba(20, 33, 61, 0.04);
+    box-shadow: 2px 0 8px rgba(32, 28, 20, 0.04);
     padding: 72px 12px 16px;
   }
   .rail-brand { display: inline-flex; position: absolute; top: 14px; left: 20px; }
   .tab { flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 44px; padding: 0 12px; font-size: 0.9375rem; border-radius: var(--r); }
-  .tab[aria-current="page"] { background: var(--blue-soft); }
+  .tab[aria-current="page"] { background: var(--sheet-2); color: var(--ink); }
   .tab[aria-current="page"]::before { top: 8px; bottom: 8px; left: 0; right: auto; width: 3px; height: auto; }
   .tab-main .tab-ic { padding: 0; background: none; color: inherit; }
-  .tab-main { margin-top: 10px; border: 1.5px solid var(--btn); color: var(--blue); font-weight: 700; }
+  .tab-main { margin-top: 10px; border: 0; background: var(--blue-soft); color: var(--blue); font-weight: 700; }
   .main { padding-bottom: 48px; }
 }
 
@@ -185,10 +196,9 @@ img, svg { display: block; max-width: 100%; }
 .sheet {
   background: var(--sheet);
   border: 1px solid var(--rule);
-  border-top: 4px double var(--blue);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-2);
-  padding: 14px 16px 16px;
+  box-shadow: var(--shadow-1);
+  padding: 16px 18px 18px;
 }
 .sheet + .sheet, .stack > * + * { margin-top: 16px; }
 .sheet-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
@@ -196,12 +206,12 @@ img, svg { display: block; max-width: 100%; }
 .sheet-h .sub { color: var(--ink-2); font-size: 0.8125rem; }
 .sheet-h .seg { margin-top: 0; } /* .seg는 보통 문단 아래에서 띄우려고 margin-top을 두지만, 제목 옆(.sheet-h)에선 필요 없음 */
 .page-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; }
-.page-h h1 { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.02em; }
+.page-h h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
 .page-h .sub { color: var(--ink-2); font-size: 0.875rem; font-weight: 400; margin-left: 6px; }
 .cols { display: grid; gap: 16px; align-items: start; }
 @media (min-width: 900px) { .cols { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
 
-.banner { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin-bottom: 16px; border: 1px solid var(--red); border-left-width: 5px; border-radius: var(--r); background: var(--red-soft); font-size: 0.9375rem; }
+.banner { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin-bottom: 16px; border: 1px solid var(--red); border-left-width: 1px; border-radius: var(--r); background: var(--red-soft); font-size: 0.9375rem; }
 .banner.info { border-color: var(--blue); background: var(--blue-soft); }
 .banner.warn { border-color: var(--amber); background: var(--amber-soft); }
 .banner b { font-weight: 800; }
@@ -242,14 +252,15 @@ a.row:hover, button.row:hover { background: var(--sheet-2); border-radius: var(-
 .stamp.big { font-size: 1.0625rem; padding: 1px 12px; border-width: 3px; border-radius: var(--r-sm); transform: rotate(-5deg); }
 
 /* 마진 막대 — 재료비 | 남는 돈, 목표 눈금 */
-.mbar { position: relative; height: 14px; background: var(--blue-soft); border: 1px solid var(--rule-2); border-radius: 999px; }
+/* 막대는 숫자를 거드는 보조 표시다. 예전엔 화면에서 제일 굵고 파래서 정작 숫자보다 먼저 눈에 띄었다. */
+.mbar { position: relative; height: 8px; background: var(--sheet-2); border: 1px solid var(--rule); border-radius: 999px; }
 .mbar-base, .mbar-over { border-radius: 999px 0 0 999px; }
-.mbar.big { height: 22px; }
+.mbar.big { height: 12px; }
 .mbar i { position: absolute; top: 0; bottom: 0; display: block; }
 .mbar-base { left: 0; background: var(--blue); }
 .mbar-over { background: var(--red); }
 .mbar-up { background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0 3px, transparent 3px 6px); }
-.mbar-tick { width: 2px; margin-left: -1px; top: -4px !important; bottom: -4px !important; background: var(--ink); }
+.mbar-tick { width: 2px; margin-left: -1px; top: -3px !important; bottom: -3px !important; background: var(--ink); }
 .mbar-wrap { position: relative; padding-top: 0; }
 .mbar-wrap.has-t { padding-top: 18px; }
 .mbar-t { position: absolute; top: 0; transform: translateX(-50%); font-size: 0.75rem; color: var(--ink-2); white-space: nowrap; }
@@ -272,7 +283,7 @@ a.row:hover, button.row:hover { background: var(--sheet-2); border-radius: var(-
 .alert-item { padding: 12px 0; border-top: 1px solid var(--rule); }
 .alert-item:first-child { border-top: 0; padding-top: 4px; }
 .alert-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
-.alert-top .name { font-weight: 800; font-size: 1.0625rem; }
+.alert-top .name { font-weight: 700; font-size: 1rem; } /* 카드 제목(1.0625rem/800)보다 한 단계 아래로 — 위계가 보이게 */
 .alert-top .price { color: var(--ink-2); font-size: 0.875rem; }
 .alert-top .when { margin-left: auto; color: var(--ink-3); font-size: 0.75rem; }
 .impacts { margin-top: 8px; display: grid; gap: 8px; }
@@ -281,7 +292,7 @@ a.row:hover, button.row:hover { background: var(--sheet-2); border-radius: var(-
 .impact-name { font-size: 0.9375rem; }
 .impact-num { font-size: 0.875rem; color: var(--ink-2); white-space: nowrap; }
 .impact-num b { color: var(--ink); }
-.impact .mbar { grid-column: 1 / -1; height: 8px; }
+.impact .mbar { grid-column: 1 / -1; height: 6px; }
 
 /* ------------------------------------------------------------ 버튼·입력 */
 .btn {
@@ -334,7 +345,7 @@ a.row:hover, button.row:hover { background: var(--sheet-2); border-radius: var(-
 @media (min-width: 560px) { .two { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .two.keep { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
 .err { color: var(--red); font-size: 0.8125rem; font-weight: 600; min-height: 1.2em; }
-.form-err { padding: 10px 12px; margin-bottom: 12px; border: 1px solid var(--red); border-left-width: 5px; border-radius: var(--r); background: var(--red-soft); font-size: 0.875rem; font-weight: 600; }
+.form-err { padding: 10px 12px; margin-bottom: 12px; border: 1px solid var(--red); border-left-width: 1px; border-radius: var(--r); background: var(--red-soft); font-size: 0.875rem; font-weight: 600; }
 .radios { display: grid; gap: 8px; }
 .radio { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--rule-2); border-radius: var(--r); background: var(--sheet); cursor: pointer; }
 .radio input { margin-top: 4px; accent-color: var(--blue); width: 18px; height: 18px; }
@@ -349,7 +360,7 @@ a.row:hover, button.row:hover { background: var(--sheet-2); border-radius: var(-
 /* ------------------------------------------------------------ 대화상자 */
 .dlg {
   width: min(560px, 100vw); max-width: 100vw; max-height: 92dvh; margin: auto 0 0; padding: 0;
-  border: 0; border-top: 4px double var(--blue); background: var(--sheet); color: var(--ink);
+  border: 1px solid var(--rule); background: var(--sheet); color: var(--ink);
   border-radius: var(--r-lg) var(--r-lg) 0 0;
   box-shadow: 0 -10px 40px rgba(13, 21, 38, 0.3); overflow: auto; overscroll-behavior: contain;
 }
@@ -397,7 +408,7 @@ a.row:hover, button.row:hover { background: var(--sheet-2); border-radius: var(-
 /* 위에 붙어 다니는 원가율 막대. 키보드가 올라와도 가려지지 않도록 아래가 아니라 위에 둔다. */
 .sticky-sum {
   position: sticky; top: calc(53px + env(safe-area-inset-top)); z-index: 10;
-  margin: 0 0 16px; padding: 8px 16px 10px; background: var(--sheet); border: 1px solid var(--rule-2); border-top: 4px double var(--blue);
+  margin: 0 0 16px; padding: 8px 16px 10px; background: var(--sheet); border: 1px solid var(--rule-2);
   border-radius: var(--r-lg);
   box-shadow: 0 8px 14px -8px rgba(13, 21, 38, 0.22);
 }
@@ -497,7 +508,7 @@ input[type="range"] { width: 100%; height: 28px; accent-color: var(--blue); back
 .sec { max-width: 1080px; margin: 0 auto; padding: 44px 16px 0; }
 .sec > h2 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 6px; max-width: 24em; }
 .sec > .lead { color: var(--ink-2); max-width: 40em; margin-bottom: 18px; }
-.steps { display: grid; gap: 0; border: 1px solid var(--rule-2); border-top: 4px double var(--blue); border-radius: var(--r-lg); overflow: hidden; background: var(--sheet); box-shadow: var(--shadow-2); }
+.steps { display: grid; gap: 0; border: 1px solid var(--rule-2); border-radius: var(--r-lg); overflow: hidden; background: var(--sheet); box-shadow: var(--shadow-2); }
 .step { padding: 16px; border-top: 1px solid var(--rule); }
 .step:first-child { border-top: 0; }
 .step-no { font-family: var(--font-num); font-weight: 700; font-size: 2rem; line-height: 1; color: var(--blue); }
@@ -508,7 +519,7 @@ input[type="range"] { width: 100%; height: 28px; accent-color: var(--blue); back
   .step { border-top: 0; border-left: 1px solid var(--rule); }
   .step:first-child { border-left: 0; }
 }
-.feat-grid { display: grid; gap: 0; border: 1px solid var(--rule-2); border-top: 4px double var(--blue); border-radius: var(--r-lg); overflow: hidden; background: var(--sheet); box-shadow: var(--shadow-2); }
+.feat-grid { display: grid; gap: 0; border: 1px solid var(--rule-2); border-radius: var(--r-lg); overflow: hidden; background: var(--sheet); box-shadow: var(--shadow-2); }
 .feat-card { padding: 16px; border-top: 1px solid var(--rule); color: inherit; }
 .feat-card:first-child { border-top: 0; }
 .feat-card svg { color: var(--blue); }
@@ -516,7 +527,7 @@ input[type="range"] { width: 100%; height: 28px; accent-color: var(--blue); back
 .feat-card p { color: var(--ink-2); font-size: 0.9375rem; }
 @media (min-width: 560px) { .feat-grid { grid-template-columns: repeat(2, 1fr); } .feat-card { border-left: 1px solid var(--rule); } .feat-card:nth-child(odd) { border-left: 0; } .feat-card:nth-child(-n+2) { border-top: 0; } }
 @media (min-width: 900px) { .feat-grid { grid-template-columns: repeat(3, 1fr); } .feat-card:nth-child(odd) { border-left: 1px solid var(--rule); } .feat-card:nth-child(3n+1) { border-left: 0; } .feat-card:nth-child(-n+3) { border-top: 0; } }
-.scope { display: grid; border: 1px solid var(--rule-2); border-top: 4px double var(--blue); border-radius: var(--r-lg); overflow: hidden; background: var(--sheet); box-shadow: var(--shadow-2); }
+.scope { display: grid; border: 1px solid var(--rule-2); border-radius: var(--r-lg); overflow: hidden; background: var(--sheet); box-shadow: var(--shadow-2); }
 .scope > div { padding: 16px; }
 .scope > div + div { border-top: 1px solid var(--rule); }
 .scope h3 { font-size: 1rem; font-weight: 800; margin-bottom: 8px; }
@@ -524,7 +535,7 @@ input[type="range"] { width: 100%; height: 28px; accent-color: var(--blue); back
 .scope li:first-child { border-top: 0; }
 .scope .no li { color: var(--ink-2); }
 @media (min-width: 760px) { .scope { grid-template-columns: 1.4fr 1fr; } .scope > div + div { border-top: 0; border-left: 1px solid var(--rule); } }
-.price-box { display: grid; gap: 16px; padding: 18px 16px; background: var(--sheet); border: 1px solid var(--rule-2); border-top: 4px double var(--blue); border-radius: var(--r-lg); box-shadow: var(--shadow-2); }
+.price-box { display: grid; gap: 16px; padding: 18px 16px; background: var(--sheet); border: 1px solid var(--rule-2); border-radius: var(--r-lg); box-shadow: var(--shadow-2); }
 .price-big .n { font-size: 3.5rem; line-height: 1; }
 .price-big .u { font-size: 1.125rem; font-weight: 700; color: var(--ink-2); margin-left: 4px; }
 .price-box li { padding: 5px 0 5px 22px; position: relative; font-size: 0.9375rem; }

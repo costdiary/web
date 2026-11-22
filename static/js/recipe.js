@@ -36,7 +36,7 @@ export async function render(box) {
       ? h('div', null,
         h('p', { class: 'small muted' }, `이번 달 사진 인식 ${u.ocr_used} / ${u.ocr_limit}회 사용 (거래명세서 인식과 같은 횟수를 씁니다)`),
         h('div', { class: 'meter', 'aria-hidden': 'true' }, h('i', { style: { width: `${Math.min(100, (u.ocr_used / Math.max(1, u.ocr_limit)) * 100)}%` } })))
-      : h('p', { class: 'small muted' }, '지금은 예시 결과로 체험하는 중입니다. 사진을 올리면 예시 레시피가 나오고 횟수는 차감되지 않습니다.');
+      : h('p', { class: 'small muted' }, '사진 자동 인식이 꺼져 있습니다. 사진을 올리면 예시 레시피가 나오고 횟수는 차감되지 않습니다.');
 
     fill(stage,
       h('section', { class: 'sheet' },
@@ -55,7 +55,7 @@ export async function render(box) {
           h('li', null, '그릇 전체가 나오게, 밝은 곳에서 위쪽에서 찍으면 가장 잘 맞습니다.'),
           h('li', null, '국물·소스 속 재료나 양념은 보이지 않아서, 보통 들어가는 양으로 짐작합니다.')),
         h('div', { style: 'margin-top:12px' }, usageLine),
-        !canWrite ? h('p', { class: 'hint', style: 'margin-top:8px' }, '체험 기간이 끝나 지금은 올릴 수 없습니다.') : null,
+        !canWrite ? h('p', { class: 'hint', style: 'margin-top:8px' }, '지금은 올릴 수 없습니다.') : null,
         h('p', { class: 'hint', style: 'margin-top:10px' }, '사진 없이 만들려면 ', h('a', { href: '#/menus/new' }, '직접 입력'), '하거나 ', h('a', { href: '#/import' }, '엑셀·다른 앱에서 가져오세요'), '.')));
   }
 

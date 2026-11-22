@@ -33,7 +33,7 @@ export async function render(box) {
     const usageLine = u.ocr_enabled
       ? h('div', null, h('p', { class: 'small muted' }, `이번 달 자동 인식 ${u.ocr_used} / ${u.ocr_limit}회 사용 (요리 사진 인식과 같은 횟수를 씁니다)`),
         h('div', { class: 'meter', 'aria-hidden': 'true' }, h('i', { style: { width: `${Math.min(100, (u.ocr_used / Math.max(1, u.ocr_limit)) * 100)}%` } })))
-      : h('p', { class: 'small muted' }, '지금은 예시 명세서로 체험하는 중입니다. 사진을 올리면 예시 결과가 나오고 횟수는 차감되지 않습니다.');
+      : h('p', { class: 'small muted' }, '사진 자동 인식이 꺼져 있습니다. 사진을 올리면 예시 결과가 나오고 횟수는 차감되지 않습니다.');
 
     fill(stage, 
       h('section', { class: 'sheet' },
@@ -45,7 +45,7 @@ export async function render(box) {
             h('button', { class: touch ? 'btn ghost' : 'btn', type: 'button', disabled: !canWrite, onclick: () => album.click() }, icon('image', 20), touch ? '앨범에서 고르기' : '사진 고르기'),
             camera, album)),
         h('div', { style: 'margin-top:12px' }, usageLine),
-        !canWrite ? h('p', { class: 'hint', style: 'margin-top:8px' }, '체험 기간이 끝나 지금은 올릴 수 없습니다.') : null),
+        !canWrite ? h('p', { class: 'hint', style: 'margin-top:8px' }, '지금은 올릴 수 없습니다.') : null),
       invRes.items.length
         ? h('section', { class: 'sheet', style: 'margin-top:16px' },
           h('div', { class: 'sheet-h' }, h('h2', null, '반영한 명세서')),

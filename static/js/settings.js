@@ -7,7 +7,7 @@ import { MARKET_ENABLED } from './core.js';
 
 function planText(p) {
   if (p.state === 'paid') return `이용 중 · ${ymd(p.ends_at)}까지`;
-  return '무료로 이용 중';
+  return '무료';
 }
 
 function openDelete() {
@@ -114,8 +114,7 @@ export async function render(box) {
       h('dt', null, '상태'), h('dd', null, h('b', null, planText(p))),
       h('dt', null, '자동 인식'), h('dd', null, u.ocr_enabled
         ? [`(명세서·요리 사진 합계) 이번 달 ${u.ocr_used} / ${u.ocr_limit}회`, h('div', { class: 'meter', 'aria-hidden': 'true' }, h('i', { style: { width: `${Math.min(100, (u.ocr_used / Math.max(1, u.ocr_limit)) * 100)}%` } }))]
-        : '예시 명세서로 체험 중'),
-      h('dt', null, '이용료'), h('dd', null, '무료')));
+        : '꺼짐 · 사진을 올리면 예시 결과가 나옵니다')));
   if (p.contact_email) {
     planBox.append(h('p', { class: 'small', style: 'margin-top:12px' }, '문의: ', h('a', { href: `mailto:${p.contact_email}` }, p.contact_email)));
   }
@@ -170,7 +169,7 @@ export async function render(box) {
         h('a', { class: 'btn ghost sm', href: '/api/export/menus.csv', download: '' }, icon('download', 18), '메뉴 CSV'),
         h('a', { class: 'btn ghost sm', href: '/api/export/recipes.csv', download: '' }, icon('download', 18), '레시피 CSV'),
         h('a', { class: 'btn ghost sm', href: '#/import' }, '다른 앱·엑셀에서 가져오기')),
-      h('p', { class: 'hint', style: 'margin-top:10px' }, '엑셀에서 바로 열립니다. 체험 기간이 끝나도 내려받기는 계속 가능해요.')),
+      h('p', { class: 'hint', style: 'margin-top:10px' }, '엑셀에서 바로 열립니다. 언제든 다시 내려받을 수 있습니다.')),
     h('section', { class: 'sheet' },
       h('div', { class: 'sheet-h' }, h('h2', null, '계정')),
       h('div', { class: 'btn-row' },

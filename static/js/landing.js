@@ -87,7 +87,7 @@ const FAQ = [
   ['글자를 잘못 읽으면 어떻게 되나요?', '반영하기 전에 모든 줄을 보여드리고, 규격과 가격은 직접 고칠 수 있습니다. 확인하고 누르기 전에는 아무것도 저장되지 않습니다.'],
   ['명세서마다 식자재 이름이 달라요.', '비슷한 이름은 자동으로 연결하고, 못 찾은 이름은 한 번만 골라 주시면 다음부터 기억합니다.'],
   ['수율은 어떻게 계산하나요?', '식자재마다 수율(다듬고 남는 비율)을 넣으면 실제로 쓰는 양 기준으로 계산합니다. 수율이 90%이면 단가를 0.9로 나눈 값을 원가에 씁니다.'],
-  ['돈을 내야 하나요?', '아니요. 지금 있는 기능은 전부 무료이고, 지금 쓰시는 기능이 나중에 유료로 바뀌는 일은 없습니다. 식자재·메뉴도 몇 개를 등록하든 제한이 없습니다. 사진 자동 인식(OCR)만 한 달 10회로 둔 건 외부 API를 쓸 때마다 비용이 들어서 과도한 사용을 막으려는 것이고, 넘으면 그냥 손으로 입력하면 되니 돈을 더 내라는 뜻이 아닙니다. 나중에 상권분석처럼 완전히 새로운 기능을 만들게 되면 그건 별도로 둘 수도 있지만, 그래도 지금 있는 기능이 유료로 바뀌지는 않습니다.'],
+  ['돈을 내야 하나요?', '아니요. 지금 있는 기능은 전부 무료이고, 식자재와 메뉴는 몇 개를 등록하든 제한이 없습니다. 사진 자동 인식만 한 달 10회로 묶어 두었는데, 한 번 인식할 때마다 외부 API 비용이 나가기 때문입니다. 10회를 넘기면 손으로 입력하시면 됩니다.'],
   ['그만 쓰고 싶어요.', '설정에서 계정을 삭제하면 입력한 식자재·메뉴·가격 이력이 모두 지워집니다.'],
 ];
 
@@ -321,7 +321,7 @@ export function renderLanding(root, onAuth) {
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn', type: 'button', onclick: start }, '무료로 시작하기'),
             h('a', { class: 'btn ghost', href: '#price', onclick: (e) => { e.preventDefault(); document.getElementById('price').scrollIntoView({ behavior: 'smooth' }); } }, '제공 범위 보기')),
-          h('p', { class: 'hero-note' }, '카드 등록 없이 바로 시작할 수 있고, 지금 있는 기능은 모두 무료입니다.')),
+          h('p', { class: 'hero-note' }, '카드 등록 없이 바로 시작합니다. 모든 기능이 무료입니다.')),
         simulator())),
 
     h('main', { id: 'main' },
@@ -348,7 +348,7 @@ export function renderLanding(root, onAuth) {
         h('div', { class: 'price-box', style: { 'margin-top': '14px' } },
           h('div', null,
             h('div', { class: 'price-big' }, h('span', { class: 'n' }, '무료')),
-            h('p', { class: 'small muted', style: 'margin-top:6px' }, '카드 등록 없이, 계속 무료로 씁니다. 지금 있는 기능은 나중에도 유료로 바뀌지 않습니다.'),
+            h('p', { class: 'small muted', style: 'margin-top:6px' }, '카드를 등록할 필요가 없고, 지금 있는 기능은 계속 무료입니다.'),
             h('div', { class: 'btn-row', style: 'margin-top:16px' }, h('button', { class: 'btn', type: 'button', onclick: start }, '무료로 시작하기'))),
           h('div', null,
             h('ul', null, [
@@ -358,8 +358,8 @@ export function renderLanding(root, onAuth) {
               '명세서·요리 사진 자동 인식 월 10회(넘으면 손으로 입력)',
             ].map((t) => h('li', null, t))),
             h('p', { class: 'small muted', style: 'margin-top:10px' },
-              '사진 자동 인식만 횟수를 둔 건 외부 API 비용 때문이고, 돈을 더 내라는 뜻은 아닙니다. ',
-              '나중에 상권분석처럼 완전히 새로운 기능이 생기면 그건 별도로 둘 수도 있지만, 위 기능들은 계속 무료입니다.')))),
+              '사진 자동 인식에만 횟수를 둔 것은 인식할 때마다 외부 API 비용이 나가기 때문입니다. ',
+              '나중에 상권분석처럼 완전히 새로운 기능이 생기면 따로 둘 수도 있지만, 위 기능들은 계속 무료입니다.')))),
 
       h('section', { class: 'sec', 'aria-labelledby': 'faq-t' }, h('h2', { id: 'faq-t' }, '자주 묻는 질문'), faq),
 

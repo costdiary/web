@@ -408,7 +408,7 @@ export async function renderEditor(box, id) {
     h('div', { class: 'btn-row', style: 'margin-top:16px' }, save,
       menu ? h('button', { class: 'btn ghost', type: 'button', disabled: !canWrite, onclick: onDuplicate }, icon('copy', 18), '복제') : null,
       menu ? h('button', { class: 'btn danger', type: 'button', disabled: !canWrite, onclick: onDelete }, '삭제') : null),
-    !canWrite ? h('p', { class: 'hint', style: 'margin-top:10px' }, '체험 기간이 끝나 지금은 수정할 수 없습니다.') : null);
+    !canWrite ? h('p', { class: 'hint', style: 'margin-top:10px' }, '지금은 수정할 수 없습니다.') : null);
 
   box.append(
     h('div', { class: 'page-h' },

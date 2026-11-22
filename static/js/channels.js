@@ -157,7 +157,7 @@ function channelCard(entry, ctx) {
     h('div', { class: 'btn-row chan-actions' }, saveBtn,
       h('button', { class: 'btn ghost', type: 'button', disabled: !canWrite, onclick: resetDefaults }, '기본값으로'),
       dirtyNote),
-    !canWrite ? h('p', { class: 'hint' }, '체험 기간이 끝나 지금은 수정할 수 없습니다.') : null);
+    !canWrite ? h('p', { class: 'hint' }, '지금은 수정할 수 없습니다.') : null);
 
   body.addEventListener('input', markDirty);
   body.addEventListener('change', markDirty);

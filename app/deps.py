@@ -16,7 +16,7 @@ def current_user(request: Request, db=Depends(get_db)) -> dict:
 
 def writable_user(user: dict = Depends(current_user)) -> dict:
     if not auth.plan_status(user)["writable"]:
-        raise HTTPException(402, "체험 기간이 끝났습니다. 계속 쓰시려면 이용 신청이 필요합니다.")
+        raise HTTPException(402, "지금은 저장할 수 없습니다.")
     return user
 
 

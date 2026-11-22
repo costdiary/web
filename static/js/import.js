@@ -41,7 +41,7 @@ export async function render(box) {
     fill(stage,
       h('section', { class: 'sheet' },
         zone,
-        !canWrite ? h('p', { class: 'hint', style: 'margin-top:8px' }, '체험 기간이 끝나 지금은 가져올 수 없습니다.') : null,
+        !canWrite ? h('p', { class: 'hint', style: 'margin-top:8px' }, '지금은 가져올 수 없습니다.') : null,
         h('ul', { class: 'plain tips' },
           h('li', null, '식자재 목록과 메뉴(레시피) 표를 모두 가져올 수 있습니다. 둘 다 있으면 식자재를 먼저, 메뉴를 그다음에 가져오세요. 메뉴의 재료 이름이 식자재와 같으면 저절로 이어집니다.'),
           h('li', null, '.xlsx와 .csv 파일을 읽습니다. 구형 엑셀(.xls)이라면 .xlsx로 다시 저장해서 올려 주세요. 용량은 5MB까지이고, 올린 파일은 서버에 저장하지 않습니다.'),

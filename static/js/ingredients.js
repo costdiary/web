@@ -148,7 +148,7 @@ export async function openIngredientEditor(id, onChange, preset = {}) {
     it && it.used_in > 0 ? h('p', { class: 'hint', style: 'margin:-4px 0 12px' }, '메뉴에서 쓰는 식자재라서 무게/부피/개수 단위 종류는 바꿀 수 없습니다.') : null,
     h('div', { class: 'btn-row' }, save,
       it ? h('button', { class: 'btn danger', type: 'button', disabled: !canWrite, onclick: onDelete }, '삭제') : null),
-    !canWrite ? h('p', { class: 'hint', style: 'margin-top:10px' }, '체험 기간이 끝나 지금은 수정할 수 없습니다.') : null);
+    !canWrite ? h('p', { class: 'hint', style: 'margin-top:10px' }, '지금은 수정할 수 없습니다.') : null);
   size.id = 'ie-size';
   unit.id = 'ie-unit';
 

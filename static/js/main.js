@@ -76,10 +76,12 @@ function getRoutes() {
   ];
 }
 
+/* 모든 기능이 무료라 "무료 이용 중" 칩은 모든 사장님에게 항상 같은 말만 하게 된다. 묻지도 않은
+   요금 얘기를 화면마다 띄우는 셈이라 없앴다. 나중에 개별 프리미엄 기능을 팔게 되면 그때만 보인다. */
 function planChip() {
   const p = app.me.plan;
-  const text = p.state === 'paid' ? '이용 중' : '무료 이용 중';
-  return h('a', { class: `plan-chip ${p.state}`, href: '#/settings', id: 'plan-chip' }, text);
+  if (p.state !== 'paid') return null;
+  return h('a', { class: `plan-chip ${p.state}`, href: '#/settings', id: 'plan-chip' }, '이용 중');
 }
 
 function marketBell() {
@@ -188,7 +190,7 @@ bus.addEventListener('logged-out', () => leaveApp());
 bus.addEventListener('auth-lost', () => { if (app.me) leaveApp('로그인이 만료되었습니다. 다시 로그인해 주세요.'); });
 bus.addEventListener('me-changed', () => {
   const chip = $('#plan-chip');
-  if (chip && app.me) chip.replaceWith(planChip());
+  if (chip && app.me) { const next = planChip(); if (next) chip.replaceWith(next); else chip.remove(); }
   const store = $('#store-name');
   if (store && app.me) store.textContent = app.me.store_name || app.me.email;
   const bell = $('#market-bell');

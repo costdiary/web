@@ -10,7 +10,7 @@
    작성하며 직접 대조했지만, <script> 주소 하나만은 그 문서 페이지에 값이 비어 있어 확인하지
    못한 채 적어 둔 것입니다. 실제 키를 받으면 https://docs.tosspayments.com/sdk/v2/js/environment
    로 주소를 한 번 더 대조하고, 결제창이 실제로 뜨는지 꼭 눈으로 확인해 주세요. */
-import { h, api, app, icon, busy, toast, errMsg, refreshRoute, n0, openDialog } from './core.js';
+import { h, api, app, icon, busy, toast, errMsg, refreshRoute, n0, openDialog, segGroup } from './core.js';
 import { num, emptyBlock } from './ui.js';
 
 const PRESETS = [3000, 5000, 10000, 30000];
@@ -123,28 +123,19 @@ async function openTossCheckout(created, amount) {
 }
 
 function amountPicker(initial) {
-  let value = initial;
-  const btns = PRESETS.map((v) => {
-    const b = h('button', { class: 'btn ghost sm', type: 'button', 'aria-pressed': 'false' }, `${n0(v)}원`);
-    return b;
-  });
   const custom = h('input', { class: 'input num', type: 'text', inputmode: 'numeric', placeholder: '직접 입력', 'aria-label': '후원 금액 직접 입력' });
-  const mark = () => {
-    btns.forEach((b, i) => {
-      const on = PRESETS[i] === value && !custom.value;
-      b.classList.toggle('on', on);
-      b.setAttribute('aria-pressed', on ? 'true' : 'false'); // 스크린리더도 선택된 금액을 알 수 있게
-    });
+  // 사전 정의 금액 중 하나를 고르면 직접 입력란을 비우고, 직접 입력란에 뭘 쳐 넣으면(지워도 마찬가지)
+  // 사전 정의 금액 선택은 해제된 상태로 둡니다(원래 동작 그대로).
+  const seg = segGroup('사전 정의 후원 금액', PRESETS.map((v) => [v, `${n0(v)}원`]), initial, () => { custom.value = ''; });
+  custom.addEventListener('input', () => { if (custom.value) seg.setValue(null); });
+  const wrap = h('div', { class: 'donate-amt' }, seg, custom);
+  wrap.getValue = () => {
+    if (custom.value) {
+      const v = parseInt(custom.value.replace(/[^\d]/g, ''), 10);
+      return Number.isFinite(v) && v > 0 ? v : 0;
+    }
+    return seg.getValue() ?? 0;
   };
-  btns.forEach((b, i) => b.addEventListener('click', () => { value = PRESETS[i]; custom.value = ''; mark(); }));
-  custom.addEventListener('input', () => {
-    const v = parseInt(custom.value.replace(/[^\d]/g, ''), 10);
-    value = Number.isFinite(v) && v > 0 ? v : 0;
-    mark();
-  });
-  mark();
-  const wrap = h('div', { class: 'donate-amt' }, h('div', { class: 'btn-row' }, btns), custom);
-  wrap.getValue = () => value;
   return wrap;
 }
 
@@ -219,13 +210,10 @@ export async function render(box) {
     h('div', { class: 'btn-row', style: 'margin-top:10px' }, submit)));
 
   const boardBox = h('div', null);
-  const dayBtn = h('button', { class: 'btn ghost sm on', type: 'button' }, '오늘');
-  const monthBtn = h('button', { class: 'btn ghost sm', type: 'button' }, '이번 달');
-  dayBtn.addEventListener('click', () => { dayBtn.classList.add('on'); monthBtn.classList.remove('on'); loadLeaderboard(boardBox, 'day'); });
-  monthBtn.addEventListener('click', () => { monthBtn.classList.add('on'); dayBtn.classList.remove('on'); loadLeaderboard(boardBox, 'month'); });
+  const periodSeg = segGroup('후원 순위 기간', [['day', '오늘'], ['month', '이번 달']], 'day', (period) => loadLeaderboard(boardBox, period));
 
   box.append(h('section', { class: 'sheet' },
-    h('div', { class: 'sheet-h' }, h('h2', null, '후원 순위'), h('div', { class: 'btn-row' }, dayBtn, monthBtn)),
+    h('div', { class: 'sheet-h' }, h('h2', null, '후원 순위'), periodSeg),
     boardBox));
 
   loadLeaderboard(boardBox, 'day');

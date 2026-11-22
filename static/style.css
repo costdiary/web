@@ -194,6 +194,7 @@ img, svg { display: block; max-width: 100%; }
 .sheet-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .sheet-h h2 { font-size: 1.0625rem; font-weight: 800; letter-spacing: -0.01em; }
 .sheet-h .sub { color: var(--ink-2); font-size: 0.8125rem; }
+.sheet-h .seg { margin-top: 0; } /* .seg는 보통 문단 아래에서 띄우려고 margin-top을 두지만, 제목 옆(.sheet-h)에선 필요 없음 */
 .page-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; }
 .page-h h1 { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.02em; }
 .page-h .sub { color: var(--ink-2); font-size: 0.875rem; font-weight: 400; margin-left: 6px; }
@@ -302,7 +303,6 @@ a.row:hover, button.row:hover { background: var(--sheet-2); border-radius: var(-
 .btn.block { width: 100%; }
 .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
-.btn.ghost.on { background: var(--blue); color: #fff; border-color: var(--blue); }
 
 /* 후원하기: 금액 고르기(사전 정의 금액 버튼 + 직접 입력) */
 .donate-amt { display: grid; gap: 10px; }

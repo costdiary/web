@@ -197,6 +197,36 @@ export function numInput(props = {}) {
   return el;
 }
 
+/* 여러 버튼 중 하나만 고르는 가로 칩 그룹(세그먼트 컨트롤). 접근성(role=group + aria-pressed)과
+   "선택됨" 스타일(.btn.sm 채움 / .btn.sm.ghost 테두리)을 한 곳에서 관리해, 화면마다 다르게
+   구현되는 걸 막습니다(area.js의 반경 선택이 원래 쓰던 바로 그 패턴입니다. 다만 여기 것은 선택 즉시
+   눌린 버튼이 바로 "선택됨"으로 바뀌는 화면 — 서버 저장 결과를 기다려야 하는 화면은 area.js처럼
+   직접 구현해 성급하게 하이라이트가 바뀌지 않게 하세요).
+   options: [[값, 라벨], ...]. value는 null/undefined 등 옵션에 없는 값이면 "선택 없음" 상태가 됩니다
+   (예: 후원 금액 직접 입력 중일 때). 21st.dev의 "Chip Filter" 컴포넌트(role=radiogroup, 단일 선택,
+   비제어 상태 보관) 구조를 참고해 바닐라 JS + 기존 .seg 스타일로 옮겼습니다. */
+export function segGroup(ariaLabel, options, initial, onChange) {
+  let value = initial;
+  const btns = options.map(([, label]) => h('button', { class: 'btn sm', type: 'button' }, label));
+  const mark = () => btns.forEach((b, i) => {
+    const on = options[i][0] === value;
+    b.classList.toggle('ghost', !on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  btns.forEach((b, i) => b.addEventListener('click', () => {
+    const v = options[i][0];
+    if (v === value) return;
+    value = v;
+    mark();
+    onChange(value, b);
+  }));
+  mark();
+  const wrap = h('div', { class: 'seg', role: 'group', 'aria-label': ariaLabel }, btns);
+  wrap.getValue = () => value;
+  wrap.setValue = (v) => { value = v; mark(); }; // onChange 없이 바깥에서(예: 직접 입력란) 하이라이트만 바꿀 때
+  return wrap;
+}
+
 export function selectOf(options, value, props = {}) {
   const el = h('select', { class: 'select', ...props }, options.map((o) => {
     const [val, text] = Array.isArray(o) ? o : [o, o];

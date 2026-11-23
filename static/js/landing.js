@@ -495,6 +495,7 @@ export function renderLanding(root, onAuth) {
           h('div', { class: 'btn-row reveal' },
             h('button', { class: 'btn btn-lg', type: 'button', onclick: start }, '원가 계산 시작하기 →'),
             h('a', { class: 'btn ghost', href: '#price', onclick: (e) => { e.preventDefault(); document.getElementById('price').scrollIntoView({ behavior: 'smooth' }); } }, '기능 보기')),
+          h('p', { class: 'hero-free-note reveal' }, '✓ 모든 기능 체험판·기간 제한 없이 무료입니다. 진짜예요.'),
           h('p', { class: 'hero-note reveal' }, '식자재·메뉴 등록 개수 제한 없이 쓸 수 있습니다. 거래명세서 사진 자동 인식은 월 5회(시범 운영 중).')),
         h('div', { class: 'hero-demo' },
           countCard,
@@ -537,7 +538,7 @@ export function renderLanding(root, onAuth) {
 
       /* ─── 요금 ─── */
       h('section', { class: 'sec', id: 'price', 'aria-labelledby': 'price-t' },
-        h('h2', { id: 'price-t', class: 'reveal' }, '요금'),
+        h('h2', { id: 'price-t', class: 'reveal' }, '가격'),
         h('div', { class: 'price-box', style: { 'margin-top': '14px' } },
           h('div', { class: 'reveal' },
             h('div', { class: 'price-big' }, h('span', { class: 'n' }, '0원')),

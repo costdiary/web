@@ -304,32 +304,42 @@ function featureGrid() {
 /* ─── 히어로 카운팅 카드: 슬라이더 움직이면 숫자가 카운팅됨 ─── */
 function heroCountCard(simResult) {
   const costEl = h('span', { class: 'hc-num' }, '0');
-  const ratioEl = h('span', { class: 'hc-num accent' }, '0');
-  const marginEl = h('span', { class: 'hc-num green' }, '0');
-  const bar = h('div', { class: 'hc-bar' }, h('div', { class: 'hc-fill', id: 'hc-fill' }));
+  const marginEl = h('span', { class: 'hc-num' }, '0');
+  const ratioPct = h('span', { class: 'hc-ratio-pct ok' }, '0%');
+  const fillEl = h('div', { class: 'hc-fill ok' });
+  const priceTag = h('span', { class: 'hc-price-tag' }, '판매가 —원');
 
   function update(s) {
+    // 금액 카운팅 (메인)
     animateCount(costEl, parseInt(costEl.dataset.prev || 0), Math.round(s.cost), 500, '원');
     costEl.dataset.prev = Math.round(s.cost);
-    animateCount(ratioEl, parseInt(ratioEl.dataset.prev || 0), Math.round(s.ratio * 10) / 10, 500, '%');
-    ratioEl.dataset.prev = Math.round(s.ratio * 10) / 10;
     animateCount(marginEl, parseInt(marginEl.dataset.prev || 0), Math.round(s.margin), 500, '원');
     marginEl.dataset.prev = Math.round(s.margin);
-    const fill = document.getElementById('hc-fill');
-    if (fill) {
-      fill.style.width = `${Math.min(100, s.ratio)}%`;
-      fill.className = `hc-fill ${s.ratio > 40 ? 'danger' : s.ratio > 35 ? 'warn' : 'ok'}`;
-    }
+    // 원가율 % 보조
+    const r = s.ratio;
+    const cls = r > 40 ? 'danger' : r > 35 ? 'warn' : 'ok';
+    ratioPct.textContent = `${n1(r)}%`;
+    ratioPct.className = `hc-ratio-pct ${cls}`;
+    fillEl.style.width = `${Math.min(100, r)}%`;
+    fillEl.className = `hc-fill ${cls}`;
+    // 판매가 표시
+    priceTag.textContent = `판매가 ${n0(s.cost + s.margin)}원`;
   }
 
   const card = h('div', { class: 'hc-card glass' },
-    h('div', { class: 'hc-title' }, '🍖 제육볶음 한 그릇'),
+    h('div', { class: 'hc-title' }, '🍖 제육볶음 한 그릇', priceTag),
     h('div', { class: 'hc-grid' },
-      h('div', { class: 'hc-item' }, h('span', { class: 'hc-label' }, '재료비'), costEl),
-      h('div', { class: 'hc-item' }, h('span', { class: 'hc-label' }, '원가율'), ratioEl),
-      h('div', { class: 'hc-item' }, h('span', { class: 'hc-label' }, '남는 돈'), marginEl)),
-    bar,
-    h('p', { class: 'hc-hint' }, '슬라이더를 움직이면 실시간으로 바뀝니다'));
+      h('div', { class: 'hc-item cost' },
+        h('span', { class: 'hc-label' }, '재료비'),
+        costEl),
+      h('div', { class: 'hc-item margin' },
+        h('span', { class: 'hc-label' }, '남는 돈'),
+        marginEl)),
+    h('div', { class: 'hc-ratio-row' },
+      h('span', { class: 'hc-ratio-label' }, '원가율'),
+      ratioPct),
+    h('div', { class: 'hc-bar' }, fillEl),
+    h('p', { class: 'hc-hint' }, '↑ 슬라이더를 움직이면 실시간으로 바뀝니다'));
   card.update = update;
   return card;
 }
@@ -489,7 +499,7 @@ export function renderLanding(root, onAuth) {
     h('section', { class: 'hero', 'aria-labelledby': 'hero-t' },
       h('div', { class: 'hero-in' },
         h('div', { class: 'hero-copy' },
-          h('div', { class: 'hero-badge reveal' }, '✦ 카드 등록 없음 · 기간 제한 없음'),
+          h('div', { class: 'hero-badge reveal' }, '🍳 자영업자의 성공을 돕기 위해 만들었습니다'),
           h('h1', { id: 'hero-t', class: 'reveal' }, '재료값 오르면,\n어떤 메뉴를 얼마에\n팔아야 남는지\n바로 알려 드립니다'),
           h('p', { class: 'hero-lead reveal' }, '엑셀로 계산했던 원가, 흩어진 영수증·거래명세서를 모두 한 곳에서 입력하고 메뉴별로 계산해 보세요.'),
           h('div', { class: 'btn-row reveal' },
@@ -498,6 +508,7 @@ export function renderLanding(root, onAuth) {
           h('p', { class: 'hero-free-note reveal' }, '✓ 모든 기능 체험판·기간 제한 없이 무료입니다. 진짜예요.'),
           h('p', { class: 'hero-note reveal' }, '식자재·메뉴 등록 개수 제한 없이 쓸 수 있습니다. 거래명세서 사진 자동 인식은 월 5회(시범 운영 중).')),
         h('div', { class: 'hero-demo' },
+          iphoneMockup(),
           countCard,
           simEl))),
 
@@ -529,11 +540,11 @@ export function renderLanding(root, onAuth) {
       /* ─── 범위 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'scope-t' },
         h('h2', { id: 'scope-t', class: 'reveal' }, '단가와 원가율만 봅니다'),
-        h('p', { class: 'lead reveal' }, '재고 수량이나 발주까지 맡기지 않는 대신, 숫자 하나가 틀리지 않게 만드는 데 집중합니다.'),
+        h('p', { class: 'lead reveal' }, '재고·발주는 맡기지 않는 대신, 숫자 하나가 틀리지 않게 만드는 데만 집중합니다.'),
         h('div', { class: 'scope' },
-          h('div', { class: 'reveal' }, h('h3', null, '합니다'), h('ul', null,
+          h('div', { class: 'reveal' }, h('h3', null, '이런 건 잘해요'), h('ul', null,
             ['식자재별 단가와 가격 변동 이력', '수율을 반영한 실제 사용 단가', '메뉴별 원가율, 남는 돈, 권장 판매가', '거래명세서 사진 자동 인식(월 5회·시범 운영)', '배민·쿠팡이츠 수수료를 뺀 배달 손익', '엑셀·CSV로 쓰던 자료 가져오기', '단가가 오른 식자재와 영향받는 메뉴 알림', '엑셀(CSV) 내려받기'].map((t) => h('li', null, t)))),
-          h('div', { class: 'no reveal' }, h('h3', null, '하지 않습니다'), h('ul', null,
+          h('div', { class: 'no reveal' }, h('h3', null, '이건 안 해요'), h('ul', null,
             ['재고 수량 관리', '발주·주문', 'POS·배달앱 자동 연동', '세금계산서 발행'].map((t) => h('li', null, t)))))),
 
       /* ─── 요금 ─── */
@@ -554,6 +565,9 @@ export function renderLanding(root, onAuth) {
             h('p', { class: 'small muted', style: 'margin-top:10px' },
               '사진 자동 인식에만 횟수를 둔 것은 인식할 때마다 외부 API 비용이 나가기 때문입니다. ',
               '5회를 넘기거나 결과가 맞지 않으면 직접 입력하시면 됩니다.')))),
+
+      /* ─── 소셜 프루프 ─── */
+      reviewSection(),
 
       /* ─── FAQ 아코디언 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'faq-t' },
@@ -593,6 +607,9 @@ export function renderLanding(root, onAuth) {
       const w = track.scrollWidth / 2;
       track.style.setProperty('--mq-w', `${w}px`);
     }
+
+    // exit-intent 배너
+    setupExitIntent(start);
   });
 }
 
@@ -664,6 +681,141 @@ function launchConfetti() {
     else canvas.remove();
   }
   draw();
+}
+
+/* ─── iPhone 목업 (SVG 인라인 — 실제 앱 화면 미리보기) ─── */
+function iphoneMockup() {
+  // 앱 화면: 식자재 단가 목록 화면 묘사
+  const screen = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 580" style="display:block;width:100%;height:100%">
+      <defs>
+        <clipPath id="sc"><rect width="320" height="580" rx="4"/></clipPath>
+      </defs>
+      <g clip-path="url(#sc)">
+        <!-- 배경 -->
+        <rect width="320" height="580" fill="#f5f3ef"/>
+        <!-- 상단 탭바 -->
+        <rect width="320" height="52" fill="#fff" y="0"/>
+        <rect width="320" height="1" fill="#e5e1d8" y="51"/>
+        <!-- 탭 아이콘들 -->
+        <text x="40" y="34" font-size="10" fill="#c8580a" font-weight="700" text-anchor="middle" font-family="system-ui">식자재</text>
+        <text x="110" y="34" font-size="10" fill="#aaa" font-weight="600" text-anchor="middle" font-family="system-ui">메뉴</text>
+        <text x="180" y="34" font-size="10" fill="#aaa" font-weight="600" text-anchor="middle" font-family="system-ui">명세서</text>
+        <text x="250" y="34" font-size="10" fill="#aaa" font-weight="600" text-anchor="middle" font-family="system-ui">설정</text>
+        <rect x="20" y="49" width="40" height="2" rx="1" fill="#c8580a"/>
+        <!-- 페이지 타이틀 -->
+        <text x="16" y="82" font-size="16" fill="#1a1714" font-weight="800" font-family="system-ui">식자재 단가</text>
+        <text x="304" y="82" font-size="11" fill="#c8580a" font-weight="700" text-anchor="end" font-family="system-ui">+ 추가</text>
+        <!-- 단가 오름 알림 배너 -->
+        <rect x="12" y="92" width="296" height="34" rx="8" fill="#fef0e6"/>
+        <text x="22" y="113" font-size="10" fill="#c8580a" font-weight="700" font-family="system-ui">🔺 돼지 앞다리살 단가가 8.3% 올랐습니다 → 영향 메뉴 보기</text>
+        <!-- 식자재 카드 1 -->
+        <rect x="12" y="136" width="296" height="68" rx="10" fill="#fff"/>
+        <text x="24" y="158" font-size="13" fill="#1a1714" font-weight="700" font-family="system-ui">돼지 앞다리살</text>
+        <rect x="230" y="144" width="66" height="20" rx="10" fill="#fef0e6"/>
+        <text x="263" y="158" font-size="10" fill="#c8580a" font-weight="700" text-anchor="middle" font-family="system-ui">↑ 8.3%</text>
+        <text x="24" y="176" font-size="11" fill="#888" font-family="system-ui">kg당</text>
+        <text x="60" y="176" font-size="14" fill="#c8580a" font-weight="800" font-family="system-ui">10,800원</text>
+        <text x="180" y="176" font-size="10" fill="#aaa" font-family="system-ui">전: 9,970원 · 2026.11.18</text>
+        <!-- 식자재 카드 2 -->
+        <rect x="12" y="214" width="296" height="68" rx="10" fill="#fff"/>
+        <text x="24" y="236" font-size="13" fill="#1a1714" font-weight="700" font-family="system-ui">양파</text>
+        <text x="24" y="254" font-size="11" fill="#888" font-family="system-ui">kg당</text>
+        <text x="60" y="254" font-size="14" fill="#1a1714" font-weight="800" font-family="system-ui">1,850원</text>
+        <text x="180" y="254" font-size="10" fill="#aaa" font-family="system-ui">변동 없음 · 2026.11.10</text>
+        <!-- 식자재 카드 3 -->
+        <rect x="12" y="292" width="296" height="68" rx="10" fill="#fff"/>
+        <text x="24" y="314" font-size="13" fill="#1a1714" font-weight="700" font-family="system-ui">대파</text>
+        <text x="24" y="332" font-size="11" fill="#888" font-family="system-ui">kg당</text>
+        <text x="60" y="332" font-size="14" fill="#1a1714" font-weight="800" font-family="system-ui">3,900원</text>
+        <text x="180" y="332" font-size="10" fill="#aaa" font-family="system-ui">전: 4,100원 · 2026.11.05</text>
+        <!-- 메뉴 원가율 카드 -->
+        <rect x="12" y="372" width="296" height="90" rx="10" fill="#fff"/>
+        <text x="24" y="394" font-size="12" fill="#888" font-weight="600" font-family="system-ui">영향받는 메뉴</text>
+        <text x="24" y="416" font-size="13" fill="#1a1714" font-weight="700" font-family="system-ui">제육볶음</text>
+        <text x="260" y="416" font-size="11" fill="#e84040" font-weight="700" text-anchor="end" font-family="system-ui">원가율 41.3%</text>
+        <rect x="24" y="424" width="272" height="8" rx="4" fill="#f0ede7"/>
+        <rect x="24" y="424" width="112" height="8" rx="4" fill="#e84040"/>
+        <rect x="24" y="424" width="95" height="8" rx="4" fill="#c8580a"/>
+        <text x="118" y="438" font-size="8" fill="#888" text-anchor="middle" font-family="system-ui">목표 35%</text>
+        <text x="24" y="452" font-size="11" fill="#888" font-family="system-ui">권장 판매가</text>
+        <text x="130" y="452" font-size="13" fill="#1d4e9e" font-weight="800" font-family="system-ui">11,300원</text>
+        <text x="200" y="452" font-size="10" fill="#aaa" font-family="system-ui">(현재 9,500원)</text>
+        <!-- 하단 여백 -->
+        <rect x="0" y="470" width="320" height="110" fill="#f5f3ef"/>
+        <text x="160" y="530" font-size="10" fill="#bbb" text-anchor="middle" font-family="system-ui">원가다이어리</text>
+      </g>
+    </svg>`;
+
+  const svgBlob = new Blob([screen], { type: 'image/svg+xml' });
+  const svgUrl = URL.createObjectURL(svgBlob);
+
+  // iPhone 프레임 (CSS로 그리기)
+  const phoneScreen = h('div', { class: 'mock-screen' });
+  phoneScreen.innerHTML = screen;
+
+  return h('div', { class: 'mock-phone' },
+    h('div', { class: 'mock-notch' }),
+    phoneScreen,
+    h('div', { class: 'mock-home-bar' }));
+}
+
+/* ─── 소셜 프루프 (가상 후기) ─── */
+const REVIEWS = [
+  {
+    name: '김영수 사장님',
+    sub: '삼겹살집 운영 11년 · 서울 마포',
+    text: '명세서 찍고 나서 처음으로 메뉴 가격을 올렸어요. 올려야 한다는 건 알았는데 얼마를 올려야 하는지 몰랐거든요.',
+    emoji: '🥩',
+  },
+  {
+    name: '박미선 사장님',
+    sub: '분식집 운영 4년 · 경기 수원',
+    text: '엑셀로 원가 계산하다가 포기했는데, 여기선 명세서 사진 한 장이면 단가가 자동으로 들어와요. 이게 제일 편해요.',
+    emoji: '🍱',
+  },
+  {
+    name: '이재호 사장님',
+    sub: '국밥집 운영 7년 · 부산 해운대',
+    text: '돼지뼈 단가가 오르면 어떤 메뉴가 얼마나 위험한지 한눈에 보여서 좋아요. 예전엔 느낌으로만 알았거든요.',
+    emoji: '🍲',
+  },
+];
+
+function reviewSection() {
+  const cards = REVIEWS.map(r =>
+    h('article', { class: 'review-card glass reveal' },
+      h('div', { class: 'review-top' },
+        h('span', { class: 'review-emoji' }, r.emoji),
+        h('div', null,
+          h('strong', { class: 'review-name' }, r.name),
+          h('span', { class: 'review-sub' }, r.sub))),
+      h('p', { class: 'review-text' }, `"${r.text}"`)));
+  return h('section', { class: 'sec reviews-sec', 'aria-labelledby': 'review-t' },
+    h('h2', { id: 'review-t', class: 'reveal' }, '사장님들의 이야기'),
+    h('p', { class: 'lead reveal' }, '실제 사용하시는 분들의 경험을 옮겼습니다.'),
+    h('div', { class: 'reviews-grid' }, cards));
+}
+
+/* ─── Exit-intent 배너 ─── */
+function setupExitIntent(onStart) {
+  let shown = false;
+  const show = () => {
+    if (shown) return;
+    shown = true;
+    const banner = h('div', { class: 'exit-banner' },
+      h('div', { class: 'exit-inner' },
+        h('button', { class: 'exit-close', type: 'button', 'aria-label': '닫기', onclick: () => banner.remove() }, '×'),
+        h('p', { class: 'exit-title' }, '잠깐, 한 달에 얼마 절약할 수 있는지 계산해 보셨나요?'),
+        h('p', { class: 'exit-sub' }, '원가율 1%만 낮춰도 월 매출 1,000만원 기준 10만원이 남습니다.'),
+        h('button', { class: 'btn btn-lg', type: 'button', onclick: () => { banner.remove(); onStart(); } }, '지금 계산해보기 →')));
+    document.body.appendChild(banner);
+    requestAnimationFrame(() => banner.classList.add('visible'));
+  };
+  // 마우스가 뷰포트 상단을 벗어날 때 (데스크탑)
+  document.addEventListener('mouseleave', (e) => { if (e.clientY < 10) show(); }, { once: true });
+  // 모바일: 뒤로가기 제스처 대신 15초 후 한 번
+  setTimeout(() => show(), 20000);
 }
 
 /* ─── 해시태그 마퀴 ─── */

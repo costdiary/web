@@ -187,7 +187,7 @@ def _is_market_host(request: Request) -> bool:
 def index(request: Request):
     if _is_market_host(request):
         return FileResponse(STATIC_DIR / "partner.html", headers={"Cache-Control": "no-cache"})
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/partner", include_in_schema=False)

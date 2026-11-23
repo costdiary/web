@@ -321,7 +321,7 @@ export function renderLanding(root, onAuth) {
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn', type: 'button', onclick: start }, '무료로 시작하기'),
             h('a', { class: 'btn ghost', href: '#price', onclick: (e) => { e.preventDefault(); document.getElementById('price').scrollIntoView({ behavior: 'smooth' }); } }, '제공 범위 보기')),
-          h('p', { class: 'hero-note' }, '카드 등록 없이 바로 시작합니다. 모든 기능이 무료입니다.')),
+          h('p', { class: 'hero-note' }, '카드 등록도, 기간 제한도 없습니다. 장사 잘 되시라고 만든 앱이니 마음껏 쓰세요.')),
         simulator())),
 
     h('main', { id: 'main' },
@@ -348,7 +348,7 @@ export function renderLanding(root, onAuth) {
         h('div', { class: 'price-box', style: { 'margin-top': '14px' } },
           h('div', null,
             h('div', { class: 'price-big' }, h('span', { class: 'n' }, '무료')),
-            h('p', { class: 'small muted', style: 'margin-top:6px' }, '카드를 등록할 필요가 없고, 지금 있는 기능은 계속 무료입니다.'),
+            h('p', { class: 'small muted', style: 'margin-top:6px' }, '지금 있는 기능은 기간 제한 없이 계속 무료입니다.'),
             h('div', { class: 'btn-row', style: 'margin-top:16px' }, h('button', { class: 'btn', type: 'button', onclick: start }, '무료로 시작하기'))),
           h('div', null,
             h('ul', null, [

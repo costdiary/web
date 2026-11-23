@@ -54,7 +54,7 @@ function simulator() {
           h('dd', null, h('span', { class: 'n' }, n0(s.cost)), h('span', { class: 'u' }, '원')))),
       h('p', { class: 'ratio-line' },
         '원가율 ', h('span', { class: 'n' }, n1(s.ratio)), '%', stamp(statusOf(s.ratio))),
-      marginBar({ ratio: s.ratio, target: TARGET, big: true }),
+      marginBar({ ratio: s.ratio, target: TARGET, big: true, animate: true }),
       h('dl', { class: 'sim-facts' },
         h('div', null, h('dt', null, '한 그릇에 남는 돈'), h('dd', null, num(n0(s.margin), '원'))),
         h('div', null, h('dt', null, `원가율 ${TARGET}%로 맞추려면`), h('dd', null, num(n0(s.rec), '원')))));
@@ -318,10 +318,13 @@ function heroCountCard(simResult) {
     // 원가율 % 보조
     const r = s.ratio;
     const cls = r > 40 ? 'danger' : r > 35 ? 'warn' : 'ok';
-    ratioPct.textContent = `${n1(r)}%`;
     ratioPct.className = `hc-ratio-pct ${cls}`;
-    fillEl.style.width = `${Math.min(100, r)}%`;
     fillEl.className = `hc-fill ${cls}`;
+    // 원가율 숫자 카운팅
+    const prevRatio = parseFloat(fillEl.dataset.prevRatio || 0);
+    fillEl.dataset.prevRatio = r;
+    animateBarWidth(fillEl, prevRatio, Math.min(100, r), 500);
+    animateRatioPct(ratioPct, prevRatio, r, 500);
     // 판매가 표시
     priceTag.textContent = `판매가 ${n0(s.cost + s.margin)}원`;
   }
@@ -505,7 +508,7 @@ export function renderLanding(root, onAuth) {
           h('div', { class: 'btn-row reveal' },
             h('button', { class: 'btn btn-lg', type: 'button', onclick: start }, '원가 계산 시작하기 →'),
             h('a', { class: 'btn ghost', href: '#price', onclick: (e) => { e.preventDefault(); document.getElementById('price').scrollIntoView({ behavior: 'smooth' }); } }, '기능 보기')),
-          h('p', { class: 'hero-free-note reveal' }, '✓ 모든 기능 체험판·기간 제한 없이 무료입니다. 진짜예요.'),
+          h('p', { class: 'hero-free-note reveal' }, '모든 기능은 체험판·기간 제한 없이 모두 무료로 가능합니다. 진짜예요.'),
           h('p', { class: 'hero-note reveal' }, '식자재·메뉴 등록 개수 제한 없이 쓸 수 있습니다. 거래명세서 사진 자동 인식은 월 5회(시범 운영 중).')),
         h('div', { class: 'hero-demo' },
           iphoneMockup(),
@@ -611,6 +614,32 @@ export function renderLanding(root, onAuth) {
     // exit-intent 배너
     setupExitIntent(start);
   });
+}
+
+/* ─── 막대 width 카운팅 모션 ─── */
+function animateBarWidth(el, startPct, endPct, duration = 500) {
+  const startTime = performance.now();
+  const diff = endPct - startPct;
+  function step(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.style.width = `${startPct + diff * ease}%`;
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ─── 원가율 % 텍스트 카운팅 모션 ─── */
+function animateRatioPct(el, startVal, endVal, duration = 500) {
+  const startTime = performance.now();
+  const diff = endVal - startVal;
+  function step(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = `${n1(startVal + diff * ease)}%`;
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }
 
 /* ─── 카운팅 모션: start에서 end까지 duration ms 동안 숫자를 올라가게 ─── */

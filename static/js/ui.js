@@ -18,7 +18,7 @@ export function chg(pct) {
 }
 
 /* 재료비 | 남는 돈. 목표 원가율 눈금, 목표를 넘은 부분은 붉게, 방금 오른 부분은 빗금. */
-export function marginBar({ ratio, target, up = 0, big = false, labels = false }) {
+export function marginBar({ ratio, target, up = 0, big = false, labels = false, animate = false }) {
   const wrap = h('div', { class: `mbar-wrap${big ? ' has-t' : ''}` });
   if (ratio == null) {
     wrap.append(h('div', { class: 'mbar' }));
@@ -28,11 +28,30 @@ export function marginBar({ ratio, target, up = 0, big = false, labels = false }
   const base = Math.min(cost, target);
   const over = Math.max(0, cost - target);
   const hatch = Math.min(up, cost);
+  // animate 옵션: 0에서 최종값으로 카운팅
+  const startBase = animate ? 0 : base;
+  const startOver = animate ? 0 : over;
+  const baseEl = h('i', { class: 'mbar-base', style: { width: `${startBase}%` } });
+  const overEl = over > 0 ? h('i', { class: 'mbar-over', style: { left: `${base}%`, width: `${startOver}%` } }) : null;
+  const hatchEl = hatch > 0 ? h('i', { class: 'mbar-up', style: { left: `${cost - hatch}%`, width: `${hatch}%` } }) : null;
   const bar = h('div', { class: `mbar${big ? ' big' : ''}`, role: 'img', 'aria-label': `원가율 ${n1(ratio)}%, 목표 ${nT(target)}%` },
-    h('i', { class: 'mbar-base', style: { width: `${base}%` } }),
-    over > 0 ? h('i', { class: 'mbar-over', style: { left: `${base}%`, width: `${over}%` } }) : null,
-    hatch > 0 ? h('i', { class: 'mbar-up', style: { left: `${cost - hatch}%`, width: `${hatch}%` } }) : null,
+    baseEl, overEl, hatchEl,
     h('i', { class: 'mbar-tick', style: { left: `${target}%` } }));
+  if (animate) {
+    // 렌더 후 다음 프레임에 애니메이션 시작
+    requestAnimationFrame(() => {
+      const duration = 700;
+      const startTime = performance.now();
+      function step(now) {
+        const t = Math.min((now - startTime) / duration, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        baseEl.style.width = `${base * ease}%`;
+        if (overEl) overEl.style.width = `${over * ease}%`;
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    });
+  }
   if (big) wrap.append(h('span', { class: 'mbar-t', style: { left: `${target}%` } }, `목표 ${nT(target)}%`));
   wrap.append(bar);
   if (labels) {

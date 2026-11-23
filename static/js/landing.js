@@ -503,7 +503,7 @@ export function renderLanding(root, onAuth) {
       h('div', { class: 'hero-in' },
         h('div', { class: 'hero-copy' },
           h('div', { class: 'hero-badge reveal' }, '🍳 자영업자의 성공을 돕기 위해 만들었습니다'),
-          h('h1', { id: 'hero-t', class: 'reveal' }, '재료값 오르면,\n어떤 메뉴를 얼마에\n팔아야 남는지\n바로 알려 드립니다'),
+          h('h1', { id: 'hero-t', class: 'reveal' }, '흩어진 원가를\n한곳에서 정리하세요'),
           h('p', { class: 'hero-lead reveal' }, '엑셀로 계산했던 원가, 흩어진 영수증·거래명세서를 모두 한 곳에서 입력하고 메뉴별로 계산해 보세요.'),
           h('div', { class: 'btn-row reveal' },
             h('button', { class: 'btn btn-lg', type: 'button', onclick: start }, '원가 계산 시작하기 →'),

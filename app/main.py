@@ -80,7 +80,10 @@ app = FastAPI(
 hosts = [h.strip() for h in config.env_str("ALLOWED_HOSTS").split(",") if h.strip()]
 if hosts:  # 운영 주소가 아닌 이름(Host 헤더)으로 들어오는 요청을 거부합니다
     from starlette.middleware.trustedhost import TrustedHostMiddleware
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=hosts)
+    # 도커 헬스체크는 Host: 127.0.0.1 로 호출하므로, ALLOWED_HOSTS 가 설정되어 있어도
+    # 루프백 주소는 항상 통과시킵니다(TrustedHostMiddleware 의 400 방지).
+    hc_hosts = ["127.0.0.1", "localhost", "::1"]
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=hosts + [h for h in hc_hosts if h not in hosts])
 
 
 @app.middleware("http")

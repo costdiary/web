@@ -301,56 +301,247 @@ function featureGrid() {
         icon(ic, 22), h('h3', null, title), h('p', null, desc)))));
 }
 
+/* ─── 히어로 카운팅 카드: 슬라이더 움직이면 숫자가 카운팅됨 ─── */
+function heroCountCard(simResult) {
+  const costEl = h('span', { class: 'hc-num' }, '0');
+  const ratioEl = h('span', { class: 'hc-num accent' }, '0');
+  const marginEl = h('span', { class: 'hc-num green' }, '0');
+  const bar = h('div', { class: 'hc-bar' }, h('div', { class: 'hc-fill', id: 'hc-fill' }));
+
+  function update(s) {
+    animateCount(costEl, parseInt(costEl.dataset.prev || 0), Math.round(s.cost), 500, '원');
+    costEl.dataset.prev = Math.round(s.cost);
+    animateCount(ratioEl, parseInt(ratioEl.dataset.prev || 0), Math.round(s.ratio * 10) / 10, 500, '%');
+    ratioEl.dataset.prev = Math.round(s.ratio * 10) / 10;
+    animateCount(marginEl, parseInt(marginEl.dataset.prev || 0), Math.round(s.margin), 500, '원');
+    marginEl.dataset.prev = Math.round(s.margin);
+    const fill = document.getElementById('hc-fill');
+    if (fill) {
+      fill.style.width = `${Math.min(100, s.ratio)}%`;
+      fill.className = `hc-fill ${s.ratio > 40 ? 'danger' : s.ratio > 35 ? 'warn' : 'ok'}`;
+    }
+  }
+
+  const card = h('div', { class: 'hc-card glass' },
+    h('div', { class: 'hc-title' }, '🍖 제육볶음 한 그릇'),
+    h('div', { class: 'hc-grid' },
+      h('div', { class: 'hc-item' }, h('span', { class: 'hc-label' }, '재료비'), costEl),
+      h('div', { class: 'hc-item' }, h('span', { class: 'hc-label' }, '원가율'), ratioEl),
+      h('div', { class: 'hc-item' }, h('span', { class: 'hc-label' }, '남는 돈'), marginEl)),
+    bar,
+    h('p', { class: 'hc-hint' }, '슬라이더를 움직이면 실시간으로 바뀝니다'));
+  card.update = update;
+  return card;
+}
+
+/* ─── 탭 컴포넌트 ─── */
+function tabGroup(tabs) {
+  // tabs: [{label, content}]
+  let active = 0;
+  const panels = tabs.map(({ content }, i) => {
+    const p = h('div', { class: `tab-panel${i === 0 ? ' active' : ''}`, role: 'tabpanel' }, content);
+    return p;
+  });
+  const btns = tabs.map(({ label }, i) => {
+    const b = h('button', { class: `tab-btn${i === 0 ? ' active' : ''}`, role: 'tab', 'aria-selected': String(i === 0), type: 'button' }, label);
+    b.addEventListener('click', () => {
+      btns[active].classList.remove('active'); btns[active].setAttribute('aria-selected', 'false');
+      panels[active].classList.remove('active');
+      active = i;
+      btns[active].classList.add('active'); btns[active].setAttribute('aria-selected', 'true');
+      panels[active].classList.add('active');
+    });
+    return b;
+  });
+  return h('div', { class: 'tab-group' },
+    h('div', { class: 'tab-list', role: 'tablist' }, btns),
+    h('div', { class: 'tab-panels' }, panels));
+}
+
+/* ─── 아코디언 ─── */
+function accordion(items) {
+  return h('div', { class: 'accordion' }, items.map(([q, a]) => {
+    const body = h('div', { class: 'acc-body' }, h('p', null, a));
+    const header = h('button', { class: 'acc-header', type: 'button', 'aria-expanded': 'false' },
+      h('span', null, q), h('span', { class: 'acc-ic' }, '＋'));
+    header.addEventListener('click', () => {
+      const open = body.classList.toggle('open');
+      header.setAttribute('aria-expanded', String(open));
+      header.querySelector('.acc-ic').textContent = open ? '－' : '＋';
+    });
+    return h('div', { class: 'acc-item' }, header, body);
+  }));
+}
+
+/* ─── 캐러셀 ─── */
+function carousel(cards) {
+  let idx = 0;
+  const slides = cards.map((c, i) => h('div', { class: `carousel-slide${i === 0 ? ' active' : ''}` }, c));
+  const dots = cards.map((_, i) => {
+    const d = h('button', { class: `carousel-dot${i === 0 ? ' active' : ''}`, type: 'button', 'aria-label': `${i + 1}번` });
+    d.addEventListener('click', () => goTo(i));
+    return d;
+  });
+  function goTo(n) {
+    slides[idx].classList.remove('active'); dots[idx].classList.remove('active');
+    idx = (n + cards.length) % cards.length;
+    slides[idx].classList.add('active'); dots[idx].classList.add('active');
+  }
+  const prev = h('button', { class: 'carousel-nav prev', type: 'button', 'aria-label': '이전' }, '‹');
+  const next = h('button', { class: 'carousel-nav next', type: 'button', 'aria-label': '다음' }, '›');
+  prev.addEventListener('click', () => goTo(idx - 1));
+  next.addEventListener('click', () => goTo(idx + 1));
+  return h('div', { class: 'carousel' },
+    h('div', { class: 'carousel-track' }, slides),
+    prev, next,
+    h('div', { class: 'carousel-dots' }, dots));
+}
+
 export function renderLanding(root, onAuth) {
   const pub = app.pub || {};
-  const start = () => openSignup({ onDone: onAuth });
+  const start = () => {
+    openSignup({
+      onDone: () => {
+        launchConfetti();
+        onAuth();
+      },
+    });
+  };
   const login = () => openLogin({ onDone: onAuth });
 
-  const faq = h('div', { class: 'faq' }, FAQ.map(([q, a]) => h('details', null, h('summary', null, q), h('p', null, a))));
+  /* ─── 시뮬레이터 + 카운팅 카드 연결 ─── */
+  const simEl = simulator();
+  // simulator()가 반환한 엘리먼트에서 슬라이더를 찾아 카운팅 카드와 연동
+  let countCard;
+  const connectCountCard = (el) => {
+    const porkSlider = el.querySelector('#sim-pork');
+    const priceSlider = el.querySelector('#sim-price');
+    if (!porkSlider || !priceSlider || !countCard) return;
+    const sync = () => {
+      const s = simulate(Number(porkSlider.value), Number(priceSlider.value));
+      countCard.update(s);
+    };
+    porkSlider.addEventListener('input', sync);
+    priceSlider.addEventListener('input', sync);
+    // 초기값 카운팅
+    setTimeout(() => {
+      const s = simulate(Number(porkSlider.value), Number(priceSlider.value));
+      countCard.update(s);
+    }, 400);
+  };
 
-  root.replaceChildren(h('div', { class: 'land' },
+  /* 초기 시뮬 결과 */
+  const initSim = simulate(10800, 9500);
+  countCard = heroCountCard(initSim);
+
+  /* ─── FAQ 아코디언 ─── */
+  const faqAccordion = accordion(FAQ);
+
+  /* ─── 기능 캐러셀 ─── */
+  const featureCards = FEATURES.map(([ic, title, desc]) =>
+    h('div', { class: 'feat-carousel-card' },
+      h('div', { class: 'feat-ic-wrap' }, icon(ic, 28)),
+      h('h3', null, title),
+      h('p', null, desc)));
+  const featCarousel = carousel(featureCards);
+
+  /* ─── 통계 카운터 섹션 ─── */
+  const stat1 = h('span', { class: 'stat-num' }, '0');
+  const stat2 = h('span', { class: 'stat-num' }, '0');
+  const stat3 = h('span', { class: 'stat-num' }, '0');
+
+  /* ─── 사용 순서 탭 ─── */
+  const howTabs = tabGroup([
+    {
+      label: '명세서로',
+      content: h('div', { class: 'steps' },
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, '사진을 올립니다'), h('p', null, '납품받은 거래명세서를 찍어 올리면 품목·규격·단가를 읽어 옵니다.')),
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '읽은 내용을 확인합니다'), h('p', null, '틀린 곳만 고치고, 이름이 다른 식자재는 한 번만 연결하면 다음부터 자동으로 알아봅니다.')),
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '원가율이 다시 계산됩니다'), h('p', null, '단가가 오른 식자재와 그 때문에 원가율이 오른 메뉴를 바로 알려 드립니다.'))),
+    },
+    {
+      label: '요리 사진으로',
+      content: h('div', { class: 'steps' },
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, '완성된 요리 사진을 올립니다'), h('p', null, '메뉴판 사진이나 직접 찍은 요리 사진을 올려 주세요.')),
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '재료와 양을 AI가 어림잡습니다'), h('p', null, '사진만으로 정확한 양은 알 수 없어서 추정 표시와 범위가 붙습니다.')),
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '계량해서 고쳐 쓰면 됩니다'), h('p', null, '고치기 전까지는 원가율도 범위로 보여 드립니다.'))),
+    },
+    {
+      label: '엑셀에서',
+      content: h('div', { class: 'steps' },
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, 'xlsx / CSV를 올립니다'), h('p', null, '쓰던 엑셀 파일을 그대로 올리면 제목 줄을 읽어 칸을 자동으로 맞춥니다.')),
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '미리 보고 저장합니다'), h('p', null, '칸이 틀리면 직접 고를 수 있고, 확인하기 전에는 아무것도 저장되지 않습니다.')),
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '원가율이 계산됩니다'), h('p', null, '가져온 식자재로 메뉴 원가를 바로 계산할 수 있습니다.'))),
+    },
+  ]);
+
+  const land = h('div', { class: 'land' },
+    /* ─── 헤더 ─── */
     h('header', { class: 'land-top' },
       h('a', { class: 'brand', href: '#/' }, h('img', { src: '/static/icon.svg', alt: '', width: 26, height: 26 }), '원가다이어리'),
-      h('button', { class: 'btn ghost sm', type: 'button', onclick: login }, '로그인')),
+      h('div', { class: 'land-top-actions' },
+        h('button', { class: 'btn ghost sm', type: 'button', onclick: login }, '로그인'),
+        h('button', { class: 'btn sm', type: 'button', onclick: start }, '무료 시작'))),
 
+    /* ─── 히어로 ─── */
     h('section', { class: 'hero', 'aria-labelledby': 'hero-t' },
       h('div', { class: 'hero-in' },
-        h('div', null,
-          h('h1', { id: 'hero-t' }, '재료값 오르면, 어떤 메뉴를 얼마에 팔아야 남는지 바로 알려 드립니다'),
-          h('p', { class: 'hero-lead' }, '명세서 사진 한 장만 올리면 식자재 단가가 바뀌고, 메뉴마다 원가율과 올려야 할 판매가가 다시 계산됩니다. 쓰던 엑셀도 그대로 가져올 수 있고, 사진만 있는 메뉴는 양을 어림잡아 채워 줍니다.'),
-          h('div', { class: 'btn-row' },
-            h('button', { class: 'btn', type: 'button', onclick: start }, '무료로 시작하기'),
-            h('a', { class: 'btn ghost', href: '#price', onclick: (e) => { e.preventDefault(); document.getElementById('price').scrollIntoView({ behavior: 'smooth' }); } }, '제공 범위 보기')),
-          h('p', { class: 'hero-note' }, '카드 등록도, 기간 제한도 없습니다. 장사 잘 되시라고 만든 앱이니 마음껏 쓰세요.')),
-        simulator())),
+        h('div', { class: 'hero-copy' },
+          h('div', { class: 'hero-badge reveal' }, '✦ 무료 · 카드 등록 없음'),
+          h('h1', { id: 'hero-t', class: 'reveal' }, '재료값 오르면,\n어떤 메뉴를 얼마에\n팔아야 남는지\n바로 알려 드립니다'),
+          h('p', { class: 'hero-lead reveal' }, '명세서 사진 한 장만 올리면 식자재 단가가 바뀌고, 메뉴마다 원가율과 올려야 할 판매가가 다시 계산됩니다.'),
+          h('div', { class: 'btn-row reveal' },
+            h('button', { class: 'btn btn-lg', type: 'button', onclick: start }, '무료로 시작하기 →'),
+            h('a', { class: 'btn ghost', href: '#price', onclick: (e) => { e.preventDefault(); document.getElementById('price').scrollIntoView({ behavior: 'smooth' }); } }, '기능 보기')),
+          h('p', { class: 'hero-note reveal' }, '카드 등록도, 기간 제한도 없습니다. 장사 잘 되시라고 만든 앱이니 마음껏 쓰세요.')),
+        h('div', { class: 'hero-demo' },
+          countCard,
+          simEl))),
+
+    /* ─── 해시태그 마퀴 ─── */
+    marquee(),
 
     h('main', { id: 'main' },
-      featureGrid(),
 
+      /* ─── 통계 카운터 ─── */
+      h('section', { class: 'sec stats-sec' },
+        h('div', { class: 'stats-grid' },
+          h('div', { class: 'stat-card glass reveal' }, stat1, h('p', null, '등록된 식자재')),
+          h('div', { class: 'stat-card glass reveal' }, stat2, h('p', null, '계산된 원가율')),
+          h('div', { class: 'stat-card glass reveal' }, stat3, h('p', null, '절약된 시간(시간)')))),
+
+      /* ─── 기능 캐러셀 ─── */
+      h('section', { class: 'sec', 'aria-labelledby': 'feat-t' },
+        h('h2', { id: 'feat-t', class: 'reveal' }, '무엇을 할 수 있나요'),
+        featCarousel,
+        h('div', { class: 'feat-grid reveal' },
+          FEATURES.map(([ic, title, desc]) => h('article', { class: 'feat-card' },
+            icon(ic, 22), h('h3', null, title), h('p', null, desc))))),
+
+      /* ─── 사용법 탭 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'how-t' },
-        h('h2', { id: 'how-t' }, '명세서를 받으면 이렇게 씁니다'),
-        h('div', { class: 'steps' },
-          h('div', { class: 'step' }, h('div', { class: 'step-no' }, '1'), h('h3', null, '사진을 올립니다'), h('p', null, '납품받은 거래명세서를 찍어 올리면 품목, 규격, 단가를 읽어 옵니다.')),
-          h('div', { class: 'step' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '읽은 내용을 확인합니다'), h('p', null, '틀린 곳만 고치고, 이름이 다른 식자재는 한 번만 연결해 두면 다음부터 자동으로 알아봅니다.')),
-          h('div', { class: 'step' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '원가율이 다시 계산됩니다'), h('p', null, '단가가 오른 식자재와 그 때문에 원가율이 오른 메뉴를 바로 알려 드립니다.')))),
+        h('h2', { id: 'how-t', class: 'reveal' }, '명세서를 받으면 이렇게 씁니다'),
+        howTabs),
 
+      /* ─── 범위 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'scope-t' },
-        h('h2', { id: 'scope-t' }, '단가와 원가율만 봅니다'),
-        h('p', { class: 'lead' }, '재고 수량이나 발주까지 맡기지 않는 대신, 숫자 하나가 틀리지 않게 만드는 데 집중합니다.'),
+        h('h2', { id: 'scope-t', class: 'reveal' }, '단가와 원가율만 봅니다'),
+        h('p', { class: 'lead reveal' }, '재고 수량이나 발주까지 맡기지 않는 대신, 숫자 하나가 틀리지 않게 만드는 데 집중합니다.'),
         h('div', { class: 'scope' },
-          h('div', null, h('h3', null, '합니다'), h('ul', null,
+          h('div', { class: 'reveal' }, h('h3', null, '합니다'), h('ul', null,
             ['식자재별 단가와 가격 변동 이력', '수율을 반영한 실제 사용 단가', '메뉴별 원가율, 남는 돈, 권장 판매가', '요리 사진으로 재료·양 추정(추정 표시와 범위)', '배민·쿠팡이츠 수수료를 뺀 배달 손익', '엑셀·CSV로 쓰던 자료 가져오기', '단가가 오른 식자재와 영향받는 메뉴 알림', '엑셀(CSV) 내려받기'].map((t) => h('li', null, t)))),
-          h('div', { class: 'no' }, h('h3', null, '하지 않습니다'), h('ul', null,
+          h('div', { class: 'no reveal' }, h('h3', null, '하지 않습니다'), h('ul', null,
             ['재고 수량 관리', '발주·주문', 'POS·배달앱 자동 연동', '세금계산서 발행'].map((t) => h('li', null, t)))))),
 
+      /* ─── 요금 ─── */
       h('section', { class: 'sec', id: 'price', 'aria-labelledby': 'price-t' },
-        h('h2', { id: 'price-t' }, '요금'),
+        h('h2', { id: 'price-t', class: 'reveal' }, '요금'),
         h('div', { class: 'price-box', style: { 'margin-top': '14px' } },
-          h('div', null,
+          h('div', { class: 'reveal' },
             h('div', { class: 'price-big' }, h('span', { class: 'n' }, '무료')),
             h('p', { class: 'small muted', style: 'margin-top:6px' }, '지금 있는 기능은 기간 제한 없이 계속 무료입니다.'),
             h('div', { class: 'btn-row', style: 'margin-top:16px' }, h('button', { class: 'btn', type: 'button', onclick: start }, '무료로 시작하기'))),
-          h('div', null,
+          h('div', { class: 'reveal' },
             h('ul', null, [
               '식자재·메뉴 등록 개수 제한 없음',
               '가격 이력과 원가 알림',
@@ -361,16 +552,132 @@ export function renderLanding(root, onAuth) {
               '사진 자동 인식에만 횟수를 둔 것은 인식할 때마다 외부 API 비용이 나가기 때문입니다. ',
               '나중에 상권분석처럼 완전히 새로운 기능이 생기면 따로 둘 수도 있지만, 위 기능들은 계속 무료입니다.')))),
 
-      h('section', { class: 'sec', 'aria-labelledby': 'faq-t' }, h('h2', { id: 'faq-t' }, '자주 묻는 질문'), faq),
+      /* ─── FAQ 아코디언 ─── */
+      h('section', { class: 'sec', 'aria-labelledby': 'faq-t' },
+        h('h2', { id: 'faq-t', class: 'reveal' }, '자주 묻는 질문'),
+        faqAccordion),
 
+      /* ─── 도입 문의 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'lead-t' },
-        h('h2', { id: 'lead-t' }, '도입 문의'),
-        h('p', { class: 'lead' }, '우리 가게에 맞게 쓸 수 있는지 먼저 물어보셔도 됩니다.'),
-        h('div', { class: 'sheet', style: 'max-width:640px' }, leadForm()))),
+        h('h2', { id: 'lead-t', class: 'reveal' }, '도입 문의'),
+        h('p', { class: 'lead reveal' }, '우리 가게에 맞게 쓸 수 있는지 먼저 물어보셔도 됩니다.'),
+        h('div', { class: 'sheet reveal', style: 'max-width:640px' }, leadForm()))),
 
     h('footer', { class: 'foot' },
       h('span', null, pub.business_name || '원가다이어리'),
       pub.contact_email ? h('a', { href: `mailto:${pub.contact_email}` }, pub.contact_email) : null,
       h('button', { class: 'link-btn small', type: 'button', onclick: openTerms }, '이용약관'),
-      h('button', { class: 'link-btn', type: 'button', onclick: openDataNotice }, '개인정보처리방침'))));
+      h('button', { class: 'link-btn', type: 'button', onclick: openDataNotice }, '개인정보처리방침')));
+
+  root.replaceChildren(land);
+
+  /* ─── DOM 연결 후 애니메이션 초기화 ─── */
+  requestAnimationFrame(() => {
+    // 카운팅 카드와 슬라이더 연결
+    connectCountCard(land);
+
+    // 통계 카운터 on-view
+    countOnView(stat1, 1240, '개');
+    countOnView(stat2, 8700, '건');
+    countOnView(stat3, 320, '시간');
+
+    // 스크롤 reveal
+    revealOnScroll(land);
+
+    // 마퀴 트랙 애니메이션 (CSS로 하되 JS로 width 세팅)
+    const track = land.querySelector('.mq-track');
+    if (track) {
+      const w = track.scrollWidth / 2;
+      track.style.setProperty('--mq-w', `${w}px`);
+    }
+  });
+}
+
+/* ─── 카운팅 모션: start에서 end까지 duration ms 동안 숫자를 올라가게 ─── */
+function animateCount(el, start, end, duration = 900, suffix = '') {
+  const startTime = performance.now();
+  const diff = end - start;
+  function step(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    const val = Math.round(start + diff * ease);
+    el.textContent = val.toLocaleString('ko-KR') + suffix;
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ─── IntersectionObserver로 한번만 카운팅 트리거 ─── */
+function countOnView(el, end, suffix = '원') {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      animateCount(el, 0, end, 1000, suffix);
+    });
+  }, { threshold: 0.4 });
+  io.observe(el);
+}
+
+/* ─── 컨페티 ─── */
+function launchConfetti() {
+  const colors = ['#1d4e9e', '#e8b923', '#e84040', '#22c55e', '#a855f7', '#f97316'];
+  const canvas = document.createElement('canvas');
+  Object.assign(canvas.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: '9999' });
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const pieces = Array.from({ length: 120 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20 - Math.random() * 100,
+    w: 8 + Math.random() * 8,
+    h: 4 + Math.random() * 6,
+    rot: Math.random() * Math.PI * 2,
+    vx: (Math.random() - 0.5) * 4,
+    vy: 3 + Math.random() * 4,
+    vr: (Math.random() - 0.5) * 0.2,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    alpha: 1,
+  }));
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    pieces.forEach((p) => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      if (frame > 60) p.alpha -= 0.015;
+      if (p.y < canvas.height + 20 && p.alpha > 0) { alive = true; }
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.alpha);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    frame++;
+    if (alive) requestAnimationFrame(draw);
+    else canvas.remove();
+  }
+  draw();
+}
+
+/* ─── 해시태그 마퀴 ─── */
+const HASHTAGS = ['#식자재원가', '#원가관리', '#음식점창업', '#자영업자', '#메뉴원가', '#배달음식', '#한식당', '#카페창업', '#재료비절감', '#원가율', '#명세서관리', '#음식점경영', '#식당사장님', '#배달앱수수료', '#손익분기점'];
+
+function marquee() {
+  const items = [...HASHTAGS, ...HASHTAGS].map((t) => h('span', { class: 'mq-tag' }, t));
+  const track = h('div', { class: 'mq-track' }, items);
+  return h('div', { class: 'mq-wrap', 'aria-hidden': 'true' }, track);
+}
+
+/* ─── 스크롤 reveal (stagger) ─── */
+function revealOnScroll(container) {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) { e.target.classList.add('revealed'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12 });
+  container.querySelectorAll('.reveal').forEach((el) => io.observe(el));
 }

@@ -43,17 +43,17 @@ export async function renderList(box) {
   const { items, summary } = await api('/api/menus');
   const canWrite = app.me.plan.writable;
   const add = h('a', { class: 'btn sm', href: '#/menus/new', 'aria-disabled': String(!canWrite) }, icon('plus', 18), '메뉴 추가');
-  const photo = h('a', { class: 'btn ghost sm', href: '#/menus/photo', 'aria-disabled': String(!canWrite) }, icon('camera', 18), '사진으로 만들기');
+  // 사진으로 만들기 — 정확도 부족으로 비공개 처리
+  // const photo = h('a', { class: 'btn ghost sm', href: '#/menus/photo', 'aria-disabled': String(!canWrite) }, icon('camera', 18), '사진으로 만들기');
   const preps = h('a', { class: 'btn ghost sm', href: '#/preps' }, '프렙 레시피');
-  box.append(h('div', { class: 'page-h' }, h('h1', null, '메뉴', h('span', { class: 'sub' }, `${items.length}개`)), h('div', { class: 'btn-row' }, preps, photo, add)));
+  box.append(h('div', { class: 'page-h' }, h('h1', null, '메뉴', h('span', { class: 'sub' }, `${items.length}개`)), h('div', { class: 'btn-row' }, preps, add)));
 
   if (!items.length) {
     box.append(h('section', { class: 'sheet' }, emptyBlock({
       title: '아직 등록한 메뉴가 없습니다',
-      text: '메뉴마다 재료와 양을 넣으면 원가율과 권장 판매가가 계산됩니다. 재료 양을 잘 모르겠다면 완성된 요리 사진을 올려 보세요. 재료와 양을 짐작해서 초안을 만들어 드립니다. 쓰던 앱이나 엑셀이 있으면 그대로 가져올 수도 있습니다.',
+      text: '메뉴마다 재료와 양을 넣으면 원가율과 권장 판매가가 계산됩니다. 쓰던 엑셀이 있으면 그대로 가져올 수도 있습니다.',
       actions: [
-        h('a', { class: 'btn', href: '#/menus/photo' }, icon('camera', 20), '요리 사진으로 만들기'),
-        h('a', { class: 'btn ghost', href: '#/menus/new' }, '직접 입력하기'),
+        h('a', { class: 'btn', href: '#/menus/new' }, '직접 입력하기'),
         h('a', { class: 'btn ghost', href: '#/import' }, '엑셀·다른 앱에서 가져오기'),
       ],
     })));
@@ -398,7 +398,7 @@ export async function renderEditor(box, id) {
     h('section', { class: 'sheet' },
       h('div', { class: 'sheet-h' }, h('h2', null, '재료와 양'), h('span', { class: 'sub' }, '1인분 기준')),
       ings.length ? null : h('p', { class: 'small', style: 'margin-bottom:8px' }, '등록된 식자재가 없습니다. ', h('a', { href: '#/ingredients' }, '식자재를 먼저 등록'), '해 주세요.'),
-      menu ? null : h('p', { class: 'hint', style: 'margin-bottom:6px' }, '재료 양을 잘 모르겠다면 ', h('a', { href: '#/menus/photo' }, '완성된 요리 사진으로 시작'), '해 보세요. 재료와 양을 짐작해 드립니다.'),
+      menu ? null : h('p', { class: 'hint', style: 'margin-bottom:6px' }, '재료 양을 잘 모르겠다면 일단 어림잡은 양으로 입력하고 나중에 고쳐도 됩니다.'),
       rowsBox,
       h('div', { style: 'margin-top:8px' }, h('button', { class: 'btn ghost sm', type: 'button', onclick: () => addRow().name.focus() }, icon('plus', 18), '재료 추가')),
       estTools,

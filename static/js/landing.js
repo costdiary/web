@@ -82,12 +82,12 @@ function simulator() {
 const FAQ = [
   ['명세서·요리 사진은 어디에 저장되나요?', '글자나 재료를 읽기 위해 사진을 Anthropic의 Claude API로 보내고, 인식이 잘못됐을 때 확인할 수 있도록 원가다이어리 서버에도 함께 보관합니다. 계정을 삭제하면 보관하던 사진도 함께 삭제됩니다. 자동 인식을 설정하기 전에는 예시 명세서로 화면을 먼저 써볼 수 있습니다.'],
   ['쓰던 앱이나 엑셀 자료를 옮길 수 있나요?', '엑셀(.xlsx)과 CSV 파일을 올리면 제목 줄을 읽어 칸을 자동으로 맞추고, 저장하기 전에 미리 보여 드립니다. 앱마다 내려받는 파일의 모양이 달라서 칸이 틀리면 직접 고를 수 있습니다. 가격이 없는 식자재도 \'단가 없음\'으로 옮겨 두었다가 명세서로 채울 수 있습니다.'],
-  ['메뉴별 재료 양(g)을 몰라도 쓸 수 있나요?', '완성된 요리 사진을 올리면 재료와 양을 짐작해 메뉴 초안을 만듭니다. 사진만으로 정확한 양을 알 수는 없어서 모든 숫자에 \'추정\' 표시와 범위가 붙고, 계량해서 고치기 전까지 원가율도 범위로 보여 드립니다.'],
+  ['메뉴별 재료 양(g)을 몰라도 쓸 수 있나요?', '재료 양을 모를 때는 일단 어림잡아 입력해 두고, 단가만 먼저 넣어도 됩니다. 나중에 실제로 계량한 값으로 고치면 원가율이 자동으로 다시 계산됩니다.'],
   ['배달의민족·쿠팡이츠 수수료도 반영되나요?', '쓰는 앱을 켜고 구간·요율을 맞추면 메뉴마다 배달 주문 한 건에 남는 돈과 배달용 권장 판매가를 계산합니다. 앱과 연동하는 것이 아니라 공개된 안내를 바탕으로 한 기본값이며, 정산내역서와 다르면 직접 고쳐 쓰세요. 확인하지 못한 요율에는 \'확인 필요\' 표시가 붙습니다.'],
   ['글자를 잘못 읽으면 어떻게 되나요?', '반영하기 전에 모든 줄을 보여드리고, 규격과 가격은 직접 고칠 수 있습니다. 확인하고 누르기 전에는 아무것도 저장되지 않습니다.'],
   ['명세서마다 식자재 이름이 달라요.', '비슷한 이름은 자동으로 연결하고, 못 찾은 이름은 한 번만 골라 주시면 다음부터 기억합니다.'],
   ['수율은 어떻게 계산하나요?', '식자재마다 수율(다듬고 남는 비율)을 넣으면 실제로 쓰는 양 기준으로 계산합니다. 수율이 90%이면 단가를 0.9로 나눈 값을 원가에 씁니다.'],
-  ['돈을 내야 하나요?', '아니요. 지금 있는 기능은 전부 무료이고, 식자재와 메뉴는 몇 개를 등록하든 제한이 없습니다. 사진 자동 인식만 한 달 10회로 묶어 두었는데, 한 번 인식할 때마다 외부 API 비용이 나가기 때문입니다. 10회를 넘기면 손으로 입력하시면 됩니다.'],
+  ['돈을 내야 하나요?', '아니요. 식자재 단가 관리, 메뉴 원가 계산, 엑셀 가져오기·내려받기 등 지금 있는 기능은 개수 제한 없이 모두 쓸 수 있습니다. 거래명세서 사진 자동 인식만 한 달 5회로 묶어 두었는데(시범 운영 중이라 인식 결과가 부정확할 수 있습니다), 한 번 인식할 때마다 외부 API 비용이 나가기 때문입니다. 5회를 넘기거나 결과가 맞지 않으면 직접 입력하시면 됩니다.'],
   ['그만 쓰고 싶어요.', '설정에서 계정을 삭제하면 입력한 식자재·메뉴·가격 이력이 모두 지워집니다.'],
 ];
 
@@ -289,7 +289,7 @@ const FEATURES = [
   ['box', '식자재 단가·가격 이력', '살 때마다 단가가 쌓이고, 오른 재료가 생기면 그 재료가 들어가는 메뉴까지 짚어 알려 줍니다.'],
   ['list', '메뉴 원가·권장 판매가', '재료와 양만 넣으면 원가율이 나오고, 목표 원가율에 맞춰 얼마를 받아야 할지도 같이 계산해 둡니다.'],
   ['trend', '프렙 레시피', '미리 끓여 두는 육수나 소스처럼 여러 메뉴에 쓰는 재료도 g(ml)당 원가로 잡아 두고, 메뉴 쪼갤 때 그대로 가져다 씁니다.'],
-  ['camera', '사진으로 메뉴 만들기', '다 된 요리 사진 한 장으로도 재료와 양을 어림잡아 메뉴 초안을 만들어 줍니다.'],
+  // ['camera', '사진으로 메뉴 만들기', '다 된 요리 사진 한 장으로도 재료와 양을 어림잡아 메뉴 초안을 만들어 줍니다.'],
   ['search', '배달앱 수수료 계산', '배민·쿠팡이츠 수수료와 배달비까지 빼고 나면 한 건 팔아서 실제로 남는 돈이 얼마인지 보여 줍니다.'],
 ];
 
@@ -459,6 +459,7 @@ export function renderLanding(root, onAuth) {
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '읽은 내용을 확인합니다'), h('p', null, '틀린 곳만 고치고, 이름이 다른 식자재는 한 번만 연결하면 다음부터 자동으로 알아봅니다.')),
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '원가율이 다시 계산됩니다'), h('p', null, '단가가 오른 식자재와 그 때문에 원가율이 오른 메뉴를 바로 알려 드립니다.'))),
     },
+    /* 요리 사진 탭 — 너무 부정확해 비공개 처리
     {
       label: '요리 사진으로',
       content: h('div', { class: 'steps' },
@@ -466,6 +467,7 @@ export function renderLanding(root, onAuth) {
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '재료와 양을 AI가 어림잡습니다'), h('p', null, '사진만으로 정확한 양은 알 수 없어서 추정 표시와 범위가 붙습니다.')),
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '계량해서 고쳐 쓰면 됩니다'), h('p', null, '고치기 전까지는 원가율도 범위로 보여 드립니다.'))),
     },
+    */
     {
       label: '엑셀에서',
       content: h('div', { class: 'steps' },
@@ -481,19 +483,19 @@ export function renderLanding(root, onAuth) {
       h('a', { class: 'brand', href: '#/' }, h('img', { src: '/static/icon.svg', alt: '', width: 26, height: 26 }), '원가다이어리'),
       h('div', { class: 'land-top-actions' },
         h('button', { class: 'btn ghost sm', type: 'button', onclick: login }, '로그인'),
-        h('button', { class: 'btn sm', type: 'button', onclick: start }, '무료 시작'))),
+        h('button', { class: 'btn sm', type: 'button', onclick: start }, '지금 써보기'))),
 
     /* ─── 히어로 ─── */
     h('section', { class: 'hero', 'aria-labelledby': 'hero-t' },
       h('div', { class: 'hero-in' },
         h('div', { class: 'hero-copy' },
-          h('div', { class: 'hero-badge reveal' }, '✦ 무료 · 카드 등록 없음'),
+          h('div', { class: 'hero-badge reveal' }, '✦ 카드 등록 없음 · 기간 제한 없음'),
           h('h1', { id: 'hero-t', class: 'reveal' }, '재료값 오르면,\n어떤 메뉴를 얼마에\n팔아야 남는지\n바로 알려 드립니다'),
-          h('p', { class: 'hero-lead reveal' }, '명세서 사진 한 장만 올리면 식자재 단가가 바뀌고, 메뉴마다 원가율과 올려야 할 판매가가 다시 계산됩니다.'),
+          h('p', { class: 'hero-lead reveal' }, '엑셀로 계산했던 원가, 흩어진 영수증·거래명세서를 모두 한 곳에서 입력하고 메뉴별로 계산해 보세요.'),
           h('div', { class: 'btn-row reveal' },
-            h('button', { class: 'btn btn-lg', type: 'button', onclick: start }, '무료로 시작하기 →'),
+            h('button', { class: 'btn btn-lg', type: 'button', onclick: start }, '원가 계산 시작하기 →'),
             h('a', { class: 'btn ghost', href: '#price', onclick: (e) => { e.preventDefault(); document.getElementById('price').scrollIntoView({ behavior: 'smooth' }); } }, '기능 보기')),
-          h('p', { class: 'hero-note reveal' }, '카드 등록도, 기간 제한도 없습니다. 장사 잘 되시라고 만든 앱이니 마음껏 쓰세요.')),
+          h('p', { class: 'hero-note reveal' }, '식자재·메뉴 등록 개수 제한 없이 쓸 수 있습니다. 거래명세서 사진 자동 인식은 월 5회(시범 운영 중).')),
         h('div', { class: 'hero-demo' },
           countCard,
           simEl))),
@@ -529,7 +531,7 @@ export function renderLanding(root, onAuth) {
         h('p', { class: 'lead reveal' }, '재고 수량이나 발주까지 맡기지 않는 대신, 숫자 하나가 틀리지 않게 만드는 데 집중합니다.'),
         h('div', { class: 'scope' },
           h('div', { class: 'reveal' }, h('h3', null, '합니다'), h('ul', null,
-            ['식자재별 단가와 가격 변동 이력', '수율을 반영한 실제 사용 단가', '메뉴별 원가율, 남는 돈, 권장 판매가', '요리 사진으로 재료·양 추정(추정 표시와 범위)', '배민·쿠팡이츠 수수료를 뺀 배달 손익', '엑셀·CSV로 쓰던 자료 가져오기', '단가가 오른 식자재와 영향받는 메뉴 알림', '엑셀(CSV) 내려받기'].map((t) => h('li', null, t)))),
+            ['식자재별 단가와 가격 변동 이력', '수율을 반영한 실제 사용 단가', '메뉴별 원가율, 남는 돈, 권장 판매가', '거래명세서 사진 자동 인식(월 5회·시범 운영)', '배민·쿠팡이츠 수수료를 뺀 배달 손익', '엑셀·CSV로 쓰던 자료 가져오기', '단가가 오른 식자재와 영향받는 메뉴 알림', '엑셀(CSV) 내려받기'].map((t) => h('li', null, t)))),
           h('div', { class: 'no reveal' }, h('h3', null, '하지 않습니다'), h('ul', null,
             ['재고 수량 관리', '발주·주문', 'POS·배달앱 자동 연동', '세금계산서 발행'].map((t) => h('li', null, t)))))),
 
@@ -538,19 +540,19 @@ export function renderLanding(root, onAuth) {
         h('h2', { id: 'price-t', class: 'reveal' }, '요금'),
         h('div', { class: 'price-box', style: { 'margin-top': '14px' } },
           h('div', { class: 'reveal' },
-            h('div', { class: 'price-big' }, h('span', { class: 'n' }, '무료')),
-            h('p', { class: 'small muted', style: 'margin-top:6px' }, '지금 있는 기능은 기간 제한 없이 계속 무료입니다.'),
-            h('div', { class: 'btn-row', style: 'margin-top:16px' }, h('button', { class: 'btn', type: 'button', onclick: start }, '무료로 시작하기'))),
+            h('div', { class: 'price-big' }, h('span', { class: 'n' }, '0원')),
+            h('p', { class: 'small muted', style: 'margin-top:6px' }, '지금 있는 기능은 기간 제한 없이 계속 쓸 수 있습니다.'),
+            h('div', { class: 'btn-row', style: 'margin-top:16px' }, h('button', { class: 'btn', type: 'button', onclick: start }, '원가 계산 시작하기'))),
           h('div', { class: 'reveal' },
             h('ul', null, [
               '식자재·메뉴 등록 개수 제한 없음',
               '가격 이력과 원가 알림',
               '언제든 엑셀(CSV)로 내려받기',
-              '명세서·요리 사진 자동 인식 월 10회(넘으면 손으로 입력)',
-            ].map((t) => h('li', null, t))),
+              h('span', null, '거래명세서 사진 자동 인식 월 5회 ', h('small', { class: 'muted' }, '(시범 운영 중 · 결과가 부정확할 수 있음)')),
+            ].map((t) => typeof t === 'string' ? h('li', null, t) : h('li', null, t))),
             h('p', { class: 'small muted', style: 'margin-top:10px' },
               '사진 자동 인식에만 횟수를 둔 것은 인식할 때마다 외부 API 비용이 나가기 때문입니다. ',
-              '나중에 상권분석처럼 완전히 새로운 기능이 생기면 따로 둘 수도 있지만, 위 기능들은 계속 무료입니다.')))),
+              '5회를 넘기거나 결과가 맞지 않으면 직접 입력하시면 됩니다.')))),
 
       /* ─── FAQ 아코디언 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'faq-t' },

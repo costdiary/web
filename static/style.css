@@ -1094,7 +1094,7 @@ a.dm-stat:active { transform: scale(0.98); }
 .tab-list::-webkit-scrollbar { display: none; }
 .tab-btn {
   flex-shrink: 0; padding: 10px 20px; border: 0; background: 0; cursor: pointer;
-  font: 600 0.9375rem/1 var(--font); color: var(--ink-2);
+  font: 600 0.9375rem/1 var(--font-ui); color: var(--ink-2);
   border-bottom: 2px solid transparent; margin-bottom: -2px;
   transition: color 0.15s, border-color 0.15s;
 }
@@ -1111,7 +1111,7 @@ a.dm-stat:active { transform: scale(0.98); }
 .acc-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   width: 100%; padding: 16px 18px; border: 0; background: 0; cursor: pointer;
-  font: 700 0.9375rem/1.4 var(--font); color: var(--ink); text-align: left;
+  font: 700 0.9375rem/1.4 var(--font-ui); color: var(--ink); text-align: left;
   transition: background 0.12s;
 }
 .acc-header:hover { background: var(--sheet-2); }
@@ -1157,20 +1157,32 @@ a.dm-stat:active { transform: scale(0.98); }
 }
 /* Landing redesign: a high-contrast editorial hero and an interactive cost card. */
 :root:not([data-brand="domae"]) .land {
-  --paper: #F4F8FF;
+  /* 팔레트 60·30·10: 차가운 흰 바탕 60, 흰 카드 30, 로고 파랑 + 버터 노랑 10.
+     주황·초록·빨강은 숫자 의미(재료비·남는 돈·원가율 위험)에만 쓴다. */
+  --paper: #F6F8FC;
   --sheet: #FFFFFF;
-  --sheet-2: #E8F0FC;
-  --ink: #14213D;
-  --ink-2: #4A5878;
-  --ink-3: #6B7894;
-  --rule: #DCE5F3;
-  --rule-2: #BCCBE4;
+  --sheet-2: #EDF2FA;
+  --ink: #0F1E3D;
+  --ink-2: #4B5874;
+  --ink-3: #66738C;
+  --rule: #DFE6F1;
+  --rule-2: #C3CFE2;
   --blue: #1D4E9E;
   --blue-2: #163E80;
-  --blue-soft: #E3ECFB;
+  --blue-3: #2A63C4;
+  --blue-soft: #E4ECFA;
   --btn: #1D4E9E;
   --btn-2: #163E80;
-  --accent: #FFE066;
+  --navy: #0F1E3D;
+  --accent: #FFD23F;
+  --accent-2: #E3AE12;
+  --accent-soft: #FFF5CF;
+  --orange: #D9531E;
+  --orange-soft: #FFEFE8;
+  --green: #0B7F57;
+  --green-soft: #E1F4EB;
+  --red: #CC2F3A;
+  --red-soft: #FDECEC;
   font-size: 17px;
   line-height: 1.65;
   background: var(--paper);
@@ -1191,7 +1203,15 @@ a.dm-stat:active { transform: scale(0.98); }
     --blue-soft: #1E2A40;
     --btn: #2F66C8;
     --btn-2: #3B74D6;
-    --accent: #FFE066;
+    --accent: #FFD23F;
+    --accent-2: #C99A0A;
+    --accent-soft: #3A3214;
+    --orange: #FF9B6B;
+    --orange-soft: #3A2218;
+    --green: #5FD49C;
+    --green-soft: #15362A;
+    --red: #FF8A8F;
+    --red-soft: #3A1E22;
   }
 }
 :root:not([data-brand="domae"]) .land-top {
@@ -1244,7 +1264,7 @@ a.dm-stat:active { transform: scale(0.98); }
   top: -18%;
   right: -8%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 224, 102, 0.55) 0%, rgba(255, 224, 102, 0) 68%);
+  background: radial-gradient(circle, rgba(255, 210, 63, 0.28) 0%, rgba(42, 99, 196, 0.10) 42%, rgba(42, 99, 196, 0) 70%);
   pointer-events: none;
 }
 :root:not([data-brand="domae"]) .hero::after {
@@ -1273,7 +1293,7 @@ a.dm-stat:active { transform: scale(0.98); }
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #FFE066;
+  background: var(--accent);
 }
 :root:not([data-brand="domae"]) .hero h1 {
   max-width: 12em;
@@ -1286,7 +1306,7 @@ a.dm-stat:active { transform: scale(0.98); }
 :root:not([data-brand="domae"]) .hero-highlight {
   color: inherit;
   text-decoration: none;
-  background: linear-gradient(transparent 62%, #FFE066 62%);
+  background: linear-gradient(transparent 62%, var(--accent) 62%);
 }
 :root:not([data-brand="domae"]) .hero-lead {
   max-width: 31em;
@@ -1310,8 +1330,8 @@ a.dm-stat:active { transform: scale(0.98); }
   box-shadow: 0 5px 0 #163E80, 0 14px 24px -14px rgba(29, 78, 158, 0.55);
 }
 :root:not([data-brand="domae"]) .hero .btn:not(.ghost):hover {
-  background: #2558B0;
-  border-color: #2558B0;
+  background: var(--blue-3);
+  border-color: var(--blue-3);
   box-shadow: 0 7px 0 #163E80, 0 18px 28px -14px rgba(29, 78, 158, 0.6);
   transform: translateY(-2px);
 }
@@ -1324,17 +1344,20 @@ a.dm-stat:active { transform: scale(0.98); }
 }
 :root:not([data-brand="domae"]) .hero .btn.ghost:hover { background: var(--blue-soft); }
 :root:not([data-brand="domae"]) .hero-free-note {
-  display: inline-block;
+  display: block;
   width: fit-content;
-  margin-top: 20px;
-  padding: 9px 14px;
-  border-radius: 14px;
-  background: #FFF6CC;
-  color: #14213D;
-  font-size: 0.92rem;
-  font-weight: 800;
+  margin-top: 22px;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  box-shadow: 0 3px 0 #F0DD8A;
+  box-shadow: none;
+}
+:root:not([data-brand="domae"]) .hero-badge {
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 :root:not([data-brand="domae"]) .hero-note {
   margin-top: 8px;
@@ -1379,7 +1402,7 @@ a.dm-stat:active { transform: scale(0.98); }
   border: 1px solid var(--rule);
   border-radius: 24px;
   background: #FFFFFF;
-  color: #14213D;
+  color: var(--navy);
   box-shadow: 0 4px 0 #DCE5F3, 0 24px 48px -28px rgba(29, 78, 158, 0.35);
   transition: transform 220ms ease, box-shadow 220ms ease;
 }
@@ -1389,12 +1412,12 @@ a.dm-stat:active { transform: scale(0.98); }
 }
 :root:not([data-brand="domae"]) .land .sim::before {
   height: 5px;
-  background: linear-gradient(90deg, #FFE066 0 34%, #1D4E9E 34% 100%);
+  background: linear-gradient(90deg, var(--accent) 0 34%, #1D4E9E 34% 100%);
 }
 :root:not([data-brand="domae"]) .land .sim-h { padding-bottom: 16px; }
 :root:not([data-brand="domae"]) .land .sim-h h2 { font-size: 1.25rem; letter-spacing: -0.025em; }
 :root:not([data-brand="domae"]) .land .sim-ratio { margin: 20px 0 18px; }
-:root:not([data-brand="domae"]) .land .sim-ratio .n { color: #14213D; font-size: clamp(3.75rem, 5.2vw, 4.7rem); letter-spacing: -0.06em; }
+:root:not([data-brand="domae"]) .land .sim-ratio .n { color: var(--navy); font-size: clamp(3.75rem, 5.2vw, 4.7rem); letter-spacing: -0.06em; }
 :root:not([data-brand="domae"]) .land .sim-ratio .u { color: #4A5878; }
 :root:not([data-brand="domae"]) .land .sim input[type="range"] {
   height: 42px;
@@ -1402,7 +1425,7 @@ a.dm-stat:active { transform: scale(0.98); }
   cursor: pointer;
 }
 :root:not([data-brand="domae"]) .land .sim input[type="range"]:focus-visible {
-  outline: 3px solid #FFE066;
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
   border-radius: 999px;
 }
@@ -1469,10 +1492,10 @@ a.dm-stat:active { transform: scale(0.98); }
   height: 58px;
   border: 6px solid var(--paper);
   border-radius: 50%;
-  background: #FFE066;
-  color: #14213D;
+  background: var(--accent);
+  color: var(--navy);
   font-size: 1.5rem;
-  box-shadow: 0 4px 0 #E0BE3A, 0 0 0 1px var(--rule-2);
+  box-shadow: 0 4px 0 var(--accent-2), 0 0 0 1px var(--rule-2);
 }
 :root:not([data-brand="domae"]) .land .step h3 {
   margin: 20px 0 8px;
@@ -1499,8 +1522,8 @@ a.dm-stat:active { transform: scale(0.98); }
   box-shadow: 0 4px 0 var(--rule), 0 18px 34px -28px rgba(29, 78, 158, 0.4);
   transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
 }
-:root:not([data-brand="domae"]) .land .feat-group:nth-child(2) { border-top-color: #F2B705; }
-:root:not([data-brand="domae"]) .land .feat-group:nth-child(3) { border-top-color: #E8743B; }
+:root:not([data-brand="domae"]) .land .feat-group:nth-child(2) { border-top-color: var(--accent-2); }
+:root:not([data-brand="domae"]) .land .feat-group:nth-child(3) { border-top-color: var(--orange); }
 :root:not([data-brand="domae"]) .land .feat-group:hover {
   transform: translateY(-5px);
   box-shadow: 0 6px 0 var(--rule), 0 24px 40px -28px rgba(29, 78, 158, 0.48);
@@ -1558,20 +1581,20 @@ a.dm-stat:active { transform: scale(0.98); }
   color: #FFFFFF;
   box-shadow: 0 6px 0 #163E80, 0 28px 56px -36px rgba(20, 33, 61, 0.6);
 }
-:root:not([data-brand="domae"]) .land .price-big .n { color: #FFE066; font-size: 4.5rem; letter-spacing: -0.05em; }
+:root:not([data-brand="domae"]) .land .price-big .n { color: var(--accent); font-size: 4.5rem; letter-spacing: -0.05em; }
 :root:not([data-brand="domae"]) .land .price-box .small { color: #D6E2FA; }
 :root:not([data-brand="domae"]) .land .price-box .btn {
   min-height: 48px;
   padding-inline: 20px;
   border-radius: 16px;
-  color: #14213D;
-  background: #FFE066;
-  border-color: #FFE066;
+  color: var(--navy);
+  background: var(--accent);
+  border-color: var(--accent);
   font-weight: 800;
-  box-shadow: 0 4px 0 #E0BE3A;
+  box-shadow: 0 4px 0 var(--accent-2);
 }
 :root:not([data-brand="domae"]) .land .price-box li { padding-block: 8px; font-size: 0.98rem; }
-:root:not([data-brand="domae"]) .land .price-box li::before { border-color: #FFE066; }
+:root:not([data-brand="domae"]) .land .price-box li::before { border-color: var(--accent); }
 :root:not([data-brand="domae"]) .land .faq { max-width: 900px; }
 :root:not([data-brand="domae"]) .land .faq details { border-color: var(--rule); }
 :root:not([data-brand="domae"]) .land .faq summary {
@@ -1648,3 +1671,252 @@ a.dm-stat:active { transform: scale(0.98); }
   :root:not([data-brand="domae"]) .land .feat-group,
   :root:not([data-brand="domae"]) .land .btn { transform: none !important; }
 }
+
+/* ─── 랜딩 인터랙티브 모션 ───
+   모든 도형(카드·버튼·배지·타일·번호 원·탭·점)에 hover·press·focus 반응을 준다.
+   시간: 직접 조작 120–200ms, 카드 리프트 240ms. 이징은 감속형(ease-out) 한 가지로 통일.
+   운영체제의 "동작 줄이기"가 켜져 있으면 이동·확대·기울기는 끄고 색 변화만 남긴다. */
+:root:not([data-brand="domae"]) .land {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast: 140ms;
+  --t-mid: 240ms;
+  --lift-shadow: 0 18px 40px -22px rgba(15, 30, 61, 0.38);
+}
+
+/* 카드형 도형: 떠오름 + 커서를 따라오는 은은한 빛 */
+:root:not([data-brand="domae"]) .land :is(.hc-card, .carousel, .feat-card, .scope > div, .price-box, .accordion, .step) {
+  position: relative;
+  transition: transform var(--t-mid) var(--ease-out), box-shadow var(--t-mid) var(--ease-out), border-color var(--t-mid) var(--ease-out), opacity 0.6s var(--ease-out);
+}
+/* 스크롤 등장 중인 카드는 등장 모션(0.6s)을 그대로 쓰고, 등장이 끝난 뒤부터 hover 리프트 */
+:root:not([data-brand="domae"]) .land .reveal:not(.revealed) { transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out); }
+:root:not([data-brand="domae"]) .land :is(.hc-card, .carousel, .feat-card, .scope > div, .price-box)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), rgba(42, 99, 196, 0.10), transparent 60%);
+  transition: opacity var(--t-mid) var(--ease-out);
+}
+:root:not([data-brand="domae"]) .land .price-box::after {
+  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 210, 63, 0.22), transparent 60%);
+}
+:root:not([data-brand="domae"]) .land :is(.hc-card, .carousel, .feat-card, .scope > div, .price-box):hover::after { opacity: 1; }
+:root:not([data-brand="domae"]) .land :is(.carousel, .feat-card, .scope > div, .accordion):hover {
+  transform: translateY(-4px);
+  border-color: var(--rule-2);
+  box-shadow: var(--lift-shadow);
+}
+:root:not([data-brand="domae"]) .land .price-box:hover { transform: translateY(-4px); }
+:root:not([data-brand="domae"]) .land .feat-card { border-radius: 16px; transition: transform var(--t-mid) var(--ease-out), box-shadow var(--t-mid) var(--ease-out), background-color var(--t-mid) var(--ease-out); }
+:root:not([data-brand="domae"]) .land .feat-card:hover { background: var(--sheet); z-index: 1; }
+:root:not([data-brand="domae"]) .land .feat-card > svg { transition: transform var(--t-mid) var(--ease-spring); }
+:root:not([data-brand="domae"]) .land .feat-card:hover > svg { transform: translateY(-2px) scale(1.15); }
+
+/* 히어로 계산 카드: 커서 방향으로 살짝 기울어짐 (JS가 --rx, --ry를 넣음) */
+:root:not([data-brand="domae"]) .land .hc-card {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px));
+  transition: transform 120ms linear, box-shadow var(--t-mid) var(--ease-out);
+  will-change: transform;
+}
+:root:not([data-brand="domae"]) .land .hc-card:hover { --ty: -4px; box-shadow: var(--lift-shadow); }
+:root:not([data-brand="domae"]) .land .hc-card.is-leaving { transition: transform 420ms var(--ease-spring), box-shadow var(--t-mid) var(--ease-out); }
+
+/* 재료비·남는 돈 타일: hover 확대, 숫자가 바뀔 때 톡 튐 */
+:root:not([data-brand="domae"]) .land .hc-item {
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+:root:not([data-brand="domae"]) .land .hc-item:hover { transform: scale(1.03); box-shadow: 0 8px 20px -14px rgba(15, 30, 61, 0.4); }
+:root:not([data-brand="domae"]) .land .hc-num { display: inline-block; transform-origin: left center; }
+:root:not([data-brand="domae"]) .land .hc-num.bump { animation: land-bump 420ms var(--ease-spring); }
+@keyframes land-bump { 0% { transform: scale(1); } 35% { transform: scale(1.09); } 100% { transform: scale(1); } }
+:root:not([data-brand="domae"]) .land .hc-bar { height: 9px; border-radius: 999px; }
+:root:not([data-brand="domae"]) .land .hc-fill { border-radius: 999px; }
+
+/* 버튼: 누르면 들어가고, 클릭한 자리에서 물결이 퍼짐 */
+:root:not([data-brand="domae"]) .land .btn { position: relative; overflow: hidden; }
+:root:not([data-brand="domae"]) .land .btn:active { transform: translateY(2px) scale(0.98); }
+:root:not([data-brand="domae"]) .land .btn .ripple {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.28;
+  pointer-events: none;
+  animation: land-ripple 560ms var(--ease-out) forwards;
+}
+@keyframes land-ripple { to { transform: scale(26); opacity: 0; } }
+:root:not([data-brand="domae"]) .land :is(.btn, .tab-btn, .acc-header, .carousel-nav, .carousel-dot, summary, input[type="range"]):focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+/* 배지: 처음 한 번 빛이 훑고 지나감, hover에 살짝 커짐 */
+:root:not([data-brand="domae"]) .land .hero-badge {
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--t-fast) var(--ease-out), background-color var(--t-fast) var(--ease-out);
+}
+:root:not([data-brand="domae"]) .land .hero-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.85) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: land-sheen 1.4s 0.6s var(--ease-out) forwards;
+}
+@keyframes land-sheen { to { transform: translateX(120%); } }
+:root:not([data-brand="domae"]) .land .hero-badge:hover { transform: scale(1.04); background: var(--accent-soft); }
+
+/* 사용 순서 번호 원: 숫자를 원 가운데에 두고, hover에 튀어 오르며 파랑으로 */
+:root:not([data-brand="domae"]) .land .step-no {
+  display: grid;
+  place-items: center;
+  transition: transform var(--t-mid) var(--ease-spring), background-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+:root:not([data-brand="domae"]) .land .step:hover .step-no { transform: translateY(-4px) rotate(-6deg) scale(1.08); background: var(--blue); color: #FFFFFF; box-shadow: 0 4px 0 var(--blue-2), 0 0 0 1px var(--rule-2); }
+
+/* 탭: 밑줄이 미끄러지듯 채워짐 */
+:root:not([data-brand="domae"]) .land .tab-btn { position: relative; border-bottom-color: transparent !important; }
+:root:not([data-brand="domae"]) .land .tab-btn::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -2px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--blue);
+  transform: scaleX(0);
+  transition: transform var(--t-mid) var(--ease-out);
+}
+:root:not([data-brand="domae"]) .land .tab-btn:hover::after { transform: scaleX(0.4); }
+:root:not([data-brand="domae"]) .land .tab-btn.active::after { transform: scaleX(1); }
+:root:not([data-brand="domae"]) .land .tab-panel.active { animation: land-fade-up var(--t-mid) var(--ease-out); }
+@keyframes land-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* 자주 묻는 질문: + 가 회전해 × 가 되고, 열린 항목은 왼쪽 막대로 표시 */
+:root:not([data-brand="domae"]) .land .acc-header { transition: background-color var(--t-fast) var(--ease-out), padding-left var(--t-mid) var(--ease-out); }
+:root:not([data-brand="domae"]) .land .acc-header:hover { padding-left: 24px; }
+:root:not([data-brand="domae"]) .land .acc-header[aria-expanded="true"] { box-shadow: inset 4px 0 0 var(--accent); color: var(--blue); }
+:root:not([data-brand="domae"]) .land .acc-header[aria-expanded="true"] .acc-ic { transform: rotate(180deg); }
+
+/* 캐러셀 화살표·점, 해시태그 칩 */
+:root:not([data-brand="domae"]) .land .carousel-nav { transition: transform var(--t-fast) var(--ease-out), background-color var(--t-fast), color var(--t-fast); }
+:root:not([data-brand="domae"]) .land .carousel-nav:hover { transform: translateY(-50%) scale(1.12); }
+:root:not([data-brand="domae"]) .land .carousel-nav:active { transform: translateY(-50%) scale(0.94); }
+:root:not([data-brand="domae"]) .land .carousel-dot { transition: width var(--t-mid) var(--ease-out), background-color var(--t-fast); border-radius: 999px; }
+:root:not([data-brand="domae"]) .land .carousel-dot.active { width: 22px; transform: none; }
+:root:not([data-brand="domae"]) .land .mq-tag { transition: transform var(--t-fast) var(--ease-spring), background-color var(--t-fast), color var(--t-fast); }
+:root:not([data-brand="domae"]) .land .mq-tag:hover { transform: translateY(-3px) scale(1.06); }
+:root:not([data-brand="domae"]) .land .mq-wrap:hover .mq-track { animation-play-state: paused; }
+
+/* 슬라이더 손잡이: hover에 커지고, 잡고 있는 동안 노란 링 */
+:root:not([data-brand="domae"]) .land input[type="range"]::-webkit-slider-thumb { transition: transform var(--t-fast) var(--ease-spring), box-shadow var(--t-fast); }
+:root:not([data-brand="domae"]) .land input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.2); }
+:root:not([data-brand="domae"]) .land input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.3); box-shadow: 0 0 0 6px rgba(255, 210, 63, 0.55); }
+:root:not([data-brand="domae"]) .land input[type="range"]::-moz-range-thumb { transition: transform var(--t-fast) var(--ease-spring), box-shadow var(--t-fast); }
+:root:not([data-brand="domae"]) .land input[type="range"]:hover::-moz-range-thumb { transform: scale(1.2); }
+:root:not([data-brand="domae"]) .land input[type="range"]:active::-moz-range-thumb { transform: scale(1.3); box-shadow: 0 0 0 6px rgba(255, 210, 63, 0.55); }
+
+/* 터치 화면에서는 hover 효과로 카드가 떠 있는 채로 남지 않게 */
+@media (hover: none) {
+  :root:not([data-brand="domae"]) .land :is(.carousel, .feat-card, .scope > div, .accordion, .price-box, .hc-card, .hc-item, .sim):hover { transform: none; }
+  :root:not([data-brand="domae"]) .land .acc-header:hover { padding-left: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-brand="domae"]) .land *,
+  :root:not([data-brand="domae"]) .land *::before,
+  :root:not([data-brand="domae"]) .land *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  :root:not([data-brand="domae"]) .land :is(.hc-card, .carousel, .feat-card, .scope > div, .price-box, .accordion, .step, .step-no, .hc-item, .hero-badge, .mq-tag, .carousel-nav, .btn, .feat-card > svg) { transform: none !important; }
+  :root:not([data-brand="domae"]) .land .hero-badge::after,
+  :root:not([data-brand="domae"]) .land .btn .ripple { display: none; }
+}
+
+
+/* ─── 머지 전 디자인 재점검 (2026-11-24) ───
+   1) 주황은 '재료비' 의미에만. 슬라이더 값·링크·체크 표시는 파랑으로
+   2) 카드 그림자 언어를 부드러운 그림자 하나로 통일 (튀어나온 0 4px 0 그림자는 버튼에만)
+   3) 카드 모서리 20px로 통일
+   4) 다크 모드 대비 오류 수정 (보조 버튼 글자, 재료비·남는 돈 타일)
+   5) 해시태그 띠의 시각적 무게를 낮춤 */
+:root:not([data-brand="domae"]) .land .hero .sim-ctl .v .n,
+:root:not([data-brand="domae"]) .land .sim-ctl .v .n { color: var(--blue); }
+:root:not([data-brand="domae"]) .land .hero .sim summary,
+:root:not([data-brand="domae"]) .land .sim summary { color: var(--blue); }
+:root:not([data-brand="domae"]) .land .hero .calc th { border-bottom-color: var(--rule-2); }
+:root:not([data-brand="domae"]) .land .scope h3 { color: var(--ink); }
+:root:not([data-brand="domae"]) .land .scope > div:not(.no) li::before { color: var(--blue); }
+
+:root:not([data-brand="domae"]) .land .sim {
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.06), 0 20px 44px -28px rgba(15, 30, 61, 0.32);
+}
+:root:not([data-brand="domae"]) .land .sim:hover { box-shadow: 0 1px 2px rgba(15, 30, 61, 0.06), 0 28px 52px -28px rgba(15, 30, 61, 0.4); }
+:root:not([data-brand="domae"]) .land .hc-card { border-radius: 20px; }
+:root:not([data-brand="domae"]) .land .price-box {
+  border-radius: 20px;
+  box-shadow: 0 28px 56px -36px rgba(15, 30, 61, 0.6);
+}
+:root:not([data-brand="domae"]) .land .step-no {
+  border-color: var(--paper);
+  box-shadow: 0 0 0 1px var(--rule-2), 0 6px 14px -8px rgba(15, 30, 61, 0.35);
+}
+:root:not([data-brand="domae"]) .land .step:hover .step-no { box-shadow: 0 0 0 1px var(--blue), 0 10px 18px -8px rgba(29, 78, 158, 0.55); }
+:root:not([data-brand="domae"]) .land .feat-card {
+  background: var(--sheet);
+  border: 1px solid var(--rule) !important;
+  padding: 22px;
+}
+:root:not([data-brand="domae"]) .land .feat-grid { display: grid; gap: 14px; }
+:root:not([data-brand="domae"]) .land .feat-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+
+:root:not([data-brand="domae"]) .land .hero .btn.ghost {
+  background: var(--sheet);
+  color: var(--ink);
+}
+:root:not([data-brand="domae"]) .land .hc-item .hc-label { color: var(--ink-2); }
+
+:root:not([data-brand="domae"]) .land .mq-wrap { background: transparent; border-color: var(--rule); }
+:root:not([data-brand="domae"]) .land .mq-tag { background: transparent; color: var(--ink-3); font-weight: 600; padding-inline: 8px; }
+:root:not([data-brand="domae"]) .land .mq-tag:hover { background: transparent; color: var(--blue); }
+
+/* ─── 컴포넌트 전수 점검 P1 수정 ───
+   - 노란 포커스 링은 밝은 바탕 대비 1.36:1이라 거의 안 보임 → 파란 링(7.5:1), 파란 가격 박스 안에서만 노란 링
+   - '기능 보기' hover 배경이 앞선 규칙에 덮여 반응이 없던 것 복구
+   - 사용 순서 연결선이 마지막 번호 뒤로 삐져나가던 것 → 번호 사이에만 선
+   - 모바일 헤더 버튼·푸터 링크 터치 영역 44px */
+:root:not([data-brand="domae"]) .land :is(.btn, .tab-btn, .acc-header, .carousel-nav, .carousel-dot, summary, input, select, textarea, a, button):focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+:root:not([data-brand="domae"]) .land .price-box :is(.btn, a, button):focus-visible { outline-color: var(--accent); }
+:root:not([data-brand="domae"]) .land .hero .btn.ghost:hover { background: var(--blue-soft); }
+
+:root:not([data-brand="domae"]) .land .steps::before { content: none; }
+:root:not([data-brand="domae"]) .land .step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 29px;
+  left: 76px;
+  right: -22px;
+  height: 1px;
+  background: var(--rule-2);
+}
+@media (max-width: 759px) {
+  :root:not([data-brand="domae"]) .land .step:not(:last-child)::after { top: 72px; bottom: -2px; left: 28px; right: auto; width: 1px; height: auto; }
+}
+@media (max-width: 600px) {
+  :root:not([data-brand="domae"]) .land .land-top-actions .btn { min-height: 44px; }
+}
+:root:not([data-brand="domae"]) .land .foot :is(a, button) { padding-block: 10px; }

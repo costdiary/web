@@ -519,12 +519,12 @@ export function renderLanding(root, onAuth) {
 
     h('main', { id: 'main' },
 
-      /* ─── 통계 카운터 ─── */
-      h('section', { class: 'sec stats-sec' },
-        h('div', { class: 'stats-grid' },
-          h('div', { class: 'stat-card glass reveal' }, stat1, h('p', null, '등록된 식자재')),
-          h('div', { class: 'stat-card glass reveal' }, stat2, h('p', null, '계산된 원가율')),
-          h('div', { class: 'stat-card glass reveal' }, stat3, h('p', null, '절약된 시간(시간)')))),
+      /* ─── 통계 카운터: 실제 집계 값이 아니라 고정 숫자여서 내려 둠. 실데이터 연결 후 복구 ─── */
+      // h('section', { class: 'sec stats-sec' },
+      //   h('div', { class: 'stats-grid' },
+      //     h('div', { class: 'stat-card glass reveal' }, stat1, h('p', null, '등록된 식자재')),
+      //     h('div', { class: 'stat-card glass reveal' }, stat2, h('p', null, '계산된 원가율')),
+      //     h('div', { class: 'stat-card glass reveal' }, stat3, h('p', null, '절약된 시간(시간)')))),
 
       /* ─── 기능 캐러셀 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'feat-t' },
@@ -569,7 +569,8 @@ export function renderLanding(root, onAuth) {
               '5회를 넘기거나 결과가 맞지 않으면 직접 입력하시면 됩니다.')))),
 
       /* ─── 소셜 프루프 ─── */
-      reviewSection(),
+      /* 가상 후기라 내려 둠. 실제 사용자 후기를 받으면 REVIEWS를 바꿔서 복구 */
+      // reviewSection(),
 
       /* ─── FAQ 아코디언 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'faq-t' },
@@ -596,9 +597,10 @@ export function renderLanding(root, onAuth) {
     connectCountCard(land);
 
     // 통계 카운터 on-view
-    countOnView(stat1, 1240, '개');
-    countOnView(stat2, 8700, '건');
-    countOnView(stat3, 320, '시간');
+    // 통계 카운터를 다시 켜면 실제 집계 값으로 바꿔서 함께 복구
+    // countOnView(stat1, 1240, '개');
+    // countOnView(stat2, 8700, '건');
+    // countOnView(stat3, 320, '시간');
 
     // 스크롤 reveal
     revealOnScroll(land);

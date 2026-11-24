@@ -35,13 +35,6 @@ function jeyukCost(porkPerKg) {
   return { rows, total: rows.reduce((s, r) => s + r.cost, 0) };
 }
 
-/* 가격 이력: [며칠 전, 구매가]. 규격당 가격을 kg·L당으로 바꿔 보여 준다. */
-const HISTORY = [
-  { key: 'pork', name: '돼지 앞다리살', spec: '1kg', per: 1, unit: 'kg', hist: [[62, 9800], [34, 9600], [8, 10800]], menus: ['김치찌개', '제육볶음', '두부김치'] },
-  { key: 'onion', name: '양파', spec: '15kg', per: 15, unit: 'kg', hist: [[60, 16000], [30, 17000], [6, 18500]], menus: ['김치찌개', '제육볶음', '계란말이', '두부김치'] },
-  { key: 'oil', name: '식용유', spec: '18L', per: 18, unit: 'L', hist: [[55, 48000], [20, 50500], [5, 53500]], menus: ['제육볶음', '돈까스', '계란말이', '두부김치'] },
-];
-
 /* 배달앱 기본 요율(app/channels.py 기본값). 수수료·배달비는 부가세 별도 안내라 10%를 더해 비용으로 본다. */
 const APPS = [
   { key: 'store', label: '매장', fee: 0, pay: 0, deliv: 0 },
@@ -102,168 +95,97 @@ function badge(ratio) {
   return h('span', { class: `lp-stamp is-${s}` }, STATUS_LABEL[s]);
 }
 
-/* ─── 히어로: 거래명세서 한 장이 들어오면 원가율이 바뀌는 장면 ─── */
-function heroScene() {
-  const before = jeyukCost(9600).total;
-  const after = jeyukCost(10800).total;
-  const price = 9500;
-  const rBefore = (before / price) * 100;
-  const rAfter = (after / price) * 100;
+/* ─── 히어로: 실제 앱 화면으로 보는 '명세서 등록 → 원가 자동 계산' 과정 ───
+   static/landing/step*.webp 는 실제 앱을 예시 가게 데이터로 돌려 휴대폰 크기(390px)로 찍은 화면이다.
+   앱 화면이 바뀌면 다시 찍어야 한다(찍는 방법은 PR 설명 참고). */
+const TOUR = [
+  { img: 'step1-upload', t: '명세서 사진 올리기', d: '납품받은 거래명세서를 찍거나 앨범에서 골라요. 영수증은 직접 입력해도 돼요.' },
+  { img: 'step2-review', t: '읽은 내용 확인', d: '품목·규격·단가를 읽어 와 지난 단가와 비교해 보여 줘요. 틀린 칸은 바로 고칠 수 있어요.' },
+  { img: 'step3-apply', t: '한 번에 반영', d: '반영하면 그 재료가 들어간 메뉴의 원가가 모두 다시 계산돼요.' },
+  { img: 'step4-menus', t: '메뉴별 원가율 확인', d: '목표를 넘은 메뉴와, 목표에 맞추려면 받아야 할 판매가까지 보여 줘요.' },
+];
+const TOUR_MS = 4800;
 
-  const costN = numEl(before, won);
-  const marginN = numEl(price - before, won);
-  const ratioN = numEl(rBefore, (v) => `${n1(v)}%`);
-  const bar = ratioBar();
-  const stampBox = h('span', { class: 'lp-stamp-box' }, badge(rBefore));
-  const inv = h('div', { class: 'lp-inv', 'aria-hidden': 'true' },
-    h('div', { class: 'lp-inv-h' }, icon('receipt', 16), h('b', null, '새 거래명세서'), h('span', null, '한우리유통 · 방금')),
-    h('div', { class: 'lp-inv-row' },
-      h('span', null, '돼지 앞다리살 1kg'),
-      h('span', { class: 'lp-inv-old' }, '9,600원'),
-      h('span', { class: 'lp-inv-new' }, '10,800원'),
-      h('span', { class: 'lp-chip is-up' }, '▲ 12.5%')));
-  const alertBox = h('div', { class: 'lp-alert', role: 'status' },
-    h('span', { class: 'lp-alert-ic' }, icon('bell', 16)),
-    h('div', null,
-      h('b', null, '원가율이 오른 메뉴 3개'),
-      h('span', null, '김치찌개 · 제육볶음 · 두부김치')),
-    h('span', { class: 'lp-alert-rec' }, '권장 판매가 ', h('b', null, won(roundUp100(after / (TARGET / 100))))));
-  const replay = h('button', { class: 'lp-link', type: 'button' }, '↻ 다시 보기');
+function productTour() {
+  let cur = 0;
+  let playing = !REDUCED();
+  let hold = false; // 마우스를 올렸거나 포커스가 안에 있을 때 잠시 멈춤
+  let t0 = 0; let raf = 0; let started = false;
 
-  const card = h('figure', { class: 'lp-scene', 'aria-label': '예시: 거래명세서를 등록하면 제육볶음 원가율이 다시 계산되는 화면' },
-    h('div', { class: 'lp-scene-top' },
-      h('span', { class: 'lp-dot' }), h('span', { class: 'lp-dot' }), h('span', { class: 'lp-dot' }),
-      h('span', { class: 'lp-scene-title' }, '메뉴 원가'), replay),
-    inv,
-    h('div', { class: 'lp-menu' },
-      h('div', { class: 'lp-menu-h' },
-        h('div', null, h('b', null, '제육볶음'), h('span', null, `판매가 ${won(price)}`)),
-        stampBox),
-      h('dl', { class: 'lp-kv' },
-        h('div', { class: 'is-cost' }, h('dt', null, '재료비'), h('dd', null, costN)),
-        h('div', { class: 'is-margin' }, h('dt', null, '남는 돈'), h('dd', null, marginN)),
-        h('div', { class: 'is-ratio' }, h('dt', null, '원가율'), h('dd', null, ratioN))),
-      bar,
-      h('div', { class: 'lp-bar-legend' }, h('span', null, '0%'), h('span', { style: { left: `${TARGET}%` } }, `목표 ${TARGET}%`), h('span', null, '100%'))),
-    alertBox,
-    h('figcaption', { class: 'lp-cap' }, '예시 가게의 단가로 계산한 화면이에요.'));
-
-  bar.set(rBefore);
-  let timers = [];
-  const clear = () => { timers.forEach(clearTimeout); timers = []; };
-  const reset = () => {
-    clear();
-    card.classList.remove('is-in', 'is-done');
-    tween(costN, before, won, 1); tween(marginN, price - before, won, 1); tween(ratioN, rBefore, (v) => `${n1(v)}%`, 1);
-    costN.textContent = won(before); marginN.textContent = won(price - before); ratioN.textContent = `${n1(rBefore)}%`;
-    bar.set(rBefore); stampBox.replaceChildren(badge(rBefore));
+  const shots = TOUR.map((s, i) => h('img', {
+    class: `lp-shot${i === 0 ? ' is-on' : ''}`, src: `/static/landing/${s.img}.webp`, width: 390, height: 780,
+    alt: `원가다이어리 앱 화면 ${i + 1}단계: ${s.t}`, loading: i === 0 ? 'eager' : 'lazy', decoding: 'async', draggable: false,
+  }));
+  const phone = h('div', { class: 'lp-phone' }, h('div', { class: 'lp-phone-screen' }, shots));
+  const bars = [];
+  const steps = TOUR.map((s, i) => {
+    const bar = h('i'); bars.push(bar);
+    const b = h('button', { class: `lp-tour-step${i === 0 ? ' is-on' : ''}`, type: 'button', 'aria-current': i === 0 ? 'step' : null },
+      h('span', { class: 'lp-tour-no' }, String(i + 1)),
+      h('span', { class: 'lp-tour-txt' }, h('b', null, s.t), h('span', null, s.d)),
+      h('span', { class: 'lp-tour-bar', 'aria-hidden': 'true' }, bar));
+    b.addEventListener('click', () => { go(i); });
+    return b;
+  });
+  const toggle = h('button', { class: 'lp-tour-play', type: 'button' });
+  const paintToggle = () => {
+    toggle.replaceChildren(playing ? '❚❚ 멈춤' : '▶ 자동 재생');
+    toggle.setAttribute('aria-label', playing ? '자동 넘김 멈추기' : '자동 넘김 시작');
   };
-  const play = () => {
-    reset();
-    if (REDUCED()) { finish(); return; }
-    timers.push(setTimeout(() => card.classList.add('is-in'), 350));
-    timers.push(setTimeout(finish, 1500));
-  };
-  const finish = () => {
-    card.classList.add('is-in');
-    tween(costN, after, won); tween(marginN, price - after, won); tween(ratioN, rAfter, (v) => `${n1(v)}%`);
-    bar.set(rAfter); stampBox.replaceChildren(badge(rAfter));
-    timers.push(setTimeout(() => card.classList.add('is-done'), REDUCED() ? 0 : 500));
-  };
-  replay.addEventListener('click', play);
-  card.play = play;
-  return card;
-}
+  toggle.addEventListener('click', () => { playing = !playing; paintToggle(); t0 = performance.now() - progress() * TOUR_MS; tick(); });
+  paintToggle();
 
-/* ─── 데모 1: 단가 기록과 가격 이력 ─── */
-const SVG = 'http://www.w3.org/2000/svg';
-function s(tag, attrs, ...kids) {
-  const el = document.createElementNS(SVG, tag);
-  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
-  kids.flat().forEach((k) => k && el.append(k));
+  let saved = 0;
+  const progress = () => saved;
+  function go(i) {
+    const n = (i + TOUR.length) % TOUR.length;
+    shots[cur].classList.remove('is-on'); steps[cur].classList.remove('is-on'); steps[cur].removeAttribute('aria-current');
+    bars[cur].style.transform = 'scaleX(0)';
+    cur = n;
+    shots[cur].classList.add('is-on'); steps[cur].classList.add('is-on'); steps[cur].setAttribute('aria-current', 'step');
+    saved = 0; t0 = performance.now();
+    live.textContent = `${cur + 1}단계: ${TOUR[cur].t}`;
+    const list = steps[cur].parentElement;
+    if (list && list.scrollWidth > list.clientWidth) list.scrollTo({ left: steps[cur].offsetLeft - 16, behavior: REDUCED() ? 'auto' : 'smooth' });
+  }
+  function tick() {
+    cancelAnimationFrame(raf);
+    if (!playing || !started) { bars[cur].style.transform = `scaleX(${saved})`; return; }
+    raf = requestAnimationFrame(function step(now) {
+      if (!playing) return;
+      if (hold) { t0 = now - saved * TOUR_MS; raf = requestAnimationFrame(step); return; }
+      saved = Math.min(1, (now - t0) / TOUR_MS);
+      bars[cur].style.transform = `scaleX(${saved})`;
+      if (saved >= 1) go(cur + 1);
+      raf = requestAnimationFrame(step);
+    });
+  }
+
+  // 휴대폰 화면을 좌우로 밀어서 넘기기
+  let sx = null;
+  phone.addEventListener('pointerdown', (e) => { sx = e.clientX; });
+  phone.addEventListener('pointerup', (e) => {
+    if (sx == null) return;
+    const dx = e.clientX - sx; sx = null;
+    if (Math.abs(dx) > 40) go(cur + (dx < 0 ? 1 : -1));
+  });
+
+  const live = h('p', { class: 'sr', 'aria-live': 'polite' });
+  const el = h('div', { class: 'lp-tour', id: 'lp-tour', role: 'group', 'aria-label': '거래명세서를 등록하면 원가가 계산되는 과정(실제 앱 화면)' },
+    h('p', { class: 'lp-tour-kicker' }, h('span', { class: 'lp-live-dot' }), '실제 앱 화면'),
+    phone,
+    h('div', { class: 'lp-tour-steps' }, steps),
+    h('div', { class: 'lp-tour-foot' }, toggle, h('span', null, '예시 가게 데이터로 찍은 화면이에요')),
+    live);
+  el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') hold = true; });
+  el.addEventListener('pointerleave', () => { hold = false; });
+  el.addEventListener('focusin', () => { hold = true; });
+  el.addEventListener('focusout', () => { hold = false; });
+  el.start = () => { if (started) return; started = true; t0 = performance.now(); tick(); };
   return el;
 }
 
-function demoPrices() {
-  let cur = HISTORY[0];
-  const chart = h('div', { class: 'lp-chart' });
-  const head = h('div', { class: 'lp-chart-h' });
-  const menus = h('div', { class: 'lp-affected' });
-  const tip = h('div', { class: 'lp-tip', hidden: true });
-
-  const pick = h('div', { class: 'lp-seg', role: 'radiogroup', 'aria-label': '식자재 고르기' },
-    HISTORY.map((it) => {
-      const b = h('button', { type: 'button', role: 'radio', 'aria-checked': String(it === cur) }, it.name);
-      b.addEventListener('click', () => { cur = it; pick.querySelectorAll('button').forEach((x) => x.setAttribute('aria-checked', String(x === b))); draw(); });
-      return b;
-    }));
-
-  function draw() {
-    const pts = cur.hist.map(([d, p]) => ({ d, p, per: p / cur.per }));
-    const first = pts[0].per; const last = pts[pts.length - 1].per;
-    const prev = pts[pts.length - 2].per;
-    const chg = ((last - prev) / prev) * 100;
-    head.replaceChildren(
-      h('div', null, h('b', null, cur.name), h('span', null, ` ${cur.spec} 단위로 구매`)),
-      h('div', { class: 'lp-chart-now' },
-        h('span', { class: 'lp-num' }, won(last)), h('small', null, `/${cur.unit}`),
-        h('span', { class: `lp-chip ${chg > 0 ? 'is-up' : 'is-down'}` }, `${chg > 0 ? '▲' : '▼'} ${n1(Math.abs(chg))}%`)));
-
-    const W = 560, H = 200, P = { l: 12, r: 12, t: 26, b: 30 };
-    const days = 70;
-    const lo = Math.min(...pts.map((x) => x.per)) * 0.94;
-    const hi = Math.max(...pts.map((x) => x.per)) * 1.04;
-    const X = (d) => P.l + ((days - d) / days) * (W - P.l - P.r);
-    const Y = (v) => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b);
-    // 계단식 선: 다음 구매 전까지는 같은 단가
-    let dPath = `M${X(days)} ${Y(first)}`;
-    pts.forEach((pt, i) => { dPath += ` L${X(pt.d)} ${Y(i === 0 ? first : pts[i - 1].per)} L${X(pt.d)} ${Y(pt.per)}`; });
-    dPath += ` L${X(0)} ${Y(last)}`;
-    const area = `${dPath} L${X(0)} ${H - P.b} L${X(days)} ${H - P.b} Z`;
-    const line = s('path', { d: dPath, class: 'lp-line', pathLength: '1' });
-    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, class: 'lp-svg', role: 'img', 'aria-label': `${cur.name} 단가 변화: ${pts.map((x) => `${x.d}일 전 ${n0(x.per)}원`).join(', ')}` },
-      s('path', { d: area, class: 'lp-area' }),
-      [0.25, 0.5, 0.75].map((f) => s('line', { x1: P.l, x2: W - P.r, y1: P.t + f * (H - P.t - P.b), y2: P.t + f * (H - P.t - P.b), class: 'lp-grid' })),
-      line,
-      s('text', { x: X(days), y: H - 8, class: 'lp-axis' }, '70일 전'),
-      s('text', { x: X(0), y: H - 8, class: 'lp-axis', 'text-anchor': 'end' }, '오늘'),
-      pts.map((pt, i) => {
-        const up = i > 0 && pt.per > pts[i - 1].per;
-        const g = s('g', { class: `lp-pt${up ? ' is-up' : ''}`, tabindex: '0', role: 'button', 'aria-label': `${pt.d}일 전 ${cur.spec} ${n0(pt.p)}원` },
-          s('circle', { cx: X(pt.d), cy: Y(pt.per), r: 14, class: 'lp-pt-hit' }),
-          s('circle', { cx: X(pt.d), cy: Y(pt.per), r: 5.5, class: 'lp-pt-dot' }));
-        const show = () => {
-          tip.hidden = false;
-          tip.replaceChildren(h('b', null, `${pt.d}일 전`), h('span', null, `${cur.spec} ${won(pt.p)}`));
-          tip.style.left = `${(X(pt.d) / W) * 100}%`;
-          tip.style.top = `${(Y(pt.per) / H) * 100}%`;
-        };
-        g.addEventListener('pointerenter', show); g.addEventListener('focus', show);
-        g.addEventListener('pointerleave', () => { tip.hidden = true; }); g.addEventListener('blur', () => { tip.hidden = true; });
-        return g;
-      }));
-    chart.replaceChildren(svg, tip);
-    if (!REDUCED()) { line.classList.remove('is-drawn'); requestAnimationFrame(() => requestAnimationFrame(() => line.classList.add('is-drawn'))); }
-    else line.classList.add('is-drawn');
-
-    menus.replaceChildren(
-      h('p', null, h('b', null, `${cur.name}`), '이 들어가는 메뉴 ', h('b', null, `${cur.menus.length}개`), '의 원가율도 함께 바뀌어요.'),
-      h('ul', null, cur.menus.map((m, i) => h('li', { style: { '--i': i } }, m))));
-  }
-  draw();
-
-  return h('div', { class: 'lp-demo-grid' },
-    h('div', { class: 'lp-demo-copy' },
-      h('h3', null, '살 때마다 단가가 쌓여요'),
-      h('p', null, '영수증·거래명세서의 품목·규격·단가를 등록하면 kg·L·개당 단가로 바꿔 기록해요. 쓰던 엑셀을 그대로 올려도 돼요.'),
-      h('ul', { class: 'lp-ticks' },
-        h('li', null, '다듬고 버리는 양(수율)까지 넣어 실제 쓰는 단가로 계산'),
-        h('li', null, '명세서마다 이름이 달라도 한 번 연결하면 다음부터 자동으로'),
-        h('li', null, '명세서 사진 자동 인식은 테스트중이에요(월한도 5회)'))),
-    h('div', { class: 'lp-panel' }, pick, head, chart, menus));
-}
-
-/* ─── 데모 2: 메뉴 원가 ─── */
+/* ─── 계산 데모 1: 메뉴 원가 ─── */
 function slider({ id, label, min, max, step, value, fmt, onInput }) {
   const out = h('output', { class: 'lp-num', for: id }, fmt(value));
   const input = h('input', { type: 'range', id, min, max, step, value, class: 'lp-range' });
@@ -313,7 +235,7 @@ function demoMenu() {
       h('ul', { class: 'lp-ticks' },
         h('li', null, '육수·소스 같은 프렙 레시피도 g·ml당 원가로'),
         h('li', null, '부가세 포함·별도 기준 중에 고를 수 있어요'),
-        h('li', null, '오른쪽 막대를 움직여 보세요. 아래 데모에도 이어져요'))),
+        h('li', null, '막대를 움직여 보세요. 배달 손익·손익분기 탭에도 이어져요'))),
     h('div', { class: 'lp-panel' },
       h('div', { class: 'lp-menu-h' }, h('div', null, h('b', null, '제육볶음'), h('span', null, '1인분 · 예시 단가')), stampBox),
       pork, price,
@@ -326,7 +248,7 @@ function demoMenu() {
       h('div', { class: 'lp-stack-wrap' }, h('span', { class: 'lp-mini' }, '재료비 구성'), stack, legend)));
 }
 
-/* ─── 데모 3: 배달 한 건 손익 ─── */
+/* ─── 계산 데모 2: 배달 한 건 손익 ─── */
 function demoDelivery() {
   let ch = APPS[1];
   let deliv = ch.deliv;
@@ -396,7 +318,7 @@ function demoDelivery() {
       h('p', { class: 'lp-fine' }, '제육볶음 예시 · 공개 요율 기준(부가세 포함 매출) · 쿠폰·포장비 제외')));
 }
 
-/* ─── 데모 4: 손익분기 ─── */
+/* ─── 계산 데모 3: 손익분기 ─── */
 function demoBreakeven() {
   let rent = 2500000;
   let hours = 20;
@@ -452,7 +374,6 @@ function demoBreakeven() {
 /* ─── 기능 쇼케이스(탭) ─── */
 function showcase() {
   const tabs = [
-    { id: 'price', ic: 'receipt', label: '단가 기록', make: demoPrices },
     { id: 'menu', ic: 'list', label: '메뉴 원가', make: demoMenu },
     { id: 'deliv', ic: 'trend', label: '배달 손익', make: demoDelivery },
     { id: 'be', ic: 'home', label: '손익분기', make: demoBreakeven },
@@ -594,14 +515,15 @@ export function renderLanding(root, onAuth) {
   };
   const cta = (label, cls = 'is-primary is-lg') => h('button', { class: `lp-btn ${cls}`, type: 'button', onclick: start }, label);
 
-  const scene = heroScene();
+  const tour = productTour();
   const show = showcase();
 
   const top = h('header', { class: 'lp-top' },
     h('div', { class: 'lp-wrap lp-top-in' },
       h('a', { class: 'lp-brand', href: '#/', 'aria-label': '원가다이어리 홈' }, logo()),
       h('nav', { class: 'lp-nav', 'aria-label': '소개 페이지' },
-        h('a', { href: '#lp-features', onclick: jump('lp-features') }, '기능'),
+        h('a', { href: '#lp-tour', onclick: jump('lp-tour') }, '실제 화면'),
+        h('a', { href: '#lp-features', onclick: jump('lp-features') }, '계산해 보기'),
         h('a', { href: '#lp-start', onclick: jump('lp-start') }, '시작 방법'),
         h('a', { href: '#lp-price', onclick: jump('lp-price') }, '가격'),
         h('a', { href: '#lp-faq', onclick: jump('lp-faq') }, '자주 묻는 질문')),
@@ -621,12 +543,12 @@ export function renderLanding(root, onAuth) {
             h('p', { class: 'lp-lead rv' }, '엑셀로 계산하던 원가, 이제 영수증·거래명세서만 입력하면 메뉴별로 바로 계산해 드려요.'),
             h('div', { class: 'lp-cta-row rv' },
               cta('무료로 시작하기'),
-              h('a', { class: 'lp-btn is-ghost is-lg', href: '#lp-features', onclick: jump('lp-features') }, '직접 계산해 보기')),
+              h('a', { class: 'lp-btn is-ghost is-lg lp-hide-m', href: '#lp-features', onclick: jump('lp-features') }, '직접 계산해 보기')),
             h('ul', { class: 'lp-proof rv' },
               h('li', null, icon('check', 16), '모든 기능 무료'),
-              h('li', null, icon('check', 16), '식자재·메뉴 개수 제한 없음'),
+              h('li', null, icon('check', 16), '개수 제한 없음'),
               h('li', null, icon('check', 16), '예시 가게로 먼저 둘러보기'))),
-          h('div', { class: 'lp-hero-art rv' }, scene))),
+          h('div', { class: 'lp-hero-art rv' }, tour))),
 
       /* 공감 */
       h('section', { class: 'lp-sec', 'aria-labelledby': 'lp-pain-t' },
@@ -647,8 +569,8 @@ export function renderLanding(root, onAuth) {
       h('section', { class: 'lp-sec is-tint', id: 'lp-features', 'aria-labelledby': 'lp-feat-t' },
         h('div', { class: 'lp-wrap' },
           h('div', { class: 'lp-sec-h rv' },
-            h('h2', { id: 'lp-feat-t' }, '가입 전에 직접 만져 보세요'),
-            h('p', null, '예시 가게의 숫자로 움직이는 진짜 계산이에요. 메뉴 원가에서 바꾼 값이 배달 손익과 손익분기까지 이어져요.')),
+            h('h2', { id: 'lp-feat-t' }, '숫자를 직접 바꿔 보세요'),
+            h('p', null, '앱과 같은 계산식으로 움직여요. 메뉴 원가에서 바꾼 값이 배달 손익과 손익분기까지 이어져요.')),
           h('div', { class: 'rv' }, show))),
 
       /* 시작 방법 */
@@ -724,11 +646,11 @@ export function renderLanding(root, onAuth) {
     show.moveInk();
     window.addEventListener('resize', show.moveInk, { passive: true });
     reveal(page);
-    // 히어로 장면은 화면에 보일 때 한 번 재생
+    // 실제 화면 둘러보기는 화면에 보일 때부터 자동으로 넘긴다
     const io = new IntersectionObserver((es) => {
-      if (es.some((e) => e.isIntersecting)) { io.disconnect(); setTimeout(scene.play, 500); }
-    }, { threshold: 0.4 });
-    io.observe(scene);
+      if (es.some((e) => e.isIntersecting)) { io.disconnect(); tour.start(); }
+    }, { threshold: 0.3 });
+    io.observe(tour);
     // 헤더 그림자, 모바일 하단 가입 버튼
     const hero = page.querySelector('.lp-hero');
     const final = page.querySelector('.lp-final');
@@ -756,7 +678,7 @@ function reveal(root) {
 function spotlight(root) {
   if (REDUCED() || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   root.addEventListener('pointermove', (e) => {
-    const card = e.target.closest?.('.lp-pain, .lp-panel, .lp-scene, .lp-price');
+    const card = e.target.closest?.('.lp-pain, .lp-panel, .lp-price');
     if (!card) return;
     const r = card.getBoundingClientRect();
     card.style.setProperty('--mx', `${e.clientX - r.left}px`);

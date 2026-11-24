@@ -1203,7 +1203,15 @@ a.dm-stat:active { transform: scale(0.98); }
     --blue-soft: #1E2A40;
     --btn: #2F66C8;
     --btn-2: #3B74D6;
-    --accent: #FFE066;
+    --accent: #FFD23F;
+    --accent-2: #C99A0A;
+    --accent-soft: #3A3214;
+    --orange: #FF9B6B;
+    --orange-soft: #3A2218;
+    --green: #5FD49C;
+    --green-soft: #15362A;
+    --red: #FF8A8F;
+    --red-soft: #3A1E22;
   }
 }
 :root:not([data-brand="domae"]) .land-top {
@@ -1834,3 +1842,51 @@ a.dm-stat:active { transform: scale(0.98); }
   :root:not([data-brand="domae"]) .land .hero-badge::after,
   :root:not([data-brand="domae"]) .land .btn .ripple { display: none; }
 }
+
+
+/* ─── 머지 전 디자인 재점검 (2026-11-24) ───
+   1) 주황은 '재료비' 의미에만. 슬라이더 값·링크·체크 표시는 파랑으로
+   2) 카드 그림자 언어를 부드러운 그림자 하나로 통일 (튀어나온 0 4px 0 그림자는 버튼에만)
+   3) 카드 모서리 20px로 통일
+   4) 다크 모드 대비 오류 수정 (보조 버튼 글자, 재료비·남는 돈 타일)
+   5) 해시태그 띠의 시각적 무게를 낮춤 */
+:root:not([data-brand="domae"]) .land .hero .sim-ctl .v .n,
+:root:not([data-brand="domae"]) .land .sim-ctl .v .n { color: var(--blue); }
+:root:not([data-brand="domae"]) .land .hero .sim summary,
+:root:not([data-brand="domae"]) .land .sim summary { color: var(--blue); }
+:root:not([data-brand="domae"]) .land .hero .calc th { border-bottom-color: var(--rule-2); }
+:root:not([data-brand="domae"]) .land .scope h3 { color: var(--ink); }
+:root:not([data-brand="domae"]) .land .scope > div:not(.no) li::before { color: var(--blue); }
+
+:root:not([data-brand="domae"]) .land .sim {
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.06), 0 20px 44px -28px rgba(15, 30, 61, 0.32);
+}
+:root:not([data-brand="domae"]) .land .sim:hover { box-shadow: 0 1px 2px rgba(15, 30, 61, 0.06), 0 28px 52px -28px rgba(15, 30, 61, 0.4); }
+:root:not([data-brand="domae"]) .land .hc-card { border-radius: 20px; }
+:root:not([data-brand="domae"]) .land .price-box {
+  border-radius: 20px;
+  box-shadow: 0 28px 56px -36px rgba(15, 30, 61, 0.6);
+}
+:root:not([data-brand="domae"]) .land .step-no {
+  border-color: var(--paper);
+  box-shadow: 0 0 0 1px var(--rule-2), 0 6px 14px -8px rgba(15, 30, 61, 0.35);
+}
+:root:not([data-brand="domae"]) .land .step:hover .step-no { box-shadow: 0 0 0 1px var(--blue), 0 10px 18px -8px rgba(29, 78, 158, 0.55); }
+:root:not([data-brand="domae"]) .land .feat-card {
+  background: var(--sheet);
+  border: 1px solid var(--rule) !important;
+  padding: 22px;
+}
+:root:not([data-brand="domae"]) .land .feat-grid { display: grid; gap: 14px; }
+:root:not([data-brand="domae"]) .land .feat-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+
+:root:not([data-brand="domae"]) .land .hero .btn.ghost {
+  background: var(--sheet);
+  color: var(--ink);
+}
+:root:not([data-brand="domae"]) .land .hc-item .hc-label { color: var(--ink-2); }
+
+:root:not([data-brand="domae"]) .land .mq-wrap { background: transparent; border-color: var(--rule); }
+:root:not([data-brand="domae"]) .land .mq-tag { background: transparent; color: var(--ink-3); font-weight: 600; padding-inline: 8px; }
+:root:not([data-brand="domae"]) .land .mq-tag:hover { background: transparent; color: var(--blue); }

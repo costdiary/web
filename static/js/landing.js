@@ -452,13 +452,13 @@ export function renderLanding(root, onAuth) {
   /* ─── FAQ 아코디언 ─── */
   const faqAccordion = accordion(FAQ);
 
-  /* ─── 기능 캐러셀 ─── */
+  /* ─── 기능 캐러셀 (현재 미사용) ─── */
   const featureCards = FEATURES.map(([ic, title, desc]) =>
     h('div', { class: 'feat-carousel-card' },
       h('div', { class: 'feat-ic-wrap' }, icon(ic, 28)),
       h('h3', null, title),
       h('p', null, desc)));
-  const featCarousel = carousel(featureCards);
+  void carousel; void featureCards; // 캐러셀을 다시 쓰려면 carousel(featureCards)
 
   /* ─── 통계 카운터 섹션 ─── */
   const stat1 = h('span', { class: 'stat-num' }, '0');
@@ -531,7 +531,7 @@ export function renderLanding(root, onAuth) {
       /* ─── 기능 캐러셀 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'feat-t' },
         h('h2', { id: 'feat-t', class: 'reveal' }, '무엇을 할 수 있나요'),
-        featCarousel,
+        // 캐러셀은 아래 카드 목록과 내용이 같고, 좌우 화살표가 본문을 가려서 뺌
         h('div', { class: 'feat-grid reveal' },
           FEATURES.map(([ic, title, desc]) => h('article', { class: 'feat-card' },
             icon(ic, 22), h('h3', null, title), h('p', null, desc))))),

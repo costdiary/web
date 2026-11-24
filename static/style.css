@@ -1094,7 +1094,7 @@ a.dm-stat:active { transform: scale(0.98); }
 .tab-list::-webkit-scrollbar { display: none; }
 .tab-btn {
   flex-shrink: 0; padding: 10px 20px; border: 0; background: 0; cursor: pointer;
-  font: 600 0.9375rem/1 var(--font); color: var(--ink-2);
+  font: 600 0.9375rem/1 var(--font-ui); color: var(--ink-2);
   border-bottom: 2px solid transparent; margin-bottom: -2px;
   transition: color 0.15s, border-color 0.15s;
 }
@@ -1111,7 +1111,7 @@ a.dm-stat:active { transform: scale(0.98); }
 .acc-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   width: 100%; padding: 16px 18px; border: 0; background: 0; cursor: pointer;
-  font: 700 0.9375rem/1.4 var(--font); color: var(--ink); text-align: left;
+  font: 700 0.9375rem/1.4 var(--font-ui); color: var(--ink); text-align: left;
   transition: background 0.12s;
 }
 .acc-header:hover { background: var(--sheet-2); }

@@ -568,6 +568,14 @@ function leadForm() {
   return form;
 }
 
+/* 로고: 밝은 화면용(짙은 갈색 글씨)과 어두운 화면용(크림색 글씨)을 함께 두고 CSS로 하나만 보인다 */
+function logo() {
+  return [
+    h('img', { class: 'lp-logo is-light', src: '/static/brand/logo.png', alt: '원가다이어리', width: 521, height: 120 }),
+    h('img', { class: 'lp-logo is-dark', src: '/static/brand/logo-dark.png', alt: '원가다이어리', width: 521, height: 120 }),
+  ];
+}
+
 /* 가입 문구: 키가 설정된 소셜 로그인만 이름을 적는다(app.pub.oauth_providers) */
 function socialLine(pub) {
   const names = { kakao: '카카오', naver: '네이버', google: '구글' };
@@ -591,7 +599,7 @@ export function renderLanding(root, onAuth) {
 
   const top = h('header', { class: 'lp-top' },
     h('div', { class: 'lp-wrap lp-top-in' },
-      h('a', { class: 'lp-brand', href: '#/' }, h('img', { src: '/static/icon.svg', alt: '', width: 28, height: 28 }), '원가다이어리'),
+      h('a', { class: 'lp-brand', href: '#/', 'aria-label': '원가다이어리 홈' }, logo()),
       h('nav', { class: 'lp-nav', 'aria-label': '소개 페이지' },
         h('a', { href: '#lp-features', onclick: jump('lp-features') }, '기능'),
         h('a', { href: '#lp-start', onclick: jump('lp-start') }, '시작 방법'),
@@ -701,7 +709,7 @@ export function renderLanding(root, onAuth) {
 
     h('footer', { class: 'lp-foot' },
       h('div', { class: 'lp-wrap lp-foot-in' },
-        h('span', { class: 'lp-brand is-sm' }, h('img', { src: '/static/icon.svg', alt: '', width: 20, height: 20 }), pub.business_name || '원가다이어리'),
+        h('span', { class: 'lp-brand is-sm' }, logo(), pub.business_name && pub.business_name !== '원가다이어리' ? h('span', null, pub.business_name) : null),
         pub.contact_email ? h('a', { href: `mailto:${pub.contact_email}` }, pub.contact_email) : null,
         h('button', { class: 'lp-link', type: 'button', onclick: openTerms }, '이용약관'),
         h('button', { class: 'lp-link', type: 'button', onclick: openDataNotice }, h('b', null, '개인정보처리방침')))),
@@ -759,7 +767,7 @@ function spotlight(root) {
 /* 가입 직후 축하 효과 */
 function launchConfetti() {
   if (REDUCED()) return;
-  const colors = ['#1D4E9E', '#FFD23F', '#2A63C4', '#0B7F57', '#D9531E'];
+  const colors = ['#D97706', '#B45309', '#92400E', '#F5C060', '#166534'];
   const canvas = document.createElement('canvas');
   Object.assign(canvas.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: '9999' });
   canvas.width = window.innerWidth; canvas.height = window.innerHeight;

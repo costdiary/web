@@ -1,7 +1,7 @@
 /* 설정: 계산 기준, 이용 현황, 내려받기, 로그아웃·계정 삭제 */
 import { h, api, app, bus, field, numInput, parseNum, n1, n3, ymd, openDialog, busy, toast, errMsg, refreshMe, icon, fill } from './core.js';
 import { num } from './ui.js';
-import { openDataNotice, openTerms } from './landing.js';
+import { openDataNotice, openTerms } from './legal.js';
 import { openMarketNotice } from './market.js';
 import { MARKET_ENABLED } from './core.js';
 

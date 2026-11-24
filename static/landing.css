@@ -221,10 +221,11 @@
 .lp-pain:hover { transform: translateY(-4px); box-shadow: var(--shadow-2); border-color: var(--rule-2); }
 .lp-pain-ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--blue-soft); color: var(--blue); transition: transform 300ms var(--spring); }
 .lp-pain:hover .lp-pain-ic { transform: rotate(-8deg) scale(1.08); }
-.lp-pain h3 { margin-top: 18px; font-size: 1.25rem; line-height: 1.4; letter-spacing: -0.02em; font-weight: 600; color: var(--ink-2); }
+.lp-pain h3 { margin-top: 18px; font-size: 1.1875rem; line-height: 1.45; letter-spacing: -0.02em; font-weight: 800; color: var(--ink); }
 .lp-pain h3 span { font-weight: 800; color: var(--ink); }
 .lp-pain p { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 0.9688rem; color: var(--ink-2); }
-.lp-pain p::before { content: "→ "; color: var(--blue); font-weight: 800; }
+.lp-pain p { position: relative; padding-left: 24px; }
+.lp-pain p::before { content: ""; position: absolute; left: 0; top: calc(12px + 0.35em); width: 16px; height: 16px; border-radius: 50%; background: var(--green-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2308714D' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center / 11px no-repeat; }
 
 /* 커서 빛 */
 .lp-pain::after, .lp-panel::after, .lp-scene::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 240ms;

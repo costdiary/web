@@ -624,16 +624,15 @@ export function renderLanding(root, onAuth) {
       h('section', { class: 'lp-sec', 'aria-labelledby': 'lp-pain-t' },
         h('div', { class: 'lp-wrap' },
           h('div', { class: 'lp-sec-h rv' },
-            h('h2', { id: 'lp-pain-t' }, '장사는 되는데, 왜 남는 게 없을까요'),
-            h('p', null, '대부분은 숫자가 흩어져 있어서예요. 원가다이어리는 이 세 가지를 한 화면에 모아 보여 줘요.')),
+            h('h2', { id: 'lp-pain-t' }, '이런 고민, 해보신 적 있으신가요?')),
           h('div', { class: 'lp-pains' },
             [
-              ['receipt', '재료값은 올랐는데', '어느 메뉴가 손해인지 몰라요', '명세서를 넣으면 오른 재료와 영향받는 메뉴를 바로 짚어 줘요.'],
-              ['trend', '배달은 늘었는데', '한 건에 얼마 남는지 몰라요', '수수료·배달비·부가세를 빼고 남는 돈을 메뉴마다 계산해요.'],
-              ['list', '엑셀은 만들어 뒀는데', '단가가 바뀌면 손을 못 대요', '단가 하나만 고치면 그 재료가 들어간 메뉴가 전부 다시 계산돼요.'],
-            ].map(([ic, a, b, c], i) => h('article', { class: 'lp-pain rv', style: { '--d': `${i * 80}ms` } },
+              ['trend', '“삼겹살 가격이 올랐는데, 메뉴 가격은 그대로?”', '원가 변동을 바로 파악하고, 판매가를 조정할 시점을 놓치지 마세요.'],
+              ['receipt', '“영수증이 여기저기 흩어져서 원가 계산을 못 하고 있어요”', '영수증·거래명세서를 한곳에 모아 메뉴별 원가를 자동으로 계산해 드려요.'],
+              ['list', '“마진이 얼마인지 감으로만 알고 있어요”', '숫자로 정확한 마진율을 확인하고, 자신 있게 가격을 정하세요.'],
+            ].map(([ic, q, c], i) => h('article', { class: 'lp-pain rv', style: { '--d': `${i * 80}ms` } },
               h('span', { class: 'lp-pain-ic' }, icon(ic, 22)),
-              h('h3', null, a, h('br'), h('span', null, b)),
+              h('h3', null, q),
               h('p', null, c)))))),
 
       /* 기능 쇼케이스 */

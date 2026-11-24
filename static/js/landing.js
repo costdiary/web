@@ -1,272 +1,478 @@
-/* 로그인 전 소개 화면: 원가율을 직접 만져보는 계산기, 사용 순서, 요금, 문의 */
-import { h, api, app, field, openDialog, busy, errMsg, n0, n1, roundUp100, selectOf, toast, icon } from './core.js';
-import { marginBar, stamp, num } from './ui.js';
+/* 로그인 전 소개 화면(새로 짠 버전).
+   흐름: 히어로(단가가 오르면 원가율이 바뀌는 장면) → 공감 → 기능 4가지를 직접 만져 보는 데모
+   → 시작 순서 → 하는 일·안 하는 일 → 가격 → 자주 묻는 질문 → 마지막 권유.
+   데모 숫자는 체험용 예시 가게(app/seed.py)와 같은 값이고, 계산식은 app/costing.py·app/labor.py를 줄여 옮긴 것.
+   실제 시세나 실제 정산 금액이 아니므로 화면에도 '예시'라고 적는다. 스타일은 static/landing.css(.lp 아래). */
+import { h, api, app, field, busy, errMsg, n0, n1, roundUp100, selectOf, icon } from './core.js';
 import { openSignup, openLogin } from './auth.js';
+import { openDataNotice, openTerms } from './legal.js';
 
-/* 제육볶음 한 그릇 예시. 단가는 예시이며 실제 시세가 아닙니다. [재료, 양, 단위, 원/kg 또는 원/L, 수율%] */
-const RECIPE = [
-  ['양파', 60, 'g', 18500 / 15, 90],
-  ['대파', 20, 'g', 3900, 85],
-  ['다진 마늘', 10, 'g', 9200, 100],
-  ['고춧가루', 8, 'g', 24000, 100],
-  ['간장', 20, 'ml', 6500 / 1.8, 100],
-  ['식용유', 10, 'ml', 53500 / 18, 100],
-  ['밥 한 공기', 210, 'g', 2800, 100],
+export { openDataNotice, openTerms };
+
+const REDUCED = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const TARGET = 35; // 목표 원가율(%)
+
+/* ─── 예시 가게 데이터(app/seed.py와 같은 값) ─── */
+/* 제육볶음 1인분. [재료, 양 표시, kg·L당 단가, 수율%, 1인분 양(kg·L)] */
+const JEYUK = [
+  ['돼지 앞다리살', '220g', null, 100, 0.22],
+  ['양파', '60g', 18500 / 15, 90, 0.06],
+  ['대파', '20g', 3900, 85, 0.02],
+  ['다진 마늘', '10g', 9200, 100, 0.01],
+  ['고춧가루', '8g', 24000, 100, 0.008],
+  ['간장', '20ml', 6500 / 1.8, 100, 0.02],
+  ['식용유', '10ml', 53500 / 18, 100, 0.01],
+  ['쌀', '210g', 56000 / 20, 100, 0.21],
 ];
-const PORK_G = 220;
-const OTHER_COST = 400;
-const TARGET = 35;
+const OTHER_COST = 400; // 반찬·소스·포장
 
-function simulate(porkPerKg, price) {
-  const rows = [['돼지 앞다리살', `${PORK_G}g`, porkPerKg, (PORK_G / 1000) * porkPerKg]];
-  for (const [name, amt, unit, perK, yld] of RECIPE) rows.push([name, `${amt}${unit}`, perK, ((amt / 1000) * perK) / (yld / 100)]);
-  rows.push(['반찬·소스·포장', '', null, OTHER_COST]);
-  const cost = rows.reduce((s, r) => s + r[3], 0);
-  const ratio = (cost / price) * 100;
-  return { rows, cost, ratio, margin: price - cost, rec: roundUp100(cost / (TARGET / 100)) };
+function jeyukCost(porkPerKg) {
+  const rows = JEYUK.map(([name, amt, perK, yld, q]) => {
+    const unit = perK == null ? porkPerKg : perK;
+    return { name, amt, cost: (q * unit) / (yld / 100) };
+  });
+  rows.push({ name: '반찬·소스·포장', amt: '', cost: OTHER_COST });
+  return { rows, total: rows.reduce((s, r) => s + r.cost, 0) };
 }
 
-function statusOf(r) {
-  return r <= TARGET ? 'good' : r <= TARGET + 5 ? 'warn' : 'bad';
-}
+/* 배달앱 기본 요율(app/channels.py 기본값). 수수료·배달비는 부가세 별도 안내라 10%를 더해 비용으로 본다. */
+const APPS = [
+  { key: 'store', label: '매장', fee: 0, pay: 0, deliv: 0 },
+  { key: 'baemin', label: '배달의민족', fee: 7.8, pay: 3.0, deliv: 3400 },
+  { key: 'coupang', label: '쿠팡이츠', fee: 6.8, pay: 3.0, deliv: 2900 },
+];
 
-function simulator() {
-  const pork = h('input', { type: 'range', min: 8000, max: 14000, step: 100, value: 10800, id: 'sim-pork' });
-  const price = h('input', { type: 'range', min: 8000, max: 13000, step: 500, value: 9500, id: 'sim-price' });
-  const porkV = h('span', { class: 'n' });
-  const priceV = h('span', { class: 'n' });
-  const out = h('div', { class: 'sim-res', 'aria-live': 'polite' });
-  const tbody = h('tbody');
+/* 2026년 최저임금과 주휴수당(app/labor.py와 같은 규칙) */
+const MIN_WAGE_2026 = 10320;
+const WEEKS = 365 / 12 / 7;
 
-  const paint = () => {
-    const p = Number(pork.value);
-    const pr = Number(price.value);
-    const s = simulate(p, pr);
-    porkV.textContent = `${n0(p)}원`;
-    priceV.textContent = `${n0(pr)}원`;
-    out.replaceChildren(
-      h('div', { class: 'money-row' },
-        h('div', { class: 'money-item' },
-          h('dt', null, '판매가'),
-          h('dd', null, h('span', { class: 'n' }, n0(pr)), h('span', { class: 'u' }, '원'))),
-        h('div', { class: 'money-item' },
-          h('dt', null, '재료비'),
-          h('dd', null, h('span', { class: 'n' }, n0(s.cost)), h('span', { class: 'u' }, '원')))),
-      h('p', { class: 'ratio-line' },
-        '원가율 ', h('span', { class: 'n' }, n1(s.ratio)), '%', stamp(statusOf(s.ratio))),
-      marginBar({ ratio: s.ratio, target: TARGET, big: true, animate: true }),
-      h('dl', { class: 'sim-facts' },
-        h('div', null, h('dt', null, '한 그릇에 남는 돈'), h('dd', null, num(n0(s.margin), '원'))),
-        h('div', null, h('dt', null, `원가율 ${TARGET}%로 맞추려면`), h('dd', null, num(n0(s.rec), '원')))));
-    tbody.replaceChildren(...s.rows.map(([name, amt, perK, cost]) =>
-      h('tr', null, h('td', null, name), h('td', null, amt), h('td', null, perK == null ? '' : `${n0(perK)}원`), h('td', null, `${n0(cost)}원`))));
+/* 데모끼리 나눠 쓰는 값: 메뉴 원가 데모에서 바꾼 값이 배달·손익분기 데모에 그대로 이어진다. */
+const state = { pork: 10800, price: 9500, listeners: new Set() };
+function setState(patch) { Object.assign(state, patch); state.listeners.forEach((f) => f()); }
+function onState(f) { state.listeners.add(f); f(); }
+
+const statusOf = (r) => (r <= TARGET ? 'good' : r <= TARGET + 5 ? 'warn' : 'bad');
+const STATUS_LABEL = { good: '양호', warn: '주의', bad: '위험' };
+const won = (v) => `${n0(v)}원`;
+
+/* 숫자를 부드럽게 바꾸기. 동작 줄이기 설정이면 바로 바꾼다. */
+function tween(el, to, fmt, ms = 650) {
+  const from = Number(el.dataset.v ?? to);
+  el.dataset.v = String(to);
+  if (REDUCED() || from === to) { el.textContent = fmt(to); return; }
+  const t0 = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - t0) / ms);
+    const e = 1 - Math.pow(1 - t, 3);
+    el.textContent = fmt(from + (to - from) * e);
+    if (t < 1 && el.dataset.v === String(to)) requestAnimationFrame(step);
   };
-  pork.addEventListener('input', paint);
-  price.addEventListener('input', paint);
-
-  const el = h('article', { class: 'sheet sim', 'aria-labelledby': 'sim-t' },
-    h('div', { class: 'sim-h' }, h('h2', { id: 'sim-t' }, '제육볶음 한 그릇'), h('span', { class: 'xs muted' }, '예시 계산 · 목표 원가율 35%')),
-    h('div', { class: 'sim-ctl' },
-      h('label', { for: 'sim-pork' }, h('span', { class: 'v' }, '돼지 앞다리살 1kg 가격', porkV), pork),
-      h('label', { for: 'sim-price' }, h('span', { class: 'v' }, '판매가', priceV), price)),
-    out,
-    h('details', null, h('summary', null, '계산에 쓴 값 보기'),
-      h('table', { class: 'calc' },
-        h('thead', null, h('tr', null, h('th', null, '재료'), h('th', null, '양'), h('th', null, '단가(kg·L당)'), h('th', null, '원가'))),
-        tbody),
-      h('p', { class: 'xs muted', style: 'margin-top:8px' }, '수율(다듬고 남는 비율)을 반영한 값입니다. 단가는 예시이며 실제 시세가 아닙니다.')));
-  paint();
+  requestAnimationFrame(step);
+}
+function numEl(v, fmt, cls = '') {
+  const el = h('span', { class: `lp-num ${cls}`.trim() }, fmt(v));
+  el.dataset.v = String(v);
   return el;
 }
 
+/* 원가율 막대: 목표선까지는 파랑, 넘는 부분은 상태색 */
+function ratioBar() {
+  const base = h('i', { class: 'lp-bar-base' });
+  const over = h('i', { class: 'lp-bar-over' });
+  const el = h('div', { class: 'lp-bar', role: 'img' }, base, over, h('i', { class: 'lp-bar-tick', style: { left: `${TARGET}%` } }));
+  el.set = (ratio) => {
+    const r = Math.max(0, Math.min(100, ratio));
+    base.style.width = `${Math.min(r, TARGET)}%`;
+    over.style.left = `${TARGET}%`;
+    over.style.width = `${Math.max(0, r - TARGET)}%`;
+    el.dataset.s = statusOf(ratio);
+    el.setAttribute('aria-label', `원가율 ${n1(ratio)}%, 목표 ${TARGET}%`);
+  };
+  return el;
+}
+function badge(ratio) {
+  const s = statusOf(ratio);
+  return h('span', { class: `lp-stamp is-${s}` }, STATUS_LABEL[s]);
+}
+
+/* ─── 히어로: 실제 앱 화면으로 보는 '명세서 등록 → 원가 자동 계산' 과정 ───
+   static/landing/step*.webp 는 실제 앱을 예시 가게 데이터로 돌려 휴대폰 크기(390px)로 찍은 화면이다.
+   앱 화면이 바뀌면 다시 찍어야 한다(찍는 방법은 PR 설명 참고). */
+const TOUR = [
+  { img: 'step1-upload', t: '명세서 사진 올리기', d: '납품받은 거래명세서를 찍거나 앨범에서 골라요. 영수증은 직접 입력해도 돼요.' },
+  { img: 'step2-review', t: '읽은 내용 확인', d: '품목·규격·단가를 읽어 와 지난 단가와 비교해 보여 줘요. 틀린 칸은 바로 고칠 수 있어요.' },
+  { img: 'step3-apply', t: '한 번에 반영', d: '반영하면 그 재료가 들어간 메뉴의 원가가 모두 다시 계산돼요.' },
+  { img: 'step4-menus', t: '메뉴별 원가율 확인', d: '목표를 넘은 메뉴와, 목표에 맞추려면 받아야 할 판매가까지 보여 줘요.' },
+];
+const TOUR_MS = 4800;
+
+function productTour() {
+  let cur = 0;
+  let playing = !REDUCED();
+  let hold = false; // 마우스를 올렸거나 포커스가 안에 있을 때 잠시 멈춤
+  let t0 = 0; let raf = 0; let started = false;
+
+  const shots = TOUR.map((s, i) => h('img', {
+    class: `lp-shot${i === 0 ? ' is-on' : ''}`, src: `/static/landing/${s.img}.webp`, width: 390, height: 780,
+    alt: `원가다이어리 앱 화면 ${i + 1}단계: ${s.t}`, loading: i === 0 ? 'eager' : 'lazy', decoding: 'async', draggable: false,
+  }));
+  const phone = h('div', { class: 'lp-phone' }, h('div', { class: 'lp-phone-screen' }, shots));
+  const bars = [];
+  const steps = TOUR.map((s, i) => {
+    const bar = h('i'); bars.push(bar);
+    const b = h('button', { class: `lp-tour-step${i === 0 ? ' is-on' : ''}`, type: 'button', 'aria-current': i === 0 ? 'step' : null },
+      h('span', { class: 'lp-tour-no' }, String(i + 1)),
+      h('span', { class: 'lp-tour-txt' }, h('b', null, s.t), h('span', null, s.d)),
+      h('span', { class: 'lp-tour-bar', 'aria-hidden': 'true' }, bar));
+    b.addEventListener('click', () => { go(i); });
+    return b;
+  });
+  const toggle = h('button', { class: 'lp-tour-play', type: 'button' });
+  const paintToggle = () => {
+    toggle.replaceChildren(playing ? '❚❚ 멈춤' : '▶ 자동 재생');
+    toggle.setAttribute('aria-label', playing ? '자동 넘김 멈추기' : '자동 넘김 시작');
+  };
+  toggle.addEventListener('click', () => { playing = !playing; paintToggle(); t0 = performance.now() - progress() * TOUR_MS; tick(); });
+  paintToggle();
+
+  let saved = 0;
+  const progress = () => saved;
+  function go(i) {
+    const n = (i + TOUR.length) % TOUR.length;
+    shots[cur].classList.remove('is-on'); steps[cur].classList.remove('is-on'); steps[cur].removeAttribute('aria-current');
+    bars[cur].style.transform = 'scaleX(0)';
+    cur = n;
+    shots[cur].classList.add('is-on'); steps[cur].classList.add('is-on'); steps[cur].setAttribute('aria-current', 'step');
+    saved = 0; t0 = performance.now();
+    live.textContent = `${cur + 1}단계: ${TOUR[cur].t}`;
+    const list = steps[cur].parentElement;
+    if (list && list.scrollWidth > list.clientWidth) list.scrollTo({ left: steps[cur].offsetLeft - 16, behavior: REDUCED() ? 'auto' : 'smooth' });
+  }
+  function tick() {
+    cancelAnimationFrame(raf);
+    if (!playing || !started) { bars[cur].style.transform = `scaleX(${saved})`; return; }
+    raf = requestAnimationFrame(function step(now) {
+      if (!playing) return;
+      if (hold) { t0 = now - saved * TOUR_MS; raf = requestAnimationFrame(step); return; }
+      saved = Math.min(1, (now - t0) / TOUR_MS);
+      bars[cur].style.transform = `scaleX(${saved})`;
+      if (saved >= 1) go(cur + 1);
+      raf = requestAnimationFrame(step);
+    });
+  }
+
+  // 휴대폰 화면을 좌우로 밀어서 넘기기
+  let sx = null;
+  phone.addEventListener('pointerdown', (e) => { sx = e.clientX; });
+  phone.addEventListener('pointerup', (e) => {
+    if (sx == null) return;
+    const dx = e.clientX - sx; sx = null;
+    if (Math.abs(dx) > 40) go(cur + (dx < 0 ? 1 : -1));
+  });
+
+  const live = h('p', { class: 'sr', 'aria-live': 'polite' });
+  const el = h('div', { class: 'lp-tour', id: 'lp-tour', role: 'group', 'aria-label': '거래명세서를 등록하면 원가가 계산되는 과정(실제 앱 화면)' },
+    h('p', { class: 'lp-tour-kicker' }, h('span', { class: 'lp-live-dot' }), '실제 앱 화면'),
+    phone,
+    h('div', { class: 'lp-tour-steps' }, steps),
+    h('div', { class: 'lp-tour-foot' }, toggle, h('span', null, '예시 가게 데이터로 찍은 화면이에요')),
+    live);
+  el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') hold = true; });
+  el.addEventListener('pointerleave', () => { hold = false; });
+  el.addEventListener('focusin', () => { hold = true; });
+  el.addEventListener('focusout', () => { hold = false; });
+  el.start = () => { if (started) return; started = true; t0 = performance.now(); tick(); };
+  return el;
+}
+
+/* ─── 계산 데모 1: 메뉴 원가 ─── */
+function slider({ id, label, min, max, step, value, fmt, onInput }) {
+  const out = h('output', { class: 'lp-num', for: id }, fmt(value));
+  const input = h('input', { type: 'range', id, min, max, step, value, class: 'lp-range' });
+  const fillTrack = () => input.style.setProperty('--p', `${((input.value - min) / (max - min)) * 100}%`);
+  input.addEventListener('input', () => { out.textContent = fmt(Number(input.value)); fillTrack(); onInput(Number(input.value)); });
+  fillTrack();
+  const el = h('div', { class: 'lp-field' }, h('label', { for: id }, h('span', null, label), out), input);
+  el.set = (v) => { input.value = v; out.textContent = fmt(v); fillTrack(); };
+  return el;
+}
+
+function demoMenu() {
+  const costN = numEl(0, won);
+  const marginN = numEl(0, won);
+  const ratioN = numEl(0, (v) => `${n1(v)}%`);
+  const recN = numEl(0, won);
+  const bar = ratioBar();
+  const stampBox = h('span');
+  const stack = h('div', { class: 'lp-stack', role: 'list', 'aria-label': '재료별 원가' });
+  const legend = h('ul', { class: 'lp-stack-legend' });
+
+  const pork = slider({ id: 'lp-pork', label: '돼지 앞다리살 1kg', min: 8000, max: 14000, step: 100, value: state.pork, fmt: won, onInput: (v) => setState({ pork: v }) });
+  const price = slider({ id: 'lp-price', label: '판매가', min: 8000, max: 13000, step: 500, value: state.price, fmt: won, onInput: (v) => setState({ price: v }) });
+
+  onState(() => {
+    pork.set(state.pork); price.set(state.price);
+    const c = jeyukCost(state.pork);
+    const ratio = (c.total / state.price) * 100;
+    tween(costN, c.total, won); tween(marginN, state.price - c.total, won);
+    tween(ratioN, ratio, (v) => `${n1(v)}%`); tween(recN, roundUp100(c.total / (TARGET / 100)), won);
+    bar.set(ratio); stampBox.replaceChildren(badge(ratio));
+    const top = [...c.rows].sort((a, b) => b.cost - a.cost);
+    stack.replaceChildren(...c.rows.map((r, i) => h('i', {
+      role: 'listitem', title: `${r.name} ${won(r.cost)}`, 'aria-label': `${r.name} ${won(r.cost)}`,
+      style: { width: `${(r.cost / c.total) * 100}%`, '--k': i },
+    })));
+    legend.replaceChildren(...top.slice(0, 4).map((r) => {
+      const i = c.rows.indexOf(r);
+      return h('li', { style: { '--k': i } }, h('i'), r.name, h('b', { class: 'lp-num' }, won(r.cost)));
+    }));
+  });
+
+  return h('div', { class: 'lp-demo-grid' },
+    h('div', { class: 'lp-demo-copy' },
+      h('h3', null, '메뉴마다 남는 돈이 보여요'),
+      h('p', null, '재료와 양만 넣으면 원가율과 한 그릇에 남는 돈이 나와요. 목표 원가율에 맞추려면 얼마를 받아야 하는지도 같이 계산해 둬요.'),
+      h('ul', { class: 'lp-ticks' },
+        h('li', null, '육수·소스 같은 프렙 레시피도 g·ml당 원가로'),
+        h('li', null, '부가세 포함·별도 기준 중에 고를 수 있어요'),
+        h('li', null, '막대를 움직여 보세요. 배달 손익·손익분기 탭에도 이어져요'))),
+    h('div', { class: 'lp-panel' },
+      h('div', { class: 'lp-menu-h' }, h('div', null, h('b', null, '제육볶음'), h('span', null, '1인분 · 예시 단가')), stampBox),
+      pork, price,
+      h('dl', { class: 'lp-kv' },
+        h('div', { class: 'is-cost' }, h('dt', null, '재료비'), h('dd', null, costN)),
+        h('div', { class: 'is-margin' }, h('dt', null, '남는 돈'), h('dd', null, marginN)),
+        h('div', { class: 'is-ratio' }, h('dt', null, '원가율'), h('dd', null, ratioN))),
+      bar,
+      h('p', { class: 'lp-rec' }, `원가율 ${TARGET}%로 맞추려면 `, recN, ' 받으면 돼요'),
+      h('div', { class: 'lp-stack-wrap' }, h('span', { class: 'lp-mini' }, '재료비 구성'), stack, legend)));
+}
+
+/* ─── 계산 데모 2: 배달 한 건 손익 ─── */
+function demoDelivery() {
+  let ch = APPS[1];
+  let deliv = ch.deliv;
+  const rows = h('ol', { class: 'lp-fall' });
+  const netN = numEl(0, won);
+  const recLine = h('p', { class: 'lp-rec' });
+  const verdict = h('p', { class: 'lp-verdict' });
+
+  const delivS = slider({ id: 'lp-deliv', label: '사장님 부담 배달비', min: 0, max: 4500, step: 100, value: deliv, fmt: won, onInput: (v) => { deliv = v; paint(); } });
+  const seg = h('div', { class: 'lp-seg', role: 'radiogroup', 'aria-label': '판매 채널' },
+    APPS.map((a) => {
+      const b = h('button', { type: 'button', role: 'radio', 'aria-checked': String(a === ch) }, a.label);
+      b.addEventListener('click', () => {
+        ch = a; deliv = a.deliv; delivS.set(deliv);
+        seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
+        delivS.hidden = a.key === 'store';
+        paint();
+      });
+      return b;
+    }));
+
+  function paint() {
+    const sale = state.price;
+    const cost = jeyukCost(state.pork).total;
+    const vat = ch.key === 'store' ? 1 : 1.1;
+    const fee = (sale * ch.fee) / 100 * vat;
+    const pay = (sale * ch.pay) / 100 * vat;
+    const dv = ch.key === 'store' ? 0 : deliv * vat;
+    const net = sale - fee - pay - dv - cost;
+    const max = sale;
+    const line = (label, v, cls, note) => h('li', { class: cls },
+      h('span', { class: 'lp-fall-l' }, label, note ? h('small', null, note) : null),
+      h('span', { class: 'lp-fall-bar' }, h('i', { style: { width: `${Math.min(100, (Math.abs(v) / max) * 100)}%` } })),
+      h('b', { class: 'lp-num' }, `${v < 0 ? '−' : ''}${won(Math.abs(v))}`));
+    rows.replaceChildren(
+      line('판매가', sale, 'is-sale'),
+      ch.fee ? line('중개 수수료', -fee, 'is-minus', `${ch.fee}% + 부가세`) : null,
+      ch.pay ? line('결제 수수료', -pay, 'is-minus', `${ch.pay}% + 부가세`) : null,
+      dv ? line('배달비', -dv, 'is-minus', '부가세 포함') : null,
+      line('재료비', -cost, 'is-cost'));
+    tween(netN, net, (v) => `${v < 0 ? '−' : ''}${won(Math.abs(v))}`);
+    netN.closest('.lp-net')?.setAttribute('data-neg', String(net < 0));
+    const rate = (net / sale) * 100;
+    verdict.textContent = ch.key === 'store'
+      ? `매장에서 팔면 판매가의 ${n1(rate)}%가 남아요.`
+      : `${ch.label}로 한 그릇 팔면 판매가의 ${n1(rate)}%만 남아요.`;
+    if (ch.key === 'store') { recLine.hidden = true; return; }
+    const a = ((ch.fee + ch.pay) / 100) * vat;
+    const rec = roundUp100((cost / (TARGET / 100) + dv) / (1 - a));
+    recLine.hidden = false;
+    recLine.replaceChildren(`원가율 ${TARGET}%를 지키려면 이 앱에서는 `, h('b', { class: 'lp-num' }, won(rec)), ' 받아야 해요');
+  }
+  onState(paint);
+
+  return h('div', { class: 'lp-demo-grid' },
+    h('div', { class: 'lp-demo-copy' },
+      h('h3', null, '배달 한 건에 실제로 남는 돈'),
+      h('p', null, '배달의민족·쿠팡이츠 수수료와 배달비, 부가세까지 빼고 나면 한 그릇에 얼마가 남는지 보여 줘요. 앱별 권장 판매가도 따로 계산해요.'),
+      h('ul', { class: 'lp-ticks' },
+        h('li', null, '공개된 요율을 기본값으로 넣어 두었어요'),
+        h('li', null, '정산서와 다르면 구간·요율을 직접 고쳐 쓰면 돼요'),
+        h('li', null, '앱과 자동 연동하지는 않아요'))),
+    h('div', { class: 'lp-panel' },
+      seg, delivS, rows,
+      h('div', { class: 'lp-net' }, h('span', null, '한 그릇 남는 돈'), netN),
+      verdict, recLine,
+      h('p', { class: 'lp-fine' }, '제육볶음 예시 · 공개 요율 기준(부가세 포함 매출) · 쿠폰·포장비 제외')));
+}
+
+/* ─── 계산 데모 3: 손익분기 ─── */
+function demoBreakeven() {
+  let rent = 2500000;
+  let hours = 20;
+  let days = 26;
+  const out = h('div', { class: 'lp-be' });
+  const bowlsN = numEl(0, (v) => n0(v));
+  const salesN = numEl(0, won);
+  const fixedN = numEl(0, won);
+  const laborLine = h('p', { class: 'lp-fine' });
+
+  const rentS = slider({ id: 'lp-rent', label: '월세·관리비·공과금', min: 500000, max: 6000000, step: 100000, value: rent, fmt: won, onInput: (v) => { rent = v; paint(); } });
+  const hoursS = slider({ id: 'lp-hours', label: '아르바이트 주 근무시간', min: 0, max: 40, step: 1, value: hours, fmt: (v) => `${v}시간`, onInput: (v) => { hours = v; paint(); } });
+  const daysS = slider({ id: 'lp-days', label: '한 달 영업일', min: 20, max: 31, step: 1, value: days, fmt: (v) => `${v}일`, onInput: (v) => { days = v; paint(); } });
+
+  function paint() {
+    const base = MIN_WAGE_2026 * hours * WEEKS;
+    const holiday = hours >= 15 ? (Math.min(hours, 40) / 40) * 8 * MIN_WAGE_2026 * WEEKS : 0;
+    const labor = base + holiday;
+    const fixed = rent + labor;
+    const cost = jeyukCost(state.pork).total;
+    const cm = (state.price - cost) / state.price;
+    const sales = cm > 0 ? fixed / cm : Infinity;
+    const bowls = Number.isFinite(sales) ? Math.ceil(sales / state.price / days) : 0;
+    tween(fixedN, fixed, won); tween(salesN, sales, won); tween(bowlsN, bowls, (v) => n0(v));
+    laborLine.textContent = hours
+      ? `인건비 ${won(labor)} = 2026년 최저임금 ${n0(MIN_WAGE_2026)}원 × 주 ${hours}시간${holiday ? ` + 주휴수당 ${won(holiday)}` : ' (주 15시간 미만은 주휴수당 없음)'}`
+      : '아르바이트 없이 혼자 운영하는 경우';
+    const filled = Math.min(40, bowls);
+    out.replaceChildren(...Array.from({ length: 40 }, (_, i) => h('i', { class: i < filled ? 'on' : '', style: { '--i': i } })));
+  }
+  onState(paint);
+
+  return h('div', { class: 'lp-demo-grid' },
+    h('div', { class: 'lp-demo-copy' },
+      h('h3', null, '하루 몇 그릇 팔아야 본전인지'),
+      h('p', null, '월세 같은 고정비와 직원 급여를 넣으면 한 달에 얼마를 팔아야 남는지 계산해요. 직원 급여에는 주휴수당까지 들어가요.'),
+      h('ul', { class: 'lp-ticks' },
+        h('li', null, '배달 비중을 넣으면 배달 수수료까지 반영'),
+        h('li', null, '내 매출을 올리면 목표와 나란히 비교'),
+        h('li', null, '법률 상담이 아닌 참고용 계산이에요'))),
+    h('div', { class: 'lp-panel' },
+      rentS, hoursS, daysS,
+      h('div', { class: 'lp-be-res' },
+        h('p', { class: 'lp-be-line' }, '하루에 ', h('b', null, '제육볶음 ', bowlsN, '그릇'), '을 팔아야 본전이에요'),
+        out),
+      h('dl', { class: 'lp-kv is-2' },
+        h('div', null, h('dt', null, '한 달 고정비'), h('dd', null, fixedN)),
+        h('div', null, h('dt', null, '손익분기 매출'), h('dd', null, salesN))),
+      laborLine,
+      h('p', { class: 'lp-fine' }, '위 메뉴 원가 데모의 판매가·재료비로 계산 · 카드 수수료·세금 제외')));
+}
+
+/* ─── 기능 쇼케이스(탭) ─── */
+function showcase() {
+  const tabs = [
+    { id: 'menu', ic: 'list', label: '메뉴 원가', make: demoMenu },
+    { id: 'deliv', ic: 'trend', label: '배달 손익', make: demoDelivery },
+    { id: 'be', ic: 'home', label: '손익분기', make: demoBreakeven },
+  ];
+  let active = 0;
+  const panels = tabs.map((t, i) => h('div', { class: 'lp-tabpanel', role: 'tabpanel', id: `lp-p-${t.id}`, 'aria-labelledby': `lp-t-${t.id}`, hidden: i !== 0, tabindex: '0' }, t.make()));
+  const btns = tabs.map((t, i) => h('button', {
+    class: 'lp-tab', role: 'tab', id: `lp-t-${t.id}`, type: 'button', 'aria-controls': `lp-p-${t.id}`,
+    'aria-selected': String(i === 0), tabindex: i === 0 ? '0' : '-1',
+  }, h('span', { class: 'lp-tab-no' }, String(i + 1)), icon(t.ic, 18), h('span', null, t.label)));
+  const ink = h('span', { class: 'lp-tab-ink', 'aria-hidden': 'true' });
+  const list = h('div', { class: 'lp-tabs', role: 'tablist', 'aria-label': '기능 둘러보기' }, btns, ink);
+  const moveInk = () => {
+    const b = btns[active];
+    ink.style.width = `${b.offsetWidth}px`;
+    ink.style.transform = `translateX(${b.offsetLeft}px)`;
+  };
+  const go = (i, focus) => {
+    if (i === active) return;
+    btns[active].setAttribute('aria-selected', 'false'); btns[active].tabIndex = -1; panels[active].hidden = true;
+    active = i;
+    btns[active].setAttribute('aria-selected', 'true'); btns[active].tabIndex = 0; panels[active].hidden = false;
+    panels[active].classList.remove('is-enter'); void panels[active].offsetWidth; panels[active].classList.add('is-enter');
+    if (focus) btns[active].focus();
+    moveInk();
+    if (list.scrollWidth > list.clientWidth) btns[active].scrollIntoView({ block: 'nearest', inline: 'center', behavior: REDUCED() ? 'auto' : 'smooth' });
+  };
+  btns.forEach((b, i) => {
+    b.addEventListener('click', () => go(i));
+    b.addEventListener('keydown', (e) => {
+      const k = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      if (k) { e.preventDefault(); go((active + k + tabs.length) % tabs.length, true); }
+      if (e.key === 'Home') { e.preventDefault(); go(0, true); }
+      if (e.key === 'End') { e.preventDefault(); go(tabs.length - 1, true); }
+    });
+  });
+  const el = h('div', { class: 'lp-show' }, list, h('div', { class: 'lp-tabpanels' }, panels));
+  el.moveInk = moveInk;
+  return el;
+}
+
+/* ─── 시작 순서 ─── */
+function startSteps() {
+  const ways = {
+    receipt: [
+      ['영수증·명세서 등록', '장 본 영수증이나 납품받은 거래명세서의 품목·규격·단가를 넣어요.'],
+      ['식자재 한 번 연결', '명세서마다 이름이 달라도 한 번 연결하면 다음부터 알아봐요.'],
+      ['메뉴에 재료 담기', '재료와 양을 담으면 원가율이 계산되고, 단가가 바뀔 때마다 다시 계산돼요.'],
+    ],
+    excel: [
+      ['엑셀·CSV 올리기', '쓰던 파일을 그대로 올리면 제목 줄을 읽어 칸을 맞춰요.'],
+      ['미리 보고 저장', '칸이 틀리면 직접 고르고, 확인하기 전에는 아무것도 저장되지 않아요.'],
+      ['바로 원가 계산', '가져온 식자재로 메뉴 원가를 바로 계산해요.'],
+    ],
+  };
+  let way = 'receipt';
+  const ol = h('ol', { class: 'lp-steps' });
+  const paint = () => ol.replaceChildren(...ways[way].map(([t, d], i) => h('li', { style: { '--i': i } },
+    h('span', { class: 'lp-step-no' }, String(i + 1)), h('h3', null, t), h('p', null, d))));
+  const seg = h('div', { class: 'lp-seg is-center', role: 'radiogroup', 'aria-label': '시작 방법' },
+    [['receipt', '영수증·명세서로'], ['excel', '쓰던 엑셀로']].map(([k, label]) => {
+      const b = h('button', { type: 'button', role: 'radio', 'aria-checked': String(k === way) }, label);
+      b.addEventListener('click', () => { way = k; seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-checked', String(x === b))); paint(); });
+      return b;
+    }));
+  paint();
+  return h('div', null, seg, ol);
+}
+
+/* ─── 자주 묻는 질문 ─── */
 const FAQ = [
-  ['명세서·요리 사진은 어디에 저장되나요?', '글자나 재료를 읽기 위해 사진을 Anthropic의 Claude API로 보내고, 인식이 잘못됐을 때 확인할 수 있도록 원가다이어리 서버에도 함께 보관합니다. 계정을 삭제하면 보관하던 사진도 함께 삭제됩니다. 자동 인식을 설정하기 전에는 예시 명세서로 화면을 먼저 써볼 수 있습니다.'],
-  ['쓰던 앱이나 엑셀 자료를 옮길 수 있나요?', '엑셀(.xlsx)과 CSV 파일을 올리면 제목 줄을 읽어 칸을 자동으로 맞추고, 저장하기 전에 미리 보여 드립니다. 앱마다 내려받는 파일의 모양이 달라서 칸이 틀리면 직접 고를 수 있습니다. 가격이 없는 식자재도 \'단가 없음\'으로 옮겨 두었다가 명세서로 채울 수 있습니다.'],
-  ['메뉴별 재료 양(g)을 몰라도 쓸 수 있나요?', '재료 양을 모를 때는 일단 어림잡아 입력해 두고, 단가만 먼저 넣어도 됩니다. 나중에 실제로 계량한 값으로 고치면 원가율이 자동으로 다시 계산됩니다.'],
-  ['배달의민족·쿠팡이츠 수수료도 반영되나요?', '쓰는 앱을 켜고 구간·요율을 맞추면 메뉴마다 배달 주문 한 건에 남는 돈과 배달용 권장 판매가를 계산합니다. 앱과 연동하는 것이 아니라 공개된 안내를 바탕으로 한 기본값이며, 정산내역서와 다르면 직접 고쳐 쓰세요. 확인하지 못한 요율에는 \'확인 필요\' 표시가 붙습니다.'],
-  ['글자를 잘못 읽으면 어떻게 되나요?', '반영하기 전에 모든 줄을 보여드리고, 규격과 가격은 직접 고칠 수 있습니다. 확인하고 누르기 전에는 아무것도 저장되지 않습니다.'],
-  ['명세서마다 식자재 이름이 달라요.', '비슷한 이름은 자동으로 연결하고, 못 찾은 이름은 한 번만 골라 주시면 다음부터 기억합니다.'],
-  ['수율은 어떻게 계산하나요?', '식자재마다 수율(다듬고 남는 비율)을 넣으면 실제로 쓰는 양 기준으로 계산합니다. 수율이 90%이면 단가를 0.9로 나눈 값을 원가에 씁니다.'],
-  ['돈을 내야 하나요?', '아니요. 식자재 단가 관리, 메뉴 원가 계산, 엑셀 가져오기·내려받기 등 지금 있는 기능은 개수 제한 없이 모두 쓸 수 있습니다. 거래명세서 사진 자동 인식만 한 달 5회로 묶어 두었는데(시범 운영 중이라 인식 결과가 부정확할 수 있습니다), 한 번 인식할 때마다 외부 API 비용이 나가기 때문입니다. 5회를 넘기거나 결과가 맞지 않으면 직접 입력하시면 됩니다.'],
-  ['그만 쓰고 싶어요.', '설정에서 계정을 삭제하면 입력한 식자재·메뉴·가격 이력이 모두 지워집니다.'],
+  ['정말 무료인가요?', '네. 식자재 단가 관리, 메뉴 원가 계산, 배달 손익, 손익분기, 엑셀 가져오기·내려받기 등 지금 있는 기능은 개수 제한 없이 모두 무료예요. 거래명세서 사진 자동 인식만 한 달 5회인데, 인식할 때마다 외부 API 비용이 나가기 때문이에요. 테스트중이라 결과가 부정확할 수 있고, 넘기면 직접 입력하면 돼요.'],
+  ['쓰던 앱이나 엑셀 자료를 옮길 수 있나요?', '엑셀(.xlsx)과 CSV 파일을 올리면 제목 줄을 읽어 칸을 자동으로 맞추고, 저장하기 전에 미리 보여 드려요. 칸이 틀리면 직접 고를 수 있어요. 가격이 없는 식자재도 \'단가 없음\'으로 옮겨 두었다가 명세서로 채울 수 있어요.'],
+  ['메뉴별 재료 양(g)을 몰라도 쓸 수 있나요?', '어림잡아 넣어 두고 단가만 먼저 넣어도 돼요. 나중에 실제로 계량한 값으로 고치면 원가율이 자동으로 다시 계산돼요.'],
+  ['배달의민족·쿠팡이츠 수수료도 반영되나요?', '쓰는 앱을 켜고 구간·요율을 맞추면 메뉴마다 배달 한 건에 남는 돈과 배달용 권장 판매가를 계산해요. 앱과 연동하는 것이 아니라 공개된 안내를 바탕으로 한 기본값이라, 정산서와 다르면 직접 고쳐 쓰세요.'],
+  ['명세서 사진은 어디에 저장되나요?', '글자를 읽기 위해 사진을 Anthropic의 Claude API로 보내고, 잘못 읽었을 때 확인할 수 있도록 원가다이어리 서버에도 보관해요. 계정을 삭제하면 사진도 함께 삭제돼요. 반영하기 전에 모든 줄을 보여 드리고, 확인하고 누르기 전에는 아무것도 저장되지 않아요.'],
+  ['명세서마다 식자재 이름이 달라요.', '비슷한 이름은 자동으로 연결하고, 못 찾은 이름은 한 번만 골라 주시면 다음부터 기억해요.'],
+  ['수율은 어떻게 계산하나요?', '식자재마다 수율(다듬고 남는 비율)을 넣으면 실제로 쓰는 양 기준으로 계산해요. 수율이 90%이면 단가를 0.9로 나눈 값을 원가에 써요.'],
+  ['그만 쓰고 싶어요.', '설정에서 계정을 삭제하면 입력한 식자재·메뉴·가격 이력이 모두 지워져요. 그 전에 엑셀(CSV)로 내려받아 둘 수 있어요.'],
 ];
 
-/* 이용약관(제1조~제12조)과 개인정보처리방침(1~11)의 전체 조문. 짧은 요약 대신 실제 내용을
-   넓은 다이얼로그(openDialog wide:true)에 통째로 보여 준다 — 새 라우트를 만들지 않기 위함. */
-const TERMS_ARTICLES = [
-  ['제1조 (목적)', [
-    '이 약관은 원가다이어리(이하 "서비스")를 운영하는 사업자(이하 "운영자")가 제공하는 서비스의 이용과 관련하여 운영자와 이용자 사이의 권리, 의무 및 책임사항을 정하는 것을 목적으로 합니다.',
-  ]],
-  ['제2조 (정의)', [
-    '1. "서비스"란 운영자가 제공하는 식자재 단가·메뉴 원가 관리 웹 애플리케이션(원가다이어리) 및 이에 부수하는 일체의 서비스를 말합니다.',
-    '2. "이용자"란 이 약관에 따라 운영자가 제공하는 서비스를 이용하는 회원을 말합니다.',
-    '3. "계정"이란 이용자가 서비스를 이용하기 위하여 등록한 이메일·비밀번호 등 식별정보의 조합을 말합니다.',
-    '4. "콘텐츠"란 이용자가 서비스 이용 과정에서 직접 입력하거나 사진·파일 등을 통해 등록한 식자재, 메뉴, 가격, 거래명세서, 요리 사진 등 일체의 자료를 말합니다.',
-  ]],
-  ['제3조 (약관의 효력 및 변경)', [
-    '이 약관은 서비스 화면에 게시하거나 기타의 방법으로 공지함으로써 효력이 발생합니다.',
-    '운영자는 관련 법령을 위배하지 않는 범위에서 이 약관을 변경할 수 있으며, 변경된 약관은 적용일자 7일 전부터(이용자에게 불리한 변경은 30일 전부터) 서비스 내 공지합니다.',
-    '이용자가 변경된 약관에 동의하지 않는 경우 서비스 이용을 중단하고 탈퇴할 수 있으며, 공지 후 적용일까지 거부 의사를 표시하지 않고 서비스를 계속 이용하면 변경된 약관에 동의한 것으로 봅니다.',
-  ]],
-  ['제4조 (서비스의 제공 및 변경)', [
-    '운영자는 식자재 단가·가격 이력 관리, 거래명세서 사진 인식, 메뉴 원가율·권장 판매가 계산, 요리 사진 기반 메뉴 초안 생성, 배달앱 수수료 계산, 엑셀·CSV 가져오기 및 내려받기 등의 서비스를 제공합니다.',
-    '운영자는 운영상·기술상 필요에 따라 서비스의 내용을 추가·변경할 수 있으며, 이 경우 사전에 서비스 내 공지합니다.',
-    '운영자는 시스템 점검, 장애 복구, 외부 서비스(Anthropic API, 지도 API 등)의 장애 등 불가피한 사유로 서비스 제공을 일시적으로 중단할 수 있습니다.',
-  ]],
-  ['제5조 (회원가입 및 계정 관리)', [
-    '이용자는 운영자가 정한 가입 양식에 따라 이메일, 비밀번호 등 필요한 정보를 입력하여 회원가입을 신청합니다.',
-    '이용자는 등록한 정보가 변경된 경우 지체 없이 수정하여야 하며, 미수정으로 인한 불이익은 이용자가 부담합니다.',
-    '계정과 비밀번호의 관리 책임은 이용자에게 있으며, 제3자에게 양도·대여할 수 없습니다. 계정이 도용되었거나 제3자가 부정하게 사용함을 안 경우 즉시 운영자에게 알려야 합니다.',
-  ]],
-  ['제6조 (이용자의 의무 및 금지행위)', [
-    '이용자는 다음 행위를 하여서는 안 됩니다.',
-    '1. 로봇·크롤러 등 자동화된 방법으로 서비스 화면이나 자료를 수집하는 행위',
-    '2. 계산 결과·참고 레시피 데이터베이스 등을 대량으로 복제·재판매하거나 다른 서비스의 학습(AI 모델 학습 등)에 이용하는 행위',
-    '3. 계정을 다수 생성하여 자동 인식(OCR) 등 이용 제한을 회피하는 행위',
-    '4. 서비스의 보안 장치를 무력화하거나 우회하는 행위',
-    '5. 타인의 계정을 무단으로 사용하거나 허위 정보를 등록하는 행위',
-    '6. 그 밖에 관련 법령이나 공공질서, 미풍양속에 반하는 행위',
-    '운영자는 위 행위를 한 이용자에 대하여 사전 통지 없이 서비스 이용을 제한하거나 계정을 정지·삭제할 수 있습니다.',
-  ]],
-  ['제7조 (계산 결과의 성격 및 책임의 한계)', [
-    '서비스가 제공하는 식자재 단가, 메뉴 원가율, 손익분기, 배달앱 수수료, 권장 판매가 등 계산 결과는 이용자가 입력하거나 서비스가 인식한 값을 기초로 산출한 참고 정보이며, 세무·회계·법률상 공식 문서나 전문가 자문을 대체하지 않습니다.',
-    '거래명세서·요리 사진의 AI 인식 결과(품목, 규격, 가격, 재료, 추정 양 등)는 인공지능에 의한 추정값으로 실제와 다를 수 있으며, 이용자는 반영 전 그 내용을 확인·수정할 책임이 있습니다.',
-    '배달앱 수수료율 등 외부 정보에 기반한 값은 공개된 자료를 바탕으로 둔 기본값으로 실제 정산내역과 차이가 있을 수 있으므로, 이용자는 정산내역서 등을 통해 직접 확인하여야 합니다.',
-    '운영자는 위 계산 결과를 신뢰하여 이용자가 행한 경영상 의사결정으로 발생한 손해에 대하여 고의 또는 중대한 과실이 없는 한 책임을 지지 않습니다.',
-  ]],
-  ['제8조 (콘텐츠에 대한 권리)', [
-    '이용자가 서비스에 등록한 콘텐츠에 대한 권리는 이용자에게 있습니다.',
-    '운영자는 서비스의 제공·개선(식자재 이름 매칭 정확도 향상, 참고 레시피 데이터베이스 보강 등)과 통계 작성을 위하여 이용자의 콘텐츠를 비식별화하여 사용할 수 있습니다. 이 경우 특정 이용자를 알아볼 수 있는 형태로는 이용하지 않습니다.',
-    '서비스 자체(화면 구성, 소스코드, 로고, 데이터베이스 등)에 대한 지식재산권은 운영자에게 있으며, 이용자는 운영자의 사전 동의 없이 이를 복제·배포·전송·출판할 수 없습니다.',
-  ]],
-  ['제9조 (계약 해지 및 이용 제한)', [
-    '이용자는 설정 화면에서 언제든지 계정 삭제(탈퇴)를 신청할 수 있으며, 탈퇴 시 이용계약은 즉시 종료됩니다.',
-    '운영자는 이용자가 제6조를 위반하거나 서비스의 정상적인 운영을 방해한 경우 사전 통지 후(긴급한 경우 사후 통지) 이용을 제한하거나 계약을 해지할 수 있습니다.',
-  ]],
-  ['제10조 (면책조항)', [
-    '운영자는 천재지변, 전쟁, 테러, 정전, 기간통신사업자의 서비스 중지, 외부 API(Anthropic, 지도 서비스 등) 제공업체의 장애 등 운영자가 통제할 수 없는 사유로 서비스를 제공할 수 없는 경우 책임을 지지 않습니다.',
-    '운영자는 이용자의 귀책사유(비밀번호 관리 소홀, 허위 정보 입력, 계산 결과 미확인 등)로 발생한 손해에 대하여 책임을 지지 않습니다.',
-    '운영자는 서비스를 통해 얻은 자료의 신뢰성·정확성을 보증하지 않으며, 이용자가 서비스에 게재한 정보의 신뢰도에 대해서도 책임을 지지 않습니다.',
-    '운영자는 무료로 제공하는 서비스와 관련하여 관련 법령에 특별한 규정이 없는 한 책임을 지지 않습니다.',
-  ]],
-  ['제11조 (분쟁해결)', [
-    '운영자는 이용자가 제기하는 불만사항에 대해 접수 후 신속하게 처리하도록 노력합니다.',
-    '이 약관과 관련한 분쟁에 대해 소송이 제기될 경우 민사소송법상의 관할 법원에 제기합니다.',
-  ]],
-  ['제12조 (준거법)', [
-    '이 약관의 해석 및 운영자와 이용자 간의 분쟁에는 대한민국 법을 적용합니다.',
-  ]],
-];
-
-const PRIVACY_SECTIONS = [
-  ['1. 수집하는 개인정보의 항목', [
-    '필수항목: 이메일, 비밀번호(암호화 저장), 가게 이름(상호)',
-    '서비스 이용 중 생성·수집되는 항목: 식자재명·단가·가격 변동 이력, 메뉴 구성·원가 정보, 거래명세서·요리 사진(자동 인식 이용 시) 및 그 인식 결과, 엑셀·CSV로 가져온 자료의 내용(파일 자체는 저장하지 않음), 매장 주소(주변 상권 조회 이용 시), 후원 시 입력한 닉네임·금액·메시지',
-    '자동 수집 항목: 접속 IP, 접속 로그 등 보안 기록',
-  ]],
-  ['2. 개인정보의 수집 및 이용 목적', [
-    '회원 식별 및 서비스 제공(로그인, 식자재·메뉴 원가 계산 등)',
-    '거래명세서·요리 사진 자동 인식(OCR) 서비스 제공',
-    '자동 인식 품질 확인 및 서비스 개선(운영자의 QA 목적)',
-    '부정 이용 방지 및 서비스 보안 유지',
-    '도입 문의 응대, 후원 접수 및 동의한 경우 후원자 명단 표시',
-  ]],
-  ['3. 개인정보의 보유 및 이용 기간', [
-    '회원 정보: 회원 탈퇴 시까지 보유하며, 탈퇴 즉시 삭제합니다. (관계 법령에 따라 보존 의무가 있는 정보는 해당 기간 동안 분리 보관)',
-    '거래명세서·요리 사진 및 인식 결과: 인식 품질을 확인·개선할 목적으로 보관하며, 회원 탈퇴 시 즉시 삭제됩니다.',
-    '접속 로그 등 보안 기록: 180일간 보관 후 파기합니다.',
-    '후원 정보: 리더보드 표시 목적이 종료되거나 후원자가 삭제를 요청할 때까지 보유하며, 회원 탈퇴 후에도 후원·순위 기록은 특정 개인을 알아볼 수 없는 형태(닉네임 등)로 남을 수 있습니다.',
-  ]],
-  ['4. 개인정보의 제3자 제공', [
-    '운영자는 이용자의 개인정보를 원칙적으로 외부에 제공하지 않습니다. 다만 이용자가 사전에 동의한 경우, 또는 법령의 규정에 의거하거나 수사기관이 법령에 정한 절차에 따라 요구하는 경우는 예외로 합니다.',
-  ]],
-];
-
-const PRIVACY_SECTIONS_TAIL = [
-  ['6. 정보주체의 권리와 행사 방법', [
-    '이용자는 설정 화면에서 언제든지 자신의 개인정보를 조회·수정할 수 있으며, 계정 삭제(탈퇴)를 통해 개인정보 삭제를 요청할 수 있습니다. 삭제 전 엑셀(CSV)로 입력 자료를 내려받을 수 있습니다.',
-    '그 밖의 열람, 정정, 삭제, 처리정지 요구는 아래 개인정보 보호책임자에게 연락하여 행사할 수 있습니다.',
-  ]],
-  ['7. 개인정보의 파기', [
-    '운영자는 개인정보의 보유기간이 경과하거나 처리 목적이 달성된 경우 지체 없이 해당 개인정보를 복구·재생이 불가능한 방법으로 파기합니다. 전자적 파일 형태의 정보는 복구할 수 없는 기술적 방법으로, 그 외의 기록물은 분쇄 또는 소각의 방법으로 파기합니다.',
-  ]],
-  ['8. 개인정보의 안전성 확보조치', [
-    '비밀번호는 복호화할 수 없는 일방향 암호화(scrypt) 방식으로 저장합니다.',
-    '이용자와 서버 간 통신은 TLS(HTTPS)로 암호화됩니다.',
-    '거래명세서·요리 사진 등 민감한 자료에 대한 접근은 운영자가 지정한 관리자 계정으로 제한됩니다.',
-    '접속 기록을 보관·관리하여 개인정보 오남용 여부를 확인합니다.',
-  ]],
-];
-
-const PRIVACY_SECTIONS_END = [
-  ['10. 권익침해 구제방법', [
-    '개인정보 침해에 대한 신고나 상담이 필요한 경우 아래 기관에 문의할 수 있습니다.',
-    '개인정보분쟁조정위원회: 1833-6972 (www.kopico.go.kr)',
-    '개인정보침해신고센터: 118 (privacy.kisa.or.kr)',
-    '대검찰청 사이버수사과: 1301 (www.spo.go.kr)',
-    '경찰청 사이버수사국: 182 (ecrm.cyber.go.kr)',
-  ]],
-  ['11. 고지의 의무', [
-    '이 개인정보처리방침은 2026년 11월 19일부터 적용됩니다. 법령·정책 또는 보안기술의 변경에 따라 내용이 추가·삭제·수정되는 경우에는 적용 최소 7일 전에 서비스 내 공지사항을 통해 고지합니다.',
-  ]],
-];
-
-function legalBlock([title, paragraphs]) {
-  return h('div', null, h('div', { class: 'h-sec' }, title), paragraphs.map((p) => h('p', null, p)));
+function faqList() {
+  const items = FAQ.map(([q, a], i) => h('details', { class: 'lp-faq-item', hidden: i >= 5 },
+    h('summary', null, h('span', null, q), h('span', { class: 'lp-faq-ic', 'aria-hidden': 'true' })),
+    h('p', null, a)));
+  const more = h('button', { class: 'lp-link is-more', type: 'button' }, `질문 ${FAQ.length - 5}개 더 보기`);
+  more.addEventListener('click', () => { items.forEach((d) => { d.hidden = false; }); more.remove(); items[5].querySelector('summary').focus(); });
+  return h('div', { class: 'lp-faq' }, items, more);
 }
 
-function processorRow(name, duty, items, retention) {
-  return h('div', { style: 'margin-top:8px;padding:10px;border:1px solid var(--rule);border-radius:8px' },
-    h('p', null, h('b', null, name)),
-    h('p', { class: 'xs muted' }, `위탁 업무: ${duty}`),
-    h('p', { class: 'xs muted' }, `이전되는 개인정보: ${items}`),
-    h('p', { class: 'xs muted' }, `보유·이용 기간: ${retention}`));
-}
-
-export function openDataNotice() {
-  const p = app.pub || {};
-  const officer = [p.biz_ceo && `담당: ${p.biz_ceo}`, p.contact_email && `이메일: ${p.contact_email}`].filter(Boolean);
-  return openDialog({
-    title: '개인정보처리방침',
-    wide: true,
-    content: h('div', { class: 'stack' },
-      h('p', { class: 'xs muted' }, '시행일: 2026년 11월 19일'),
-      h('p', null, '원가다이어리(이하 "운영자")는 개인정보보호법 등 관련 법령을 준수하며, 다음과 같이 개인정보를 처리합니다.'),
-      PRIVACY_SECTIONS.map(legalBlock),
-      h('div', null, h('div', { class: 'h-sec' }, '5. 개인정보 처리위탁 및 국외 이전'),
-        h('p', null, '운영자는 서비스 제공을 위하여 아래와 같이 개인정보 처리를 위탁하거나 국외로 이전합니다. 거래명세서·요리 사진의 자동 인식(OCR)을 이용하지 않고 직접 입력만 이용하는 경우, 사진은 국외로 전송되지 않습니다.'),
-        processorRow('Anthropic, PBC (미국)', '거래명세서·요리 사진의 AI 인식(OCR)', '업로드한 거래명세서·요리 사진', 'Anthropic의 자체 보유기간 정책에 따름'),
-        processorRow('서버 호스팅사(인프라 제공업체)', '서버 운영 및 데이터 보관', '서비스 이용에 따라 저장되는 모든 개인정보', '위탁계약 종료 또는 회원 탈퇴 시까지')),
-      PRIVACY_SECTIONS_TAIL.map(legalBlock),
-      h('div', null, h('div', { class: 'h-sec' }, '9. 개인정보 보호책임자'),
-        h('p', null, '이용자는 서비스 이용 중 발생하는 개인정보 보호 관련 문의, 불만처리, 피해구제 등에 관한 사항을 아래로 문의할 수 있습니다.'),
-        officer.length ? h('p', null, officer.join(' · ')) : h('p', { class: 'muted' }, '문의 방법은 서비스 내 도입 문의를 통해 안내받을 수 있습니다.')),
-      PRIVACY_SECTIONS_END.map(legalBlock),
-      p.business_name || p.biz_reg_no ? h('div', null, h('div', { class: 'h-sec' }, '사업자 정보'),
-        h('p', null, [p.business_name, p.biz_ceo && `대표 ${p.biz_ceo}`, p.biz_reg_no && `사업자등록번호 ${p.biz_reg_no}`, p.biz_address].filter(Boolean).join(' · '))) : null,
-      h('p', { class: 'xs muted' }, '서비스 이용에 관한 사항은 ', h('button', { class: 'link-btn small', type: 'button', onclick: openTerms }, '이용약관'), '을 함께 확인해 주세요.')),
-  });
-}
-
-export function openTerms() {
-  return openDialog({
-    title: '이용약관',
-    wide: true,
-    content: h('div', { class: 'stack' },
-      h('p', { class: 'xs muted' }, '시행일: 2026년 11월 19일'),
-      TERMS_ARTICLES.map(legalBlock),
-      h('p', null, '부칙: 이 약관은 2026년 11월 19일부터 시행합니다.')),
-  });
-}
-
+/* ─── 도입 문의 ─── */
 function leadForm() {
-  const name = h('input', { class: 'input', type: 'text', maxLength: 60, autocomplete: 'name' });
-  const contact = h('input', { class: 'input', type: 'text', maxLength: 120, placeholder: '전화번호 또는 이메일', autocomplete: 'off' });
+  const name = h('input', { class: 'input', type: 'text', name: 'name', maxLength: 60, autocomplete: 'name' });
+  const contact = h('input', { class: 'input', type: 'text', maxLength: 120, name: 'contact', placeholder: '예: 010-1234-5678 또는 me@example.com', autocomplete: 'off', spellcheck: false });
   const biz = selectOf(['한식', '분식', '고깃집', '주점', '카페·베이커리', '기타'], '한식');
-  const msg = h('textarea', { class: 'textarea', maxLength: 1000, placeholder: '메뉴 수, 쓰고 계신 방식(수기·엑셀 등)을 적어 주시면 답변이 빨라집니다.' });
+  const msg = h('textarea', { class: 'textarea', maxLength: 1000, placeholder: '메뉴 수, 쓰고 계신 방식(수기·엑셀 등)을 적어 주시면 답변이 빨라요.' });
   const err = h('div', { class: 'form-err', role: 'alert', hidden: true });
-  const btn = h('button', { class: 'btn', type: 'submit' }, '문의 보내기');
-  const form = h('form', { novalidate: true }, err,
+  const btn = h('button', { class: 'lp-btn is-primary', type: 'submit' }, '문의 보내기');
+  const form = h('form', { class: 'lp-form', novalidate: true }, err,
     h('div', { class: 'two' }, field('이름', name), field('연락처', contact)),
     field('업종', biz), field('문의 내용 (선택)', msg), btn);
   form.addEventListener('submit', async (ev) => {
@@ -277,591 +483,235 @@ function leadForm() {
       try {
         await api('/api/leads', { method: 'POST', body: { name: name.value, contact: contact.value, biz_type: biz.value, message: msg.value } });
       } catch (e) { err.textContent = errMsg(e); err.hidden = false; return; }
-      form.replaceChildren(h('p', { role: 'status' }, '문의를 접수했습니다. 남겨 주신 연락처로 답변드리겠습니다.'));
+      form.replaceChildren(h('p', { role: 'status' }, '문의를 접수했어요. 남겨 주신 연락처로 답변드릴게요.'));
     });
   });
   return form;
 }
 
-/* 기능 그리드: 한눈에 훑어볼 수 있게 아이콘·이름·한 줄 설명으로 묶은 카드. [아이콘, 이름, 설명, 주변상권인지] */
-const FEATURES = [
-  ['receipt', '거래명세서 자동 인식', '납품받은 명세서를 한 장 찍어 올리면 품목·규격·단가를 읽어서 그 자리에서 단가에 반영합니다.'],
-  ['box', '식자재 단가·가격 이력', '살 때마다 단가가 쌓이고, 오른 재료가 생기면 그 재료가 들어가는 메뉴까지 짚어 알려 줍니다.'],
-  ['list', '메뉴 원가·권장 판매가', '재료와 양만 넣으면 원가율이 나오고, 목표 원가율에 맞춰 얼마를 받아야 할지도 같이 계산해 둡니다.'],
-  ['trend', '프렙 레시피', '미리 끓여 두는 육수나 소스처럼 여러 메뉴에 쓰는 재료도 g(ml)당 원가로 잡아 두고, 메뉴 쪼갤 때 그대로 가져다 씁니다.'],
-  // ['camera', '사진으로 메뉴 만들기', '다 된 요리 사진 한 장으로도 재료와 양을 어림잡아 메뉴 초안을 만들어 줍니다.'],
-  ['search', '배달앱 수수료 계산', '배민·쿠팡이츠 수수료와 배달비까지 빼고 나면 한 건 팔아서 실제로 남는 돈이 얼마인지 보여 줍니다.'],
-];
-
-function featureGrid() {
-  return h('section', { class: 'sec', 'aria-labelledby': 'feat-t' },
-    h('h2', { id: 'feat-t' }, '무엇을 할 수 있나요'),
-    h('div', { class: 'feat-grid' },
-      FEATURES.map(([ic, title, desc]) => h('article', { class: 'feat-card' },
-        icon(ic, 22), h('h3', null, title), h('p', null, desc)))));
+/* 로고: 밝은 화면용(짙은 갈색 글씨)과 어두운 화면용(크림색 글씨)을 함께 두고 CSS로 하나만 보인다 */
+function logo() {
+  return [
+    h('img', { class: 'lp-logo is-light', src: '/static/brand/logo.png', alt: '원가다이어리', width: 521, height: 120 }),
+    h('img', { class: 'lp-logo is-dark', src: '/static/brand/logo-dark.png', alt: '원가다이어리', width: 521, height: 120 }),
+  ];
 }
 
-/* ─── 히어로 카운팅 카드: 슬라이더 움직이면 숫자가 카운팅됨 ─── */
-function heroCountCard(simResult) {
-  const costEl = h('span', { class: 'hc-num' }, '0');
-  const marginEl = h('span', { class: 'hc-num' }, '0');
-  const ratioPct = h('span', { class: 'hc-ratio-pct ok' }, '0%');
-  const fillEl = h('div', { class: 'hc-fill ok' });
-  const priceTag = h('span', { class: 'hc-price-tag' }, '판매가 —원');
-
-  function update(s) {
-    // 금액 카운팅 (메인)
-    animateCount(costEl, parseInt(costEl.dataset.prev || 0), Math.round(s.cost), 500, '원');
-    costEl.dataset.prev = Math.round(s.cost);
-    animateCount(marginEl, parseInt(marginEl.dataset.prev || 0), Math.round(s.margin), 500, '원');
-    marginEl.dataset.prev = Math.round(s.margin);
-    // 원가율 % 보조
-    const r = s.ratio;
-    const cls = r > 40 ? 'danger' : r > 35 ? 'warn' : 'ok';
-    ratioPct.className = `hc-ratio-pct ${cls}`;
-    fillEl.className = `hc-fill ${cls}`;
-    // 원가율 숫자 카운팅
-    const prevRatio = parseFloat(fillEl.dataset.prevRatio || 0);
-    fillEl.dataset.prevRatio = r;
-    animateBarWidth(fillEl, prevRatio, Math.min(100, r), 500);
-    animateRatioPct(ratioPct, prevRatio, r, 500);
-    // 판매가 표시
-    priceTag.textContent = `판매가 ${n0(s.cost + s.margin)}원`;
-  }
-
-  const card = h('div', { class: 'hc-card glass' },
-    h('div', { class: 'hc-title' }, '🍖 제육볶음 한 그릇', priceTag),
-    h('div', { class: 'hc-grid' },
-      h('div', { class: 'hc-item cost' },
-        h('span', { class: 'hc-label' }, '재료비'),
-        costEl),
-      h('div', { class: 'hc-item margin' },
-        h('span', { class: 'hc-label' }, '남는 돈'),
-        marginEl)),
-    h('div', { class: 'hc-ratio-row' },
-      h('span', { class: 'hc-ratio-label' }, '원가율'),
-      ratioPct),
-    h('div', { class: 'hc-bar' }, fillEl),
-    h('p', { class: 'hc-hint' }, '↑ 슬라이더를 움직이면 실시간으로 바뀝니다'));
-  card.update = update;
-  return card;
+/* 가입 문구: 키가 설정된 소셜 로그인만 이름을 적는다(app.pub.oauth_providers) */
+function socialLine(pub) {
+  const names = { kakao: '카카오', naver: '네이버', google: '구글' };
+  const on = Object.entries(pub.oauth_providers || {}).filter(([, v]) => v).map(([k]) => names[k]).filter(Boolean);
+  return on.length ? `이메일이나 ${on.join('·')} 계정으로 바로 가입할 수 있어요.` : '이메일만 있으면 바로 가입하고 써 볼 수 있어요.';
 }
 
-/* ─── 탭 컴포넌트 ─── */
-function tabGroup(tabs) {
-  // tabs: [{label, content}]
-  let active = 0;
-  const panels = tabs.map(({ content }, i) => {
-    const p = h('div', { class: `tab-panel${i === 0 ? ' active' : ''}`, role: 'tabpanel' }, content);
-    return p;
-  });
-  const btns = tabs.map(({ label }, i) => {
-    const b = h('button', { class: `tab-btn${i === 0 ? ' active' : ''}`, role: 'tab', 'aria-selected': String(i === 0), type: 'button' }, label);
-    b.addEventListener('click', () => {
-      btns[active].classList.remove('active'); btns[active].setAttribute('aria-selected', 'false');
-      panels[active].classList.remove('active');
-      active = i;
-      btns[active].classList.add('active'); btns[active].setAttribute('aria-selected', 'true');
-      panels[active].classList.add('active');
-    });
-    return b;
-  });
-  return h('div', { class: 'tab-group' },
-    h('div', { class: 'tab-list', role: 'tablist' }, btns),
-    h('div', { class: 'tab-panels' }, panels));
-}
-
-/* ─── 아코디언 ─── */
-function accordion(items) {
-  return h('div', { class: 'accordion' }, items.map(([q, a]) => {
-    const body = h('div', { class: 'acc-body' }, h('p', null, a));
-    const header = h('button', { class: 'acc-header', type: 'button', 'aria-expanded': 'false' },
-      h('span', null, q), h('span', { class: 'acc-ic' }, '＋'));
-    header.addEventListener('click', () => {
-      const open = body.classList.toggle('open');
-      header.setAttribute('aria-expanded', String(open));
-      header.querySelector('.acc-ic').textContent = open ? '－' : '＋';
-    });
-    return h('div', { class: 'acc-item' }, header, body);
-  }));
-}
-
-/* ─── 캐러셀 ─── */
-function carousel(cards) {
-  let idx = 0;
-  const slides = cards.map((c, i) => h('div', { class: `carousel-slide${i === 0 ? ' active' : ''}` }, c));
-  const dots = cards.map((_, i) => {
-    const d = h('button', { class: `carousel-dot${i === 0 ? ' active' : ''}`, type: 'button', 'aria-label': `${i + 1}번` });
-    d.addEventListener('click', () => goTo(i));
-    return d;
-  });
-  function goTo(n) {
-    slides[idx].classList.remove('active'); dots[idx].classList.remove('active');
-    idx = (n + cards.length) % cards.length;
-    slides[idx].classList.add('active'); dots[idx].classList.add('active');
-  }
-  const prev = h('button', { class: 'carousel-nav prev', type: 'button', 'aria-label': '이전' }, '‹');
-  const next = h('button', { class: 'carousel-nav next', type: 'button', 'aria-label': '다음' }, '›');
-  prev.addEventListener('click', () => goTo(idx - 1));
-  next.addEventListener('click', () => goTo(idx + 1));
-  return h('div', { class: 'carousel' },
-    h('div', { class: 'carousel-track' }, slides),
-    prev, next,
-    h('div', { class: 'carousel-dots' }, dots));
-}
-
+/* ─── 페이지 ─── */
 export function renderLanding(root, onAuth) {
   const pub = app.pub || {};
-  const start = () => {
-    openSignup({
-      onDone: () => {
-        launchConfetti();
-        onAuth();
-      },
-    });
-  };
+  const start = () => openSignup({ onDone: () => { launchConfetti(); onAuth(); } });
   const login = () => openLogin({ onDone: onAuth });
-
-  /* ─── 시뮬레이터 + 카운팅 카드 연결 ─── */
-  const simEl = simulator();
-  // simulator()가 반환한 엘리먼트에서 슬라이더를 찾아 카운팅 카드와 연동
-  let countCard;
-  const connectCountCard = (el) => {
-    const porkSlider = el.querySelector('#sim-pork');
-    const priceSlider = el.querySelector('#sim-price');
-    if (!porkSlider || !priceSlider || !countCard) return;
-    const sync = () => {
-      const s = simulate(Number(porkSlider.value), Number(priceSlider.value));
-      countCard.update(s);
-    };
-    porkSlider.addEventListener('input', sync);
-    priceSlider.addEventListener('input', sync);
-    // 초기값 카운팅
-    setTimeout(() => {
-      const s = simulate(Number(porkSlider.value), Number(priceSlider.value));
-      countCard.update(s);
-    }, 400);
+  const jump = (id) => (e) => {
+    e.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: REDUCED() ? 'auto' : 'smooth', block: 'start' });
   };
+  const cta = (label, cls = 'is-primary is-lg') => h('button', { class: `lp-btn ${cls}`, type: 'button', onclick: start }, label);
 
-  /* 초기 시뮬 결과 */
-  const initSim = simulate(10800, 9500);
-  countCard = heroCountCard(initSim);
+  const tour = productTour();
+  const show = showcase();
 
-  /* ─── FAQ 아코디언 ─── */
-  const faqAccordion = accordion(FAQ);
+  const top = h('header', { class: 'lp-top' },
+    h('div', { class: 'lp-wrap lp-top-in' },
+      h('a', { class: 'lp-brand', href: '#/', 'aria-label': '원가다이어리 홈' }, logo()),
+      h('nav', { class: 'lp-nav', 'aria-label': '소개 페이지' },
+        h('a', { href: '#lp-tour', onclick: jump('lp-tour') }, '실제 화면'),
+        h('a', { href: '#lp-features', onclick: jump('lp-features') }, '계산해 보기'),
+        h('a', { href: '#lp-start', onclick: jump('lp-start') }, '시작 방법'),
+        h('a', { href: '#lp-price', onclick: jump('lp-price') }, '가격'),
+        h('a', { href: '#lp-faq', onclick: jump('lp-faq') }, '자주 묻는 질문')),
+      h('div', { class: 'lp-top-act' },
+        h('button', { class: 'lp-btn is-ghost is-sm', type: 'button', onclick: login }, '로그인'),
+        h('button', { class: 'lp-btn is-primary is-sm', type: 'button', onclick: start }, '회원가입'))));
 
-  /* ─── 기능 캐러셀 ─── */
-  const featureCards = FEATURES.map(([ic, title, desc]) =>
-    h('div', { class: 'feat-carousel-card' },
-      h('div', { class: 'feat-ic-wrap' }, icon(ic, 28)),
-      h('h3', null, title),
-      h('p', null, desc)));
-  const featCarousel = carousel(featureCards);
-
-  /* ─── 통계 카운터 섹션 ─── */
-  const stat1 = h('span', { class: 'stat-num' }, '0');
-  const stat2 = h('span', { class: 'stat-num' }, '0');
-  const stat3 = h('span', { class: 'stat-num' }, '0');
-
-  /* ─── 사용 순서 탭 ─── */
-  const howTabs = tabGroup([
-    {
-      label: '명세서로',
-      content: h('div', { class: 'steps' },
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, '사진을 올립니다'), h('p', null, '납품받은 거래명세서를 찍어 올리면 품목·규격·단가를 읽어 옵니다.')),
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '읽은 내용을 확인합니다'), h('p', null, '틀린 곳만 고치고, 이름이 다른 식자재는 한 번만 연결하면 다음부터 자동으로 알아봅니다.')),
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '원가율이 다시 계산됩니다'), h('p', null, '단가가 오른 식자재와 그 때문에 원가율이 오른 메뉴를 바로 알려 드립니다.'))),
-    },
-    /* 요리 사진 탭 — 너무 부정확해 비공개 처리
-    {
-      label: '요리 사진으로',
-      content: h('div', { class: 'steps' },
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, '완성된 요리 사진을 올립니다'), h('p', null, '메뉴판 사진이나 직접 찍은 요리 사진을 올려 주세요.')),
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '재료와 양을 AI가 어림잡습니다'), h('p', null, '사진만으로 정확한 양은 알 수 없어서 추정 표시와 범위가 붙습니다.')),
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '계량해서 고쳐 쓰면 됩니다'), h('p', null, '고치기 전까지는 원가율도 범위로 보여 드립니다.'))),
-    },
-    */
-    {
-      label: '엑셀에서',
-      content: h('div', { class: 'steps' },
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, 'xlsx / CSV를 올립니다'), h('p', null, '쓰던 엑셀 파일을 그대로 올리면 제목 줄을 읽어 칸을 자동으로 맞춥니다.')),
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '미리 보고 저장합니다'), h('p', null, '칸이 틀리면 직접 고를 수 있고, 확인하기 전에는 아무것도 저장되지 않습니다.')),
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '원가율이 계산됩니다'), h('p', null, '가져온 식자재로 메뉴 원가를 바로 계산할 수 있습니다.'))),
-    },
-  ]);
-
-  const land = h('div', { class: 'land' },
-    /* ─── 헤더 ─── */
-    h('header', { class: 'land-top' },
-      h('a', { class: 'brand', href: '#/' }, h('img', { src: '/static/icon.svg', alt: '', width: 26, height: 26 }), '원가다이어리'),
-      h('div', { class: 'land-top-actions' },
-        h('button', { class: 'btn ghost sm', type: 'button', onclick: login }, '로그인'),
-        h('button', { class: 'btn sm', type: 'button', onclick: start }, '지금 써보기'))),
-
-    /* ─── 히어로 ─── */
-    h('section', { class: 'hero', 'aria-labelledby': 'hero-t' },
-      h('div', { class: 'hero-in' },
-        h('div', { class: 'hero-copy' },
-          h('div', { class: 'hero-badge reveal' }, '🍳 자영업자의 성공을 돕기 위해 만들었습니다'),
-          h('h1', { id: 'hero-t', class: 'reveal' }, '재료값 오르면,\n어떤 메뉴를 얼마에\n팔아야 남는지\n바로 알려 드립니다'),
-          h('p', { class: 'hero-lead reveal' }, '엑셀로 계산했던 원가, 흩어진 영수증·거래명세서를 모두 한 곳에서 입력하고 메뉴별로 계산해 보세요.'),
-          h('div', { class: 'btn-row reveal' },
-            h('button', { class: 'btn btn-lg', type: 'button', onclick: start }, '원가 계산 시작하기 →'),
-            h('a', { class: 'btn ghost', href: '#price', onclick: (e) => { e.preventDefault(); document.getElementById('price').scrollIntoView({ behavior: 'smooth' }); } }, '기능 보기')),
-          h('p', { class: 'hero-free-note reveal' }, '모든 기능은 체험판·기간 제한 없이 모두 무료로 가능합니다. 진짜예요.'),
-          h('p', { class: 'hero-note reveal' }, '식자재·메뉴 등록 개수 제한 없이 쓸 수 있습니다. 거래명세서 사진 자동 인식은 월 5회(시범 운영 중).')),
-        h('div', { class: 'hero-demo' },
-          iphoneMockup(),
-          countCard,
-          simEl))),
-
-    /* ─── 해시태그 마퀴 ─── */
-    marquee(),
-
+  const page = h('div', { class: 'lp' },
+    top,
     h('main', { id: 'main' },
+      /* 히어로 */
+      h('section', { class: 'lp-hero', 'aria-labelledby': 'lp-hero-t' },
+        h('div', { class: 'lp-wrap lp-hero-in' },
+          h('div', { class: 'lp-hero-copy' },
+            h('p', { class: 'lp-eyebrow rv' }, '식당·카페 사장님을 위한 원가 계산기'),
+            h('h1', { id: 'lp-hero-t', class: 'rv' }, '흩어진 원가를', h('br'), h('span', { class: 'lp-hl' }, '한곳에서'), ' 정리하세요'),
+            h('p', { class: 'lp-lead rv' }, '엑셀로 계산하던 원가, 이제 영수증·거래명세서만 입력하면 메뉴별로 바로 계산해 드려요.'),
+            h('div', { class: 'lp-cta-row rv' },
+              cta('무료로 시작하기'),
+              h('a', { class: 'lp-btn is-ghost is-lg lp-hide-m', href: '#lp-features', onclick: jump('lp-features') }, '직접 계산해 보기')),
+            h('ul', { class: 'lp-proof rv' },
+              h('li', null, icon('check', 16), '모든 기능 무료'),
+              h('li', null, icon('check', 16), '개수 제한 없음'),
+              h('li', null, icon('check', 16), '예시 가게로 먼저 둘러보기'))),
+          h('div', { class: 'lp-hero-art rv' }, tour))),
 
-      /* ─── 통계 카운터 ─── */
-      h('section', { class: 'sec stats-sec' },
-        h('div', { class: 'stats-grid' },
-          h('div', { class: 'stat-card glass reveal' }, stat1, h('p', null, '등록된 식자재')),
-          h('div', { class: 'stat-card glass reveal' }, stat2, h('p', null, '계산된 원가율')),
-          h('div', { class: 'stat-card glass reveal' }, stat3, h('p', null, '절약된 시간(시간)')))),
+      /* 공감 */
+      h('section', { class: 'lp-sec', 'aria-labelledby': 'lp-pain-t' },
+        h('div', { class: 'lp-wrap' },
+          h('div', { class: 'lp-sec-h rv' },
+            h('h2', { id: 'lp-pain-t' }, '이런 고민, 해보신 적 있으신가요?')),
+          h('div', { class: 'lp-pains' },
+            [
+              ['trend', '“삼겹살 가격이 올랐는데, 메뉴 가격은 그대로?”', '원가 변동을 바로 파악하고, 판매가를 조정할 시점을 놓치지 마세요.'],
+              ['receipt', '“영수증이 여기저기 흩어져서 원가 계산을 못 하고 있어요”', '영수증·거래명세서를 한곳에 모아 메뉴별 원가를 자동으로 계산해 드려요.'],
+              ['list', '“마진이 얼마인지 감으로만 알고 있어요”', '숫자로 정확한 마진율을 확인하고, 자신 있게 가격을 정하세요.'],
+            ].map(([ic, q, c], i) => h('article', { class: 'lp-pain rv', style: { '--d': `${i * 80}ms` } },
+              h('span', { class: 'lp-pain-ic' }, icon(ic, 22)),
+              h('h3', null, q),
+              h('p', null, c)))))),
 
-      /* ─── 기능 캐러셀 ─── */
-      h('section', { class: 'sec', 'aria-labelledby': 'feat-t' },
-        h('h2', { id: 'feat-t', class: 'reveal' }, '무엇을 할 수 있나요'),
-        featCarousel,
-        h('div', { class: 'feat-grid reveal' },
-          FEATURES.map(([ic, title, desc]) => h('article', { class: 'feat-card' },
-            icon(ic, 22), h('h3', null, title), h('p', null, desc))))),
+      /* 기능 쇼케이스 */
+      h('section', { class: 'lp-sec is-tint', id: 'lp-features', 'aria-labelledby': 'lp-feat-t' },
+        h('div', { class: 'lp-wrap' },
+          h('div', { class: 'lp-sec-h rv' },
+            h('h2', { id: 'lp-feat-t' }, '숫자를 직접 바꿔 보세요'),
+            h('p', null, '앱과 같은 계산식으로 움직여요. 메뉴 원가에서 바꾼 값이 배달 손익과 손익분기까지 이어져요.')),
+          h('div', { class: 'rv' }, show))),
 
-      /* ─── 사용법 탭 ─── */
-      h('section', { class: 'sec', 'aria-labelledby': 'how-t' },
-        h('h2', { id: 'how-t', class: 'reveal' }, '명세서를 받으면 이렇게 씁니다'),
-        howTabs),
+      /* 시작 방법 */
+      h('section', { class: 'lp-sec', id: 'lp-start', 'aria-labelledby': 'lp-start-t' },
+        h('div', { class: 'lp-wrap' },
+          h('div', { class: 'lp-sec-h rv' },
+            h('h2', { id: 'lp-start-t' }, '이렇게 시작해요'),
+            h('p', null, '가입하면 예시 가게 데이터로 먼저 둘러볼 수 있어요. 내 가게 숫자는 편한 방법으로 넣으면 돼요.')),
+          h('div', { class: 'rv' }, startSteps()))),
 
-      /* ─── 범위 ─── */
-      h('section', { class: 'sec', 'aria-labelledby': 'scope-t' },
-        h('h2', { id: 'scope-t', class: 'reveal' }, '단가와 원가율만 봅니다'),
-        h('p', { class: 'lead reveal' }, '재고·발주는 맡기지 않는 대신, 숫자 하나가 틀리지 않게 만드는 데만 집중합니다.'),
-        h('div', { class: 'scope' },
-          h('div', { class: 'reveal' }, h('h3', null, '이런 건 잘해요'), h('ul', null,
-            ['식자재별 단가와 가격 변동 이력', '수율을 반영한 실제 사용 단가', '메뉴별 원가율, 남는 돈, 권장 판매가', '거래명세서 사진 자동 인식(월 5회·시범 운영)', '배민·쿠팡이츠 수수료를 뺀 배달 손익', '엑셀·CSV로 쓰던 자료 가져오기', '단가가 오른 식자재와 영향받는 메뉴 알림', '엑셀(CSV) 내려받기'].map((t) => h('li', null, t)))),
-          h('div', { class: 'no reveal' }, h('h3', null, '이건 안 해요'), h('ul', null,
-            ['재고 수량 관리', '발주·주문', 'POS·배달앱 자동 연동', '세금계산서 발행'].map((t) => h('li', null, t)))))),
+      /* 하는 일·안 하는 일 */
+      h('section', { class: 'lp-sec is-tint', 'aria-labelledby': 'lp-scope-t' },
+        h('div', { class: 'lp-wrap' },
+          h('div', { class: 'lp-sec-h rv' },
+            h('h2', { id: 'lp-scope-t' }, '단가와 원가율, 이것만 제대로'),
+            h('p', null, '재고·발주까지 다 하려다 숫자가 틀리는 것보다, 원가 하나를 정확하게 보는 데 집중했어요.')),
+          h('div', { class: 'lp-scope' },
+            h('div', { class: 'lp-scope-yes rv' }, h('h3', null, '이런 건 잘해요'), h('ul', null,
+              ['식자재 단가와 가격 변동 이력', '수율을 반영한 실제 사용 단가', '메뉴별 원가율·남는 돈·권장 판매가', '육수·소스 프렙 레시피 원가', '배달앱 수수료를 뺀 배달 손익', '고정비·직원 급여로 손익분기 매출', '엑셀·CSV 가져오기와 내려받기'].map((t) => h('li', null, icon('check', 16), t)))),
+            h('div', { class: 'lp-scope-no rv' }, h('h3', null, '이건 안 해요'), h('ul', null,
+              ['재고 수량 관리', '발주·주문', 'POS·배달앱 자동 연동', '세금계산서 발행'].map((t) => h('li', null, icon('x', 16), t))))))),
 
-      /* ─── 요금 ─── */
-      h('section', { class: 'sec', id: 'price', 'aria-labelledby': 'price-t' },
-        h('h2', { id: 'price-t', class: 'reveal' }, '가격'),
-        h('div', { class: 'price-box', style: { 'margin-top': '14px' } },
-          h('div', { class: 'reveal' },
-            h('div', { class: 'price-big' }, h('span', { class: 'n' }, '0원')),
-            h('p', { class: 'small muted', style: 'margin-top:6px' }, '지금 있는 기능은 기간 제한 없이 계속 쓸 수 있습니다.'),
-            h('div', { class: 'btn-row', style: 'margin-top:16px' }, h('button', { class: 'btn', type: 'button', onclick: start }, '원가 계산 시작하기'))),
-          h('div', { class: 'reveal' },
-            h('ul', null, [
-              '식자재·메뉴 등록 개수 제한 없음',
-              '가격 이력과 원가 알림',
-              '언제든 엑셀(CSV)로 내려받기',
-              h('span', null, '거래명세서 사진 자동 인식 월 5회 ', h('small', { class: 'muted' }, '(시범 운영 중 · 결과가 부정확할 수 있음)')),
-            ].map((t) => typeof t === 'string' ? h('li', null, t) : h('li', null, t))),
-            h('p', { class: 'small muted', style: 'margin-top:10px' },
-              '사진 자동 인식에만 횟수를 둔 것은 인식할 때마다 외부 API 비용이 나가기 때문입니다. ',
-              '5회를 넘기거나 결과가 맞지 않으면 직접 입력하시면 됩니다.')))),
+      /* 가격 */
+      h('section', { class: 'lp-sec', id: 'lp-price', 'aria-labelledby': 'lp-price-t' },
+        h('div', { class: 'lp-wrap' },
+          h('div', { class: 'lp-price rv' },
+            h('div', { class: 'lp-price-l' },
+              h('h2', { id: 'lp-price-t' }, '가격'),
+              h('p', { class: 'lp-price-big' }, h('span', null, '0'), '원'),
+              h('p', { class: 'lp-price-head' }, '체험판도, 개수 제한도, 기간도 없습니다'),
+              h('p', null, '원가다이어리의 모든 기능은 무료입니다. 광고와 후원으로만 운영되기 때문에 사장님은 아무 비용 없이 사용하실 수 있습니다.'),
+              cta('무료로 시작하기', 'is-accent is-lg')),
+            h('ul', { class: 'lp-price-r' },
+              h('li', null, icon('check', 18), '식자재·메뉴 등록 개수 제한 없음'),
+              h('li', null, icon('check', 18), '가격 이력과 원가 알림'),
+              h('li', null, icon('check', 18), '배달 손익·손익분기·직원 급여 계산'),
+              h('li', null, icon('check', 18), '언제든 엑셀(CSV)로 내려받기'),
+              h('li', null, icon('check', 18), h('span', null, '명세서 사진 자동 인식 - 테스트중(월한도 5회)', h('small', null, '결과가 부정확할 수 있어 등록 전에 꼭 확인해 주세요'))))))),
 
-      /* ─── 소셜 프루프 ─── */
-      reviewSection(),
+      /* 자주 묻는 질문 */
+      h('section', { class: 'lp-sec is-tint', id: 'lp-faq', 'aria-labelledby': 'lp-faq-t' },
+        h('div', { class: 'lp-wrap lp-faq-wrap' },
+          h('div', { class: 'lp-sec-h is-left rv' },
+            h('h2', { id: 'lp-faq-t' }, '자주 묻는 질문'),
+            h('p', null, '더 궁금한 점은 아래 문의로 남겨 주세요.')),
+          h('div', { class: 'rv' }, faqList()))),
 
-      /* ─── FAQ 아코디언 ─── */
-      h('section', { class: 'sec', 'aria-labelledby': 'faq-t' },
-        h('h2', { id: 'faq-t', class: 'reveal' }, '자주 묻는 질문'),
-        faqAccordion),
+      /* 마지막 권유 + 문의 */
+      h('section', { class: 'lp-sec lp-final', 'aria-labelledby': 'lp-final-t' },
+        h('div', { class: 'lp-wrap' },
+          h('div', { class: 'lp-final-in rv' },
+            h('h2', { id: 'lp-final-t' }, '오늘 받은 명세서 한 장으로', h('br'), '시작해 보세요'),
+            h('p', null, socialLine(pub)),
+            h('div', { class: 'lp-cta-row is-center' }, cta('무료로 시작하기', 'is-accent is-lg'))),
+          h('details', { class: 'lp-lead-box rv' },
+            h('summary', null, h('span', null, h('b', null, '도입 문의'), ' 우리 가게에 맞는지 먼저 물어보셔도 돼요'), h('span', { class: 'lp-faq-ic', 'aria-hidden': 'true' })),
+            leadForm())))),
 
-      /* ─── 도입 문의 ─── */
-      h('section', { class: 'sec', 'aria-labelledby': 'lead-t' },
-        h('h2', { id: 'lead-t', class: 'reveal' }, '도입 문의'),
-        h('p', { class: 'lead reveal' }, '우리 가게에 맞게 쓸 수 있는지 먼저 물어보셔도 됩니다.'),
-        h('div', { class: 'sheet reveal', style: 'max-width:640px' }, leadForm()))),
+    h('footer', { class: 'lp-foot' },
+      h('div', { class: 'lp-wrap lp-foot-in' },
+        h('span', { class: 'lp-brand is-sm' }, logo(), pub.business_name && pub.business_name !== '원가다이어리' ? h('span', null, pub.business_name) : null),
+        pub.contact_email ? h('a', { href: `mailto:${pub.contact_email}` }, pub.contact_email) : null,
+        h('button', { class: 'lp-link', type: 'button', onclick: openTerms }, '이용약관'),
+        h('button', { class: 'lp-link', type: 'button', onclick: openDataNotice }, h('b', null, '개인정보처리방침')))),
 
-    h('footer', { class: 'foot' },
-      h('span', null, pub.business_name || '원가다이어리'),
-      pub.contact_email ? h('a', { href: `mailto:${pub.contact_email}` }, pub.contact_email) : null,
-      h('button', { class: 'link-btn small', type: 'button', onclick: openTerms }, '이용약관'),
-      h('button', { class: 'link-btn', type: 'button', onclick: openDataNotice }, '개인정보처리방침')));
+    /* 모바일: 스크롤하면 아래에 붙는 가입 버튼 */
+    h('div', { class: 'lp-dock', 'aria-hidden': 'true' },
+      h('button', { class: 'lp-btn is-primary is-lg', type: 'button', tabindex: '-1', onclick: start }, '무료로 시작하기')));
 
-  root.replaceChildren(land);
+  root.replaceChildren(page);
 
-  /* ─── DOM 연결 후 애니메이션 초기화 ─── */
   requestAnimationFrame(() => {
-    // 카운팅 카드와 슬라이더 연결
-    connectCountCard(land);
-
-    // 통계 카운터 on-view
-    countOnView(stat1, 1240, '개');
-    countOnView(stat2, 8700, '건');
-    countOnView(stat3, 320, '시간');
-
-    // 스크롤 reveal
-    revealOnScroll(land);
-
-    // 마퀴 트랙 애니메이션 (CSS로 하되 JS로 width 세팅)
-    const track = land.querySelector('.mq-track');
-    if (track) {
-      const w = track.scrollWidth / 2;
-      track.style.setProperty('--mq-w', `${w}px`);
-    }
-
-    // exit-intent 배너
-    setupExitIntent(start);
+    show.moveInk();
+    window.addEventListener('resize', show.moveInk, { passive: true });
+    reveal(page);
+    // 실제 화면 둘러보기는 화면에 보일 때부터 자동으로 넘긴다
+    const io = new IntersectionObserver((es) => {
+      if (es.some((e) => e.isIntersecting)) { io.disconnect(); tour.start(); }
+    }, { threshold: 0.3 });
+    io.observe(tour);
+    // 헤더 그림자, 모바일 하단 가입 버튼
+    const hero = page.querySelector('.lp-hero');
+    const final = page.querySelector('.lp-final');
+    const dock = page.querySelector('.lp-dock');
+    let heroOut = false; let finalIn = false;
+    const sync = () => dock.classList.toggle('is-on', heroOut && !finalIn);
+    new IntersectionObserver(([e]) => { top.classList.toggle('is-stuck', !e.isIntersecting); }, { rootMargin: '-1px 0px 0px 0px', threshold: 0 })
+      .observe(page.querySelector('.lp-hero-copy'));
+    new IntersectionObserver(([e]) => { heroOut = !e.isIntersecting; sync(); }).observe(hero.querySelector('.lp-cta-row'));
+    new IntersectionObserver(([e]) => { finalIn = e.isIntersecting; sync(); }).observe(final);
+    spotlight(page);
   });
 }
 
-/* ─── 막대 width 카운팅 모션 ─── */
-function animateBarWidth(el, startPct, endPct, duration = 500) {
-  const startTime = performance.now();
-  const diff = endPct - startPct;
-  function step(now) {
-    const t = Math.min((now - startTime) / duration, 1);
-    const ease = 1 - Math.pow(1 - t, 3);
-    el.style.width = `${startPct + diff * ease}%`;
-    if (t < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
-
-/* ─── 원가율 % 텍스트 카운팅 모션 ─── */
-function animateRatioPct(el, startVal, endVal, duration = 500) {
-  const startTime = performance.now();
-  const diff = endVal - startVal;
-  function step(now) {
-    const t = Math.min((now - startTime) / duration, 1);
-    const ease = 1 - Math.pow(1 - t, 3);
-    el.textContent = `${n1(startVal + diff * ease)}%`;
-    if (t < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
-
-/* ─── 카운팅 모션: start에서 end까지 duration ms 동안 숫자를 올라가게 ─── */
-function animateCount(el, start, end, duration = 900, suffix = '') {
-  const startTime = performance.now();
-  const diff = end - start;
-  function step(now) {
-    const t = Math.min((now - startTime) / duration, 1);
-    const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
-    const val = Math.round(start + diff * ease);
-    el.textContent = val.toLocaleString('ko-KR') + suffix;
-    if (t < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
-
-/* ─── IntersectionObserver로 한번만 카운팅 트리거 ─── */
-function countOnView(el, end, suffix = '원') {
+function reveal(root) {
+  const els = root.querySelectorAll('.rv');
+  if (REDUCED() || !('IntersectionObserver' in window)) { els.forEach((e) => e.classList.add('is-in')); return; }
   const io = new IntersectionObserver((entries) => {
-    entries.forEach((e) => {
-      if (!e.isIntersecting) return;
-      io.disconnect();
-      animateCount(el, 0, end, 1000, suffix);
-    });
-  }, { threshold: 0.4 });
-  io.observe(el);
+    entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  els.forEach((el) => io.observe(el));
 }
 
-/* ─── 컨페티 ─── */
+/* 마우스를 쓰는 기기에서만: 카드 위 커서를 따라오는 은은한 빛 */
+function spotlight(root) {
+  if (REDUCED() || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  root.addEventListener('pointermove', (e) => {
+    const card = e.target.closest?.('.lp-pain, .lp-panel, .lp-price');
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    card.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    card.style.setProperty('--my', `${e.clientY - r.top}px`);
+  }, { passive: true });
+}
+
+/* 가입 직후 축하 효과 */
 function launchConfetti() {
-  const colors = ['#1d4e9e', '#e8b923', '#e84040', '#22c55e', '#a855f7', '#f97316'];
+  if (REDUCED()) return;
+  const colors = ['#D97706', '#B45309', '#92400E', '#F5C060', '#166534'];
   const canvas = document.createElement('canvas');
   Object.assign(canvas.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: '9999' });
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
   document.body.appendChild(canvas);
   const ctx = canvas.getContext('2d');
-  const pieces = Array.from({ length: 120 }, () => ({
-    x: Math.random() * canvas.width,
-    y: -20 - Math.random() * 100,
-    w: 8 + Math.random() * 8,
-    h: 4 + Math.random() * 6,
-    rot: Math.random() * Math.PI * 2,
-    vx: (Math.random() - 0.5) * 4,
-    vy: 3 + Math.random() * 4,
-    vr: (Math.random() - 0.5) * 0.2,
-    color: colors[Math.floor(Math.random() * colors.length)],
-    alpha: 1,
+  const pieces = Array.from({ length: 110 }, () => ({
+    x: Math.random() * canvas.width, y: -20 - Math.random() * 100, w: 8 + Math.random() * 8, h: 4 + Math.random() * 6,
+    rot: Math.random() * Math.PI * 2, vx: (Math.random() - 0.5) * 4, vy: 3 + Math.random() * 4, vr: (Math.random() - 0.5) * 0.2,
+    color: colors[Math.floor(Math.random() * colors.length)], alpha: 1,
   }));
   let frame = 0;
-  function draw() {
+  (function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let alive = false;
     pieces.forEach((p) => {
       p.x += p.vx; p.y += p.vy; p.rot += p.vr;
       if (frame > 60) p.alpha -= 0.015;
-      if (p.y < canvas.height + 20 && p.alpha > 0) { alive = true; }
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, p.alpha);
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      ctx.restore();
+      if (p.y < canvas.height + 20 && p.alpha > 0) alive = true;
+      ctx.save(); ctx.globalAlpha = Math.max(0, p.alpha); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.color; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
     });
     frame++;
-    if (alive) requestAnimationFrame(draw);
-    else canvas.remove();
-  }
-  draw();
-}
-
-/* ─── iPhone 목업 (SVG 인라인 — 실제 앱 화면 미리보기) ─── */
-function iphoneMockup() {
-  // 앱 화면: 식자재 단가 목록 화면 묘사
-  const screen = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 580" style="display:block;width:100%;height:100%">
-      <defs>
-        <clipPath id="sc"><rect width="320" height="580" rx="4"/></clipPath>
-      </defs>
-      <g clip-path="url(#sc)">
-        <!-- 배경 -->
-        <rect width="320" height="580" fill="#f5f3ef"/>
-        <!-- 상단 탭바 -->
-        <rect width="320" height="52" fill="#fff" y="0"/>
-        <rect width="320" height="1" fill="#e5e1d8" y="51"/>
-        <!-- 탭 아이콘들 -->
-        <text x="40" y="34" font-size="10" fill="#c8580a" font-weight="700" text-anchor="middle" font-family="system-ui">식자재</text>
-        <text x="110" y="34" font-size="10" fill="#aaa" font-weight="600" text-anchor="middle" font-family="system-ui">메뉴</text>
-        <text x="180" y="34" font-size="10" fill="#aaa" font-weight="600" text-anchor="middle" font-family="system-ui">명세서</text>
-        <text x="250" y="34" font-size="10" fill="#aaa" font-weight="600" text-anchor="middle" font-family="system-ui">설정</text>
-        <rect x="20" y="49" width="40" height="2" rx="1" fill="#c8580a"/>
-        <!-- 페이지 타이틀 -->
-        <text x="16" y="82" font-size="16" fill="#1a1714" font-weight="800" font-family="system-ui">식자재 단가</text>
-        <text x="304" y="82" font-size="11" fill="#c8580a" font-weight="700" text-anchor="end" font-family="system-ui">+ 추가</text>
-        <!-- 단가 오름 알림 배너 -->
-        <rect x="12" y="92" width="296" height="34" rx="8" fill="#fef0e6"/>
-        <text x="22" y="113" font-size="10" fill="#c8580a" font-weight="700" font-family="system-ui">🔺 돼지 앞다리살 단가가 8.3% 올랐습니다 → 영향 메뉴 보기</text>
-        <!-- 식자재 카드 1 -->
-        <rect x="12" y="136" width="296" height="68" rx="10" fill="#fff"/>
-        <text x="24" y="158" font-size="13" fill="#1a1714" font-weight="700" font-family="system-ui">돼지 앞다리살</text>
-        <rect x="230" y="144" width="66" height="20" rx="10" fill="#fef0e6"/>
-        <text x="263" y="158" font-size="10" fill="#c8580a" font-weight="700" text-anchor="middle" font-family="system-ui">↑ 8.3%</text>
-        <text x="24" y="176" font-size="11" fill="#888" font-family="system-ui">kg당</text>
-        <text x="60" y="176" font-size="14" fill="#c8580a" font-weight="800" font-family="system-ui">10,800원</text>
-        <text x="180" y="176" font-size="10" fill="#aaa" font-family="system-ui">전: 9,970원 · 2026.11.18</text>
-        <!-- 식자재 카드 2 -->
-        <rect x="12" y="214" width="296" height="68" rx="10" fill="#fff"/>
-        <text x="24" y="236" font-size="13" fill="#1a1714" font-weight="700" font-family="system-ui">양파</text>
-        <text x="24" y="254" font-size="11" fill="#888" font-family="system-ui">kg당</text>
-        <text x="60" y="254" font-size="14" fill="#1a1714" font-weight="800" font-family="system-ui">1,850원</text>
-        <text x="180" y="254" font-size="10" fill="#aaa" font-family="system-ui">변동 없음 · 2026.11.10</text>
-        <!-- 식자재 카드 3 -->
-        <rect x="12" y="292" width="296" height="68" rx="10" fill="#fff"/>
-        <text x="24" y="314" font-size="13" fill="#1a1714" font-weight="700" font-family="system-ui">대파</text>
-        <text x="24" y="332" font-size="11" fill="#888" font-family="system-ui">kg당</text>
-        <text x="60" y="332" font-size="14" fill="#1a1714" font-weight="800" font-family="system-ui">3,900원</text>
-        <text x="180" y="332" font-size="10" fill="#aaa" font-family="system-ui">전: 4,100원 · 2026.11.05</text>
-        <!-- 메뉴 원가율 카드 -->
-        <rect x="12" y="372" width="296" height="90" rx="10" fill="#fff"/>
-        <text x="24" y="394" font-size="12" fill="#888" font-weight="600" font-family="system-ui">영향받는 메뉴</text>
-        <text x="24" y="416" font-size="13" fill="#1a1714" font-weight="700" font-family="system-ui">제육볶음</text>
-        <text x="260" y="416" font-size="11" fill="#e84040" font-weight="700" text-anchor="end" font-family="system-ui">원가율 41.3%</text>
-        <rect x="24" y="424" width="272" height="8" rx="4" fill="#f0ede7"/>
-        <rect x="24" y="424" width="112" height="8" rx="4" fill="#e84040"/>
-        <rect x="24" y="424" width="95" height="8" rx="4" fill="#c8580a"/>
-        <text x="118" y="438" font-size="8" fill="#888" text-anchor="middle" font-family="system-ui">목표 35%</text>
-        <text x="24" y="452" font-size="11" fill="#888" font-family="system-ui">권장 판매가</text>
-        <text x="130" y="452" font-size="13" fill="#1d4e9e" font-weight="800" font-family="system-ui">11,300원</text>
-        <text x="200" y="452" font-size="10" fill="#aaa" font-family="system-ui">(현재 9,500원)</text>
-        <!-- 하단 여백 -->
-        <rect x="0" y="470" width="320" height="110" fill="#f5f3ef"/>
-        <text x="160" y="530" font-size="10" fill="#bbb" text-anchor="middle" font-family="system-ui">원가다이어리</text>
-      </g>
-    </svg>`;
-
-  const svgBlob = new Blob([screen], { type: 'image/svg+xml' });
-  const svgUrl = URL.createObjectURL(svgBlob);
-
-  // iPhone 프레임 (CSS로 그리기)
-  const phoneScreen = h('div', { class: 'mock-screen' });
-  phoneScreen.innerHTML = screen;
-
-  return h('div', { class: 'mock-phone' },
-    h('div', { class: 'mock-notch' }),
-    phoneScreen,
-    h('div', { class: 'mock-home-bar' }));
-}
-
-/* ─── 소셜 프루프 (가상 후기) ─── */
-const REVIEWS = [
-  {
-    name: '김영수 사장님',
-    sub: '삼겹살집 운영 11년 · 서울 마포',
-    text: '명세서 찍고 나서 처음으로 메뉴 가격을 올렸어요. 올려야 한다는 건 알았는데 얼마를 올려야 하는지 몰랐거든요.',
-    emoji: '🥩',
-  },
-  {
-    name: '박미선 사장님',
-    sub: '분식집 운영 4년 · 경기 수원',
-    text: '엑셀로 원가 계산하다가 포기했는데, 여기선 명세서 사진 한 장이면 단가가 자동으로 들어와요. 이게 제일 편해요.',
-    emoji: '🍱',
-  },
-  {
-    name: '이재호 사장님',
-    sub: '국밥집 운영 7년 · 부산 해운대',
-    text: '돼지뼈 단가가 오르면 어떤 메뉴가 얼마나 위험한지 한눈에 보여서 좋아요. 예전엔 느낌으로만 알았거든요.',
-    emoji: '🍲',
-  },
-];
-
-function reviewSection() {
-  const cards = REVIEWS.map(r =>
-    h('article', { class: 'review-card glass reveal' },
-      h('div', { class: 'review-top' },
-        h('span', { class: 'review-emoji' }, r.emoji),
-        h('div', null,
-          h('strong', { class: 'review-name' }, r.name),
-          h('span', { class: 'review-sub' }, r.sub))),
-      h('p', { class: 'review-text' }, `"${r.text}"`)));
-  return h('section', { class: 'sec reviews-sec', 'aria-labelledby': 'review-t' },
-    h('h2', { id: 'review-t', class: 'reveal' }, '사장님들의 이야기'),
-    h('p', { class: 'lead reveal' }, '실제 사용하시는 분들의 경험을 옮겼습니다.'),
-    h('div', { class: 'reviews-grid' }, cards));
-}
-
-/* ─── Exit-intent 배너 ─── */
-function setupExitIntent(onStart) {
-  let shown = false;
-  const show = () => {
-    if (shown) return;
-    shown = true;
-    const banner = h('div', { class: 'exit-banner' },
-      h('div', { class: 'exit-inner' },
-        h('button', { class: 'exit-close', type: 'button', 'aria-label': '닫기', onclick: () => banner.remove() }, '×'),
-        h('p', { class: 'exit-title' }, '잠깐, 한 달에 얼마 절약할 수 있는지 계산해 보셨나요?'),
-        h('p', { class: 'exit-sub' }, '원가율 1%만 낮춰도 월 매출 1,000만원 기준 10만원이 남습니다.'),
-        h('button', { class: 'btn btn-lg', type: 'button', onclick: () => { banner.remove(); onStart(); } }, '지금 계산해보기 →')));
-    document.body.appendChild(banner);
-    requestAnimationFrame(() => banner.classList.add('visible'));
-  };
-  // 마우스가 뷰포트 상단을 벗어날 때 (데스크탑)
-  document.addEventListener('mouseleave', (e) => { if (e.clientY < 10) show(); }, { once: true });
-  // 모바일: 뒤로가기 제스처 대신 15초 후 한 번
-  setTimeout(() => show(), 20000);
-}
-
-/* ─── 해시태그 마퀴 ─── */
-const HASHTAGS = ['#식자재원가', '#원가관리', '#음식점창업', '#자영업자', '#메뉴원가', '#배달음식', '#한식당', '#카페창업', '#재료비절감', '#원가율', '#명세서관리', '#음식점경영', '#식당사장님', '#배달앱수수료', '#손익분기점'];
-
-function marquee() {
-  const items = [...HASHTAGS, ...HASHTAGS].map((t) => h('span', { class: 'mq-tag' }, t));
-  const track = h('div', { class: 'mq-track' }, items);
-  return h('div', { class: 'mq-wrap', 'aria-hidden': 'true' }, track);
-}
-
-/* ─── 스크롤 reveal (stagger) ─── */
-function revealOnScroll(container) {
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach((e) => {
-      if (e.isIntersecting) { e.target.classList.add('revealed'); io.unobserve(e.target); }
-    });
-  }, { threshold: 0.12 });
-  container.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+    if (alive) requestAnimationFrame(draw); else canvas.remove();
+  })();
 }

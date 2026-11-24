@@ -1,6 +1,6 @@
 /* 가입·로그인 대화상자 */
 import { h, api, app, field, openDialog, busy, errMsg, toast } from './core.js';
-import { openDataNotice, openTerms } from './landing.js';
+import { openDataNotice, openTerms } from './legal.js';
 
 const SOCIAL_LABEL = { kakao: '카카오로 계속하기', naver: '네이버로 계속하기', google: '구글로 계속하기' };
 

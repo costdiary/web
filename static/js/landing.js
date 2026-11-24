@@ -310,6 +310,8 @@ function heroCountCard(simResult) {
   const priceTag = h('span', { class: 'hc-price-tag' }, '판매가 —원');
 
   function update(s) {
+    // 숫자가 바뀌는 순간 타일 숫자를 한 번 톡 튀게
+    for (const el of [costEl, marginEl]) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
     // 금액 카운팅 (메인)
     animateCount(costEl, parseInt(costEl.dataset.prev || 0), Math.round(s.cost), 500, '원');
     costEl.dataset.prev = Math.round(s.cost);
@@ -605,6 +607,9 @@ export function renderLanding(root, onAuth) {
     // 스크롤 reveal
     revealOnScroll(land);
 
+    // 도형 인터랙션: 커서 빛, 히어로 카드 기울기, 버튼 물결
+    attachMotion(land);
+
     // 마퀴 트랙 애니메이션 (CSS로 하되 JS로 width 세팅)
     const track = land.querySelector('.mq-track');
     if (track) {
@@ -615,6 +620,58 @@ export function renderLanding(root, onAuth) {
     // exit-intent 배너
     setupExitIntent(start);
   });
+}
+
+/* ─── 도형 인터랙션 ───
+   - 카드: 커서 위치를 --mx/--my로 넘겨 CSS의 은은한 빛이 따라오게
+   - 히어로 계산 카드: 커서 방향으로 최대 5도 기울기(--rx/--ry), 벗어나면 스프링으로 복귀
+   - 버튼: 누른 자리에서 물결
+   마우스처럼 hover가 되는 기기에서만, 그리고 '동작 줄이기'가 꺼져 있을 때만 움직임을 붙인다. */
+function attachMotion(root) {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  if (finePointer) {
+    root.querySelectorAll('.hc-card, .carousel, .feat-card, .scope > div, .price-box').forEach((el) => {
+      el.addEventListener('pointermove', (e) => {
+        const r = el.getBoundingClientRect();
+        el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+        el.style.setProperty('--my', `${e.clientY - r.top}px`);
+      });
+    });
+  }
+
+  const card = root.querySelector('.hc-card');
+  if (card && finePointer && !reduce) {
+    const MAX = 5;
+    card.addEventListener('pointermove', (e) => {
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      card.classList.remove('is-leaving');
+      card.style.setProperty('--ry', `${(px * MAX * 2).toFixed(2)}deg`);
+      card.style.setProperty('--rx', `${(-py * MAX * 2).toFixed(2)}deg`);
+    });
+    card.addEventListener('pointerleave', () => {
+      card.classList.add('is-leaving');
+      card.style.setProperty('--rx', '0deg');
+      card.style.setProperty('--ry', '0deg');
+    });
+  }
+
+  if (!reduce) {
+    root.addEventListener('pointerdown', (e) => {
+      const btn = e.target.closest('.btn');
+      if (!btn || !root.contains(btn)) return;
+      const r = btn.getBoundingClientRect();
+      const dot = document.createElement('span');
+      dot.className = 'ripple';
+      dot.style.left = `${e.clientX - r.left}px`;
+      dot.style.top = `${e.clientY - r.top}px`;
+      btn.appendChild(dot);
+      dot.addEventListener('animationend', () => dot.remove(), { once: true });
+    });
+  }
 }
 
 /* ─── 막대 width 카운팅 모션 ─── */

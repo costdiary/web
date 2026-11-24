@@ -600,7 +600,7 @@ export function renderLanding(root, onAuth) {
             h('div', { class: 'lp-price-l' },
               h('h2', { id: 'lp-price-t' }, '가격'),
               h('p', { class: 'lp-price-big' }, h('span', null, '0'), '원'),
-              h('p', { class: 'lp-price-head' }, '체험판도, 한도도, 기간도 없습니다'),
+              h('p', { class: 'lp-price-head' }, '체험판도, 개수 제한도, 기간도 없습니다'),
               h('p', null, '원가다이어리의 모든 기능은 무료입니다. 광고와 후원으로만 운영되기 때문에 사장님은 아무 비용 없이 사용하실 수 있습니다.'),
               cta('무료로 시작하기', 'is-accent is-lg')),
             h('ul', { class: 'lp-price-r' },

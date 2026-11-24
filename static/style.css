@@ -1752,7 +1752,7 @@ a.dm-stat:active { transform: scale(0.98); }
 }
 @keyframes land-ripple { to { transform: scale(26); opacity: 0; } }
 :root:not([data-brand="domae"]) .land :is(.btn, .tab-btn, .acc-header, .carousel-nav, .carousel-dot, summary, input[type="range"]):focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--blue);
   outline-offset: 3px;
 }
 
@@ -1890,3 +1890,33 @@ a.dm-stat:active { transform: scale(0.98); }
 :root:not([data-brand="domae"]) .land .mq-wrap { background: transparent; border-color: var(--rule); }
 :root:not([data-brand="domae"]) .land .mq-tag { background: transparent; color: var(--ink-3); font-weight: 600; padding-inline: 8px; }
 :root:not([data-brand="domae"]) .land .mq-tag:hover { background: transparent; color: var(--blue); }
+
+/* ─── 컴포넌트 전수 점검 P1 수정 ───
+   - 노란 포커스 링은 밝은 바탕 대비 1.36:1이라 거의 안 보임 → 파란 링(7.5:1), 파란 가격 박스 안에서만 노란 링
+   - '기능 보기' hover 배경이 앞선 규칙에 덮여 반응이 없던 것 복구
+   - 사용 순서 연결선이 마지막 번호 뒤로 삐져나가던 것 → 번호 사이에만 선
+   - 모바일 헤더 버튼·푸터 링크 터치 영역 44px */
+:root:not([data-brand="domae"]) .land :is(.btn, .tab-btn, .acc-header, .carousel-nav, .carousel-dot, summary, input, select, textarea, a, button):focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+:root:not([data-brand="domae"]) .land .price-box :is(.btn, a, button):focus-visible { outline-color: var(--accent); }
+:root:not([data-brand="domae"]) .land .hero .btn.ghost:hover { background: var(--blue-soft); }
+
+:root:not([data-brand="domae"]) .land .steps::before { content: none; }
+:root:not([data-brand="domae"]) .land .step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 29px;
+  left: 76px;
+  right: -22px;
+  height: 1px;
+  background: var(--rule-2);
+}
+@media (max-width: 759px) {
+  :root:not([data-brand="domae"]) .land .step:not(:last-child)::after { top: 72px; bottom: -2px; left: 28px; right: auto; width: 1px; height: auto; }
+}
+@media (max-width: 600px) {
+  :root:not([data-brand="domae"]) .land .land-top-actions .btn { min-height: 44px; }
+}
+:root:not([data-brand="domae"]) .land .foot :is(a, button) { padding-block: 10px; }

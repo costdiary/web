@@ -498,7 +498,7 @@ export function renderLanding(root, onAuth) {
       h('a', { class: 'brand', href: '#/' }, h('img', { src: '/static/icon.svg', alt: '', width: 26, height: 26 }), '원가다이어리'),
       h('div', { class: 'land-top-actions' },
         h('button', { class: 'btn ghost sm', type: 'button', onclick: login }, '로그인'),
-        h('button', { class: 'btn sm', type: 'button', onclick: start }, '무료로 시작하기'))),
+        h('button', { class: 'btn sm', type: 'button', onclick: start }, '회원가입'))),
 
     /* ─── 히어로 ─── */
     h('section', { class: 'hero', 'aria-labelledby': 'hero-t' },

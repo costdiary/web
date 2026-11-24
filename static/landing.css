@@ -381,7 +381,8 @@
 .lp-price h2 { font-size: 1rem; font-weight: 700; letter-spacing: 0; color: var(--on-navy-2); }
 .lp-price-big { margin: 4px 0 12px; font-size: 1.75rem; font-weight: 800; }
 .lp-price-big span { font-family: var(--num); font-size: clamp(5.5rem, 14vw, 8rem); line-height: 0.9; color: var(--accent); letter-spacing: -0.02em; margin-right: 4px; }
-.lp-price-l > p:not(.lp-price-big) { color: var(--on-navy-2); margin-bottom: 24px; max-width: 26em; }
+.lp-price-l > p:not(.lp-price-big):not(.lp-price-head) { color: var(--on-navy-2); margin-bottom: 24px; max-width: 26em; }
+.lp-price-head { margin-bottom: 8px; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; color: var(--on-navy); }
 .lp-price-r { display: grid; gap: 4px; }
 .lp-price-r li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 1rem; font-weight: 600; }
 .lp-price-r li:last-child { border-bottom: 0; }

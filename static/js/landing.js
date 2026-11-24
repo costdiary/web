@@ -468,9 +468,9 @@ export function renderLanding(root, onAuth) {
   /* ─── 사용 순서 탭 ─── */
   const howTabs = tabGroup([
     {
-      label: '거래명세서 사진으로',
+      label: '영수증·명세서 사진으로',
       content: h('div', { class: 'steps' },
-        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, '사진을 올립니다'), h('p', null, '납품받은 거래명세서를 찍어 올리면 품목·규격·단가를 읽어 옵니다.')),
+        h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, '영수증·거래명세서를 올립니다'), h('p', null, '장 본 영수증이나 납품받은 거래명세서를 찍어 올리면 품목·규격·단가를 읽어 옵니다.')),
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '읽은 내용을 확인합니다'), h('p', null, '틀린 곳만 고치고, 이름이 다른 식자재는 한 번만 연결하면 다음부터 자동으로 알아봅니다.')),
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '3'), h('h3', null, '원가율이 다시 계산됩니다'), h('p', null, '단가가 오른 식자재와 그 때문에 원가율이 오른 메뉴를 바로 알려 드립니다.'))),
     },

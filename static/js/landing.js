@@ -65,7 +65,7 @@ function simulator() {
   price.addEventListener('input', paint);
 
   const el = h('article', { class: 'sheet sim', 'aria-labelledby': 'sim-t' },
-    h('div', { class: 'sim-h' }, h('h2', { id: 'sim-t' }, '제육볶음 한 그릇'), h('span', { class: 'xs muted' }, '예시 계산 · 목표 원가율 35%')),
+    h('div', { class: 'sim-h' }, h('h2', { id: 'sim-t' }, '직접 바꿔 보세요'), h('span', { class: 'xs muted' }, '예시 단가 · 목표 원가율 35%')),
     h('div', { class: 'sim-ctl' },
       h('label', { for: 'sim-pork' }, h('span', { class: 'v' }, '돼지 앞다리살 1kg 가격', porkV), pork),
       h('label', { for: 'sim-price' }, h('span', { class: 'v' }, '판매가', priceV), price)),
@@ -285,7 +285,7 @@ function leadForm() {
 
 /* 기능 그리드: 한눈에 훑어볼 수 있게 아이콘·이름·한 줄 설명으로 묶은 카드. [아이콘, 이름, 설명, 주변상권인지] */
 const FEATURES = [
-  ['receipt', '거래명세서 자동 인식', '납품받은 명세서를 한 장 찍어 올리면 품목·규격·단가를 읽어서 그 자리에서 단가에 반영합니다.'],
+  ['receipt', '거래명세서 자동 인식', '납품받은 명세서를 찍어 올리면 품목·규격·단가를 읽어 단가에 반영합니다. 월 5회, 시범 운영 중이에요.'],
   ['box', '식자재 단가·가격 이력', '살 때마다 단가가 쌓이고, 오른 재료가 생기면 그 재료가 들어가는 메뉴까지 짚어 알려 줍니다.'],
   ['list', '메뉴 원가·권장 판매가', '재료와 양만 넣으면 원가율이 나오고, 목표 원가율에 맞춰 얼마를 받아야 할지도 같이 계산해 둡니다.'],
   ['trend', '프렙 레시피', '미리 끓여 두는 육수나 소스처럼 여러 메뉴에 쓰는 재료도 g(ml)당 원가로 잡아 두고, 메뉴 쪼갤 때 그대로 가져다 씁니다.'],
@@ -342,7 +342,7 @@ function heroCountCard(simResult) {
       h('span', { class: 'hc-ratio-label' }, '원가율'),
       ratioPct),
     h('div', { class: 'hc-bar' }, fillEl),
-    h('p', { class: 'hc-hint' }, '↑ 슬라이더를 움직이면 실시간으로 바뀝니다'));
+    h('p', { class: 'hc-hint' }, '↓ 아래에서 고기 값과 판매가를 바꿔 보세요'));
   card.update = update;
   return card;
 }
@@ -466,7 +466,7 @@ export function renderLanding(root, onAuth) {
   /* ─── 사용 순서 탭 ─── */
   const howTabs = tabGroup([
     {
-      label: '명세서로',
+      label: '거래명세서 사진으로',
       content: h('div', { class: 'steps' },
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, '사진을 올립니다'), h('p', null, '납품받은 거래명세서를 찍어 올리면 품목·규격·단가를 읽어 옵니다.')),
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '읽은 내용을 확인합니다'), h('p', null, '틀린 곳만 고치고, 이름이 다른 식자재는 한 번만 연결하면 다음부터 자동으로 알아봅니다.')),
@@ -482,7 +482,7 @@ export function renderLanding(root, onAuth) {
     },
     */
     {
-      label: '엑셀에서',
+      label: '쓰던 엑셀로',
       content: h('div', { class: 'steps' },
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '1'), h('h3', null, 'xlsx / CSV를 올립니다'), h('p', null, '쓰던 엑셀 파일을 그대로 올리면 제목 줄을 읽어 칸을 자동으로 맞춥니다.')),
         h('div', { class: 'step reveal' }, h('div', { class: 'step-no' }, '2'), h('h3', null, '미리 보고 저장합니다'), h('p', null, '칸이 틀리면 직접 고를 수 있고, 확인하기 전에는 아무것도 저장되지 않습니다.')),
@@ -496,22 +496,21 @@ export function renderLanding(root, onAuth) {
       h('a', { class: 'brand', href: '#/' }, h('img', { src: '/static/icon.svg', alt: '', width: 26, height: 26 }), '원가다이어리'),
       h('div', { class: 'land-top-actions' },
         h('button', { class: 'btn ghost sm', type: 'button', onclick: login }, '로그인'),
-        h('button', { class: 'btn sm', type: 'button', onclick: start }, '지금 써보기'))),
+        h('button', { class: 'btn sm', type: 'button', onclick: start }, '무료로 시작하기'))),
 
     /* ─── 히어로 ─── */
     h('section', { class: 'hero', 'aria-labelledby': 'hero-t' },
       h('div', { class: 'hero-in' },
         h('div', { class: 'hero-copy' },
-          h('div', { class: 'hero-badge reveal' }, '🍳 자영업자의 성공을 돕기 위해 만들었습니다'),
+          h('div', { class: 'hero-badge reveal' }, '식당·카페 사장님을 위한 원가 계산기'),
           h('h1', { id: 'hero-t', class: 'reveal' }, '흩어진 원가를\n한곳에서 정리하세요'),
           h('p', { class: 'hero-lead reveal' }, '엑셀로 계산하던 원가, 이제 영수증·거래명세서만 입력하면 메뉴별로 바로 계산해 드려요.'),
           h('div', { class: 'btn-row reveal' },
-            h('button', { class: 'btn btn-lg', type: 'button', onclick: start }, '원가 계산 시작하기 →'),
-            h('a', { class: 'btn ghost', href: '#price', onclick: (e) => { e.preventDefault(); document.getElementById('price').scrollIntoView({ behavior: 'smooth' }); } }, '기능 보기')),
-          h('p', { class: 'hero-free-note reveal' }, '모든 기능은 체험판·기간 제한 없이 모두 무료로 가능합니다. 진짜예요.'),
-          h('p', { class: 'hero-note reveal' }, '식자재·메뉴 등록 개수 제한 없이 쓸 수 있습니다. 거래명세서 사진 자동 인식은 월 5회(시범 운영 중).')),
+            h('button', { class: 'btn btn-lg', type: 'button', onclick: start }, '무료로 시작하기 →'),
+            h('a', { class: 'btn ghost', href: '#feat-t', onclick: (e) => { e.preventDefault(); document.getElementById('feat-t').scrollIntoView({ behavior: 'smooth' }); } }, '기능 보기')),
+          h('p', { class: 'hero-free-note reveal' }, '✓ 체험판도, 기간 제한도 없이 모든 기능이 무료예요.'),
+          h('p', { class: 'hero-note reveal' }, '식자재·메뉴는 몇 개든 등록할 수 있어요. 명세서 사진 자동 인식만 월 5회예요(시범 운영 중).')),
         h('div', { class: 'hero-demo' },
-          iphoneMockup(),
           countCard,
           simEl))),
 
@@ -537,7 +536,7 @@ export function renderLanding(root, onAuth) {
 
       /* ─── 사용법 탭 ─── */
       h('section', { class: 'sec', 'aria-labelledby': 'how-t' },
-        h('h2', { id: 'how-t', class: 'reveal' }, '명세서를 받으면 이렇게 씁니다'),
+        h('h2', { id: 'how-t', class: 'reveal' }, '이렇게 시작합니다'),
         howTabs),
 
       /* ─── 범위 ─── */
@@ -557,7 +556,7 @@ export function renderLanding(root, onAuth) {
           h('div', { class: 'reveal' },
             h('div', { class: 'price-big' }, h('span', { class: 'n' }, '0원')),
             h('p', { class: 'small muted', style: 'margin-top:6px' }, '지금 있는 기능은 기간 제한 없이 계속 쓸 수 있습니다.'),
-            h('div', { class: 'btn-row', style: 'margin-top:16px' }, h('button', { class: 'btn', type: 'button', onclick: start }, '원가 계산 시작하기'))),
+            h('div', { class: 'btn-row', style: 'margin-top:16px' }, h('button', { class: 'btn', type: 'button', onclick: start }, '무료로 시작하기'))),
           h('div', { class: 'reveal' },
             h('ul', null, [
               '식자재·메뉴 등록 개수 제한 없음',
@@ -837,14 +836,12 @@ function setupExitIntent(onStart) {
         h('button', { class: 'exit-close', type: 'button', 'aria-label': '닫기', onclick: () => banner.remove() }, '×'),
         h('p', { class: 'exit-title' }, '잠깐, 한 달에 얼마 절약할 수 있는지 계산해 보셨나요?'),
         h('p', { class: 'exit-sub' }, '원가율 1%만 낮춰도 월 매출 1,000만원 기준 10만원이 남습니다.'),
-        h('button', { class: 'btn btn-lg', type: 'button', onclick: () => { banner.remove(); onStart(); } }, '지금 계산해보기 →')));
+        h('button', { class: 'btn btn-lg', type: 'button', onclick: () => { banner.remove(); onStart(); } }, '무료로 시작하기 →')));
     document.body.appendChild(banner);
     requestAnimationFrame(() => banner.classList.add('visible'));
   };
   // 마우스가 뷰포트 상단을 벗어날 때 (데스크탑)
   document.addEventListener('mouseleave', (e) => { if (e.clientY < 10) show(); }, { once: true });
-  // 모바일: 뒤로가기 제스처 대신 15초 후 한 번
-  setTimeout(() => show(), 20000);
 }
 
 /* ─── 해시태그 마퀴 ─── */

@@ -97,7 +97,7 @@ function badge(ratio) {
 
 /* ─── 히어로: 실제 앱 화면으로 보는 '명세서 등록 → 원가 자동 계산' 과정 ───
    static/landing/step*.webp 는 실제 앱을 예시 가게 데이터로 돌려 휴대폰 크기(390px)로 찍은 화면이다.
-   앱 화면이 바뀌면 다시 찍어야 한다(찍는 방법은 PR 설명 참고). */
+   앱 화면이 바뀌면 다시 찍어야 한다: tools/capture_landing_shots.js */
 const TOUR = [
   { img: 'step1-upload', t: '명세서 사진 올리기', d: '납품받은 거래명세서를 찍거나 앨범에서 골라요. 영수증은 직접 입력해도 돼요.' },
   { img: 'step2-review', t: '읽은 내용 확인', d: '품목·규격·단가를 읽어 와 지난 단가와 비교해 보여 줘요. 틀린 칸은 바로 고칠 수 있어요.' },
@@ -113,7 +113,7 @@ function productTour() {
   let t0 = 0; let raf = 0; let started = false;
 
   const shots = TOUR.map((s, i) => h('img', {
-    class: `lp-shot${i === 0 ? ' is-on' : ''}`, src: `/static/landing/${s.img}.webp`, width: 390, height: 780,
+    class: `lp-shot${i === 0 ? ' is-on' : ''}`, src: `/static/landing/${s.img}.webp?v=2`, width: 390, height: 780,
     alt: `원가다이어리 앱 화면 ${i + 1}단계: ${s.t}`, loading: i === 0 ? 'eager' : 'lazy', decoding: 'async', draggable: false,
   }));
   const phone = h('div', { class: 'lp-phone' }, h('div', { class: 'lp-phone-screen' }, shots));

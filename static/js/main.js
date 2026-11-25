@@ -1,7 +1,7 @@
 /* 앱 시작: 로그인 확인 → 소개 화면 또는 앱 틀 + 화면 전환 */
 import { h, $, api, app, bus, refreshMe, icon, toast, errMsg, ApiError } from './core.js';
 import { skeleton, emptyBlock } from './ui.js';
-import { renderLanding } from './landing.js?v=19';
+import { renderLanding } from './landing.js?v=20';
 import * as dashboard from './dashboard.js';
 import * as ingredients from './ingredients.js';
 import * as menus from './menus.js';
@@ -92,7 +92,10 @@ function marketBell() {
 }
 
 function renderShell() {
-  const brand = (cls) => h('a', { class: `brand ${cls}`.trim(), href: '#/' }, h('img', { src: '/static/icon.svg', alt: '', width: 26, height: 26 }), '원가다이어리');
+  // 랜딩과 같은 로고(책+그래프와 글씨). 어두운 화면에서는 크림색 글씨 판을 쓴다.
+  const brand = (cls) => h('a', { class: `brand ${cls}`.trim(), href: '#/', 'aria-label': '원가다이어리 홈' },
+    h('img', { class: 'brand-logo is-light', src: '/static/brand/logo.png', alt: '원가다이어리', width: 122, height: 28 }),
+    h('img', { class: 'brand-logo is-dark', src: '/static/brand/logo-dark.png', alt: '', width: 122, height: 28 }));
   const nav = h('nav', { class: 'tabbar', 'aria-label': '주 메뉴' },
     brand('rail-brand'),
     getNav().map(([href, label, ic, cls]) => h('a', { class: cls, href, 'data-tab': href },

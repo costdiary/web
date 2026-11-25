@@ -638,6 +638,33 @@ CREATE TABLE IF NOT EXISTS donations (
 );
 CREATE INDEX IF NOT EXISTS idx_donations_paid_day ON donations(status, paid_at);
 
+-- 알림 센터(notifications.py). 상태를 보고 만드는 알림은 dedupe_key로 한 번만 넣는다.
+-- category는 kind에서 정해지지만 분류별 끄기·거르기를 빠르게 하려고 같이 저장한다.
+-- 새 표라 SCHEMA의 CREATE TABLE IF NOT EXISTS로 기존 DB에도 바로 생긴다(버전 번호 불필요).
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  category TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  link TEXT NOT NULL DEFAULT '',
+  dedupe_key TEXT,
+  data TEXT,
+  created_at TEXT NOT NULL,
+  read_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_notif_dedupe ON notifications(user_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
+
+-- 알림 분류(cost/sales/market/system)별 켜고 끄기. 행이 없으면 켜진 것으로 본다.
+CREATE TABLE IF NOT EXISTS notification_prefs (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  PRIMARY KEY (user_id, category)
+);
+
 -- OCR 인식 로그 — 사장님이 올린 거래명세서/요리 사진마다 남겨서, 운영자(ADMIN_EMAILS)가
 -- 인식이 이상할 때 원본 사진과 모델 응답을 같이 볼 수 있게 한다. image는 ocr.py가 이미
 -- API로 보내기 전에 줄인 JPEG(긴 변 1568px 이하)라서 원본보다 훨씬 작다.

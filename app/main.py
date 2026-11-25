@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_admin
+from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_admin, routes_notifications
 from .config import ROOT, load_env_file
 from .db import connect, init_db, transaction
 
@@ -151,6 +151,7 @@ app.include_router(routes_preps.router)
 app.include_router(routes_orders.router)
 app.include_router(routes_donations.router)
 app.include_router(routes_admin.router)
+app.include_router(routes_notifications.router)
 
 
 @app.exception_handler(Exception)

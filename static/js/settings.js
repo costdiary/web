@@ -4,6 +4,7 @@ import { num } from './ui.js';
 import { openDataNotice, openTerms } from './legal.js';
 import { openMarketNotice } from './market.js';
 import { MARKET_ENABLED } from './core.js';
+import { prefsForm } from './notifications.js';
 
 function planText(p) {
   if (p.state === 'paid') return `이용 중 · ${ymd(p.ends_at)}까지`;
@@ -132,7 +133,7 @@ export async function render(box) {
     field('가게 이름', store),
     h('div', { class: 'two' },
       field('목표 원가율 (%)', target, '이 값을 넘으면 메뉴에 주의·위험 도장이 찍힙니다. 가게 사정에 맞게 정하세요.'),
-      field('가격 알림 기준 (%)', alertPct, '식자재 단가가 이 비율 이상 오르면 홈에 알려 드립니다.')),
+      field('가격 알림 기준 (%)', alertPct, '식자재 단가가 이 비율 이상 오르거나 내리면 홈과 알림에서 알려 드립니다.')),
     h('div', { class: 'field' }, h('div', { class: 'lbl' }, '판매가에 부가세가 포함되어 있나요?'),
       h('div', { class: 'radios', role: 'radiogroup' },
         h('label', { class: 'radio' }, vatIncl, h('span', null, h('b', null, '포함'), h('div', { class: 'hint' }, '메뉴판 가격 그대로 원가율을 계산합니다.'))),
@@ -158,10 +159,10 @@ export async function render(box) {
     planBox,
     h('section', { class: 'sheet' }, h('div', { class: 'sheet-h' }, h('h2', null, '계산 기준')), form),
     MARKET_ENABLED ? marketSection() : null,
-    h('section', { class: 'sheet' },
-      h('div', { class: 'sheet-h' }, h('h2', null, '매출·수수료·인건비')),
-      h('p', { class: 'small muted' }, '배달앱 수수료, 손익분기, 직원 급여, 내 매출, 주변 상권은 왼쪽 "매출관리"로 옮겼습니다.'),
-      h('div', { class: 'btn-row', style: 'margin-top:10px' }, h('a', { class: 'btn ghost sm', href: '#/revenue' }, icon('trend', 18), '매출관리 바로가기'))),
+    h('section', { class: 'sheet', id: 'notif-prefs' },
+      h('div', { class: 'sheet-h' }, h('h2', null, '알림'), h('a', { class: 'small', href: '#/notifications' }, '알림 보기')),
+      h('p', { class: 'small muted', style: 'margin-bottom:10px' }, '받고 싶은 알림만 켜 두세요. 꺼 둔 분류는 알림을 만들지 않고 종 숫자에서도 빠집니다.'),
+      prefsForm()),
     h('section', { class: 'sheet' },
       h('div', { class: 'sheet-h' }, h('h2', null, '내 데이터')),
       h('div', { class: 'btn-row' },

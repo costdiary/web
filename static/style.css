@@ -118,7 +118,9 @@ img, svg { display: block; max-width: 100%; }
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 /* 브라우저가 기본으로 칠해 주는 것들(드래그 선택, 커서, 체크박스, 스크롤바)도 같은 팔레트로 맞춘다. */
 ::selection { background: var(--hl); color: var(--hl-ink); }
-:root { accent-color: var(--blue); caret-color: var(--blue); scrollbar-color: var(--rule-2) transparent; }
+:root { color-scheme: light; accent-color: var(--blue); caret-color: var(--blue); scrollbar-color: var(--rule-2) transparent; }
+/* 어두운 화면에서 체크박스·라디오·날짜 달력 아이콘이 하얗게 튀거나 안 보이던 문제: 브라우저 기본 부품도 어둡게 그리게 한다. */
+@media (prefers-color-scheme: dark) { :root { color-scheme: dark; } }
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-thumb { background: var(--rule-2); border: 3px solid transparent; background-clip: content-box; border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--ink-3); background-clip: content-box; }
@@ -160,50 +162,62 @@ img, svg { display: block; max-width: 100%; }
 .plan-chip.expired { color: var(--red); }
 .market-bell { position: relative; flex: none; }
 .tab-disabled { opacity: 0.5; }
-.market-bell .badge {
-  position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 3px;
-  display: inline-grid; place-items: center; border-radius: 999px; background: var(--red); color: #fff;
-  font-size: 0.625rem; font-weight: 800; line-height: 1; font-family: var(--font-num);
-}
 
 .main { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 16px 16px calc(92px + env(safe-area-inset-bottom)); }
 
+/* 휴대폰 아래 메뉴: 5칸 고정(홈·식자재·명세서·메뉴·전체). 칸이 넘쳐 옆으로 밀리지 않게 스크롤 없이 나눈다. */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(64px, 1fr);
-  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
   background: var(--sheet); border-top: 1px solid var(--rule);
   box-shadow: 0 -2px 8px rgba(var(--shade), 0.05);
   padding-bottom: env(safe-area-inset-bottom);
 }
-.tabbar::-webkit-scrollbar { display: none; }
-.rail-brand { display: none; }
 .tab {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   min-height: 58px; padding: 6px 0 5px; color: var(--ink-2); text-decoration: none; font-size: 0.75rem; font-weight: 500;
 }
 .tab[aria-current="page"] { color: var(--blue); font-weight: 800; }
-.tab[aria-current="page"]::before { content: ""; position: absolute; top: -1px; left: 20%; right: 20%; height: 3px; background: var(--blue); }
-.tab-main .tab-ic { background: var(--btn); color: #fff; border-radius: var(--r); padding: 4px 12px; }
+.tab[aria-current="page"]::before { content: ""; position: absolute; top: -1px; left: 22%; right: 22%; height: 3px; border-radius: 0 0 3px 3px; background: var(--blue); }
+/* 가운데 '명세서'는 가장 자주 하는 일이라 버튼처럼 채운다. 선택 표시(위 막대)는 다른 칸과 같다. */
+.tab-main .tab-ic { display: inline-grid; place-items: center; width: 48px; height: 30px; background: var(--btn); color: #fff; border-radius: 999px; }
 .tab-main[aria-current="page"] .tab-ic { background: var(--btn-2); }
+.tab-main[aria-current="page"]::before { display: none; }
+
+/* PC 왼쪽 메뉴: 분류별 전체 목록. 휴대폰에서는 숨긴다. */
+.rail { display: none; }
+.rail-brand { display: inline-flex; margin: 2px 8px 14px; }
+.rail-h { margin: 14px 12px 4px; color: var(--ink-3); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; }
+.rail-item {
+  position: relative; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px;
+  border-radius: var(--r); color: var(--ink-2); text-decoration: none; font-size: 0.9375rem; font-weight: 500;
+}
+.rail-item svg { flex: none; }
+.rail-item:hover { background: var(--sheet-2); color: var(--ink); }
+.rail-item[aria-current="page"] { background: var(--blue-soft); color: var(--blue); font-weight: 800; }
+.rail-item[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--blue); }
+/* '명세서 올리기'는 아이콘만 버튼색으로 — 늘 선택된 것처럼 보이지 않게 배경은 다른 줄과 같다. */
+.rail-main svg { color: var(--btn); }
 
 @media (min-width: 960px) {
   .app { padding-left: var(--rail); }
   .topbar .brand { display: none; }
-  .tabbar {
-    top: 0; right: auto; bottom: 0; width: var(--rail);
-    display: flex; flex-direction: column; gap: 2px;
-    border-top: 0; border-right: 1px solid var(--rule);
-    box-shadow: 2px 0 8px rgba(var(--shade), 0.04);
-    padding: 72px 12px 16px;
+  .tabbar { display: none; }
+  .rail {
+    display: block; position: fixed; z-index: 30; top: 0; bottom: 0; left: 0; width: var(--rail); overflow-y: auto;
+    background: var(--sheet); border-right: 1px solid var(--rule); box-shadow: 2px 0 8px rgba(var(--shade), 0.04);
+    padding: 16px 12px 24px;
   }
-  .rail-brand { display: inline-flex; position: absolute; top: 14px; left: 20px; }
-  .tab { flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 44px; padding: 0 12px; font-size: 0.9375rem; border-radius: var(--r); }
-  .tab[aria-current="page"] { background: var(--sheet-2); color: var(--ink); }
-  .tab[aria-current="page"]::before { top: 8px; bottom: 8px; left: 0; right: auto; width: 3px; height: auto; }
-  .tab-main .tab-ic { padding: 0; background: none; color: inherit; }
-  .tab-main { margin-top: 10px; border: 0; background: var(--blue-soft); color: var(--blue); font-weight: 700; }
   .main { padding-bottom: 48px; }
+  .back-more { display: none; } /* PC는 왼쪽 메뉴가 늘 보여서 '전체 메뉴로' 버튼이 필요 없다 */
+}
+
+/* 상단 종(알림 센터) */
+.notif-bell { position: relative; flex: none; color: var(--ink-2); }
+.notif-bell .badge, .market-bell .badge {
+  position: absolute; top: 3px; right: 1px; min-width: 18px; height: 18px; padding: 0 4px;
+  display: inline-grid; place-items: center; border-radius: 999px; background: var(--red); color: #fff;
+  border: 2px solid var(--sheet); font-size: 0.625rem; font-weight: 800; line-height: 1; font-family: var(--font-num);
 }
 
 /* ------------------------------------------------------------ 명세표 블록 */
@@ -586,7 +600,7 @@ input[type="range"] { width: 100%; height: 28px; accent-color: var(--blue); back
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
 @media print {
-  .tabbar, .topbar, .toasts, .skip { display: none !important; }
+  .tabbar, .rail, .topbar, .toasts, .skip { display: none !important; }
   .app { padding-left: 0; }
 }
 
@@ -1961,3 +1975,80 @@ a.dm-stat:active { transform: scale(0.98); }
   :root:not([data-brand="domae"]) .land .land-top-actions .btn { min-height: 44px; }
 }
 :root:not([data-brand="domae"]) .land .foot :is(a, button) { padding-block: 10px; }
+
+/* ------------------------------------------------------------ 2026-11 재구성: 알림 센터·전체 메뉴·홈 바로 하기 */
+
+/* 화면 안 카드 제목은 모두 같은 명조(일부 화면만 고딕이던 것 통일) */
+.main h2 { font-family: var(--font-head); }
+.main .sheet > h2 { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 8px; }
+
+.btn-row.tight { gap: 4px; align-items: center; flex-wrap: nowrap; }
+
+/* 홈: 바로 하기 */
+.qa-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 14px; }
+.qa {
+  display: grid; grid-template-rows: auto auto auto; justify-items: start; gap: 2px; min-height: 92px; padding: 12px 12px 10px;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-lg); box-shadow: var(--shadow-1);
+  color: var(--ink); text-decoration: none; transition: transform .1s ease-out;
+}
+.qa:active { transform: scale(0.97); }
+.qa:hover { border-color: var(--rule-2); }
+.qa-ic { display: inline-grid; place-items: center; width: 36px; height: 36px; margin-bottom: 4px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); }
+.qa-t { font-weight: 800; font-size: 0.9375rem; line-height: 1.3; }
+.qa-s { color: var(--ink-2); font-size: 0.75rem; line-height: 1.35; }
+.qa-main { background: var(--btn); border-color: var(--btn); color: #fff; }
+.qa-main:hover { border-color: var(--btn-2); background: var(--btn-2); }
+.qa-main .qa-ic { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.qa-main .qa-s { color: rgba(255, 255, 255, 0.85); }
+@media (min-width: 640px) { .qa { min-height: 0; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; } .qa-ic { grid-row: 1 / 3; margin: 0; } }
+
+.ledger dt a { color: inherit; text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
+.ledger dt a:hover { color: var(--blue); }
+
+.notif-strip {
+  display: flex; align-items: center; gap: 10px; margin: 12px 0; padding: 10px 14px; min-height: 44px;
+  background: var(--sheet); border: 1px solid var(--rule); border-left: 3px solid var(--red); border-radius: var(--r);
+  color: var(--ink); text-decoration: none; font-size: 0.9375rem;
+}
+.notif-strip > span { flex: 1; min-width: 0; }
+.notif-strip svg:first-child { color: var(--red); flex: none; }
+.notif-strip svg:last-child { color: var(--ink-3); flex: none; }
+
+/* 알림 목록 */
+.notif-filter { margin: 0 0 14px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.notif-filter::-webkit-scrollbar { display: none; }
+.notif-filter .btn { flex: none; border-radius: 999px; }
+.notif-group + .notif-group { margin-top: 18px; }
+.notif-gh { margin: 0 4px 8px; font-family: var(--font-ui) !important; font-size: 0.8125rem; font-weight: 700; color: var(--ink-2); }
+.notif-list { padding: 4px 6px; }
+.notif {
+  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start;
+  padding: 12px 10px; border-radius: var(--r); color: var(--ink); text-decoration: none;
+}
+.notif + .notif { border-top: 1px solid var(--rule); }
+.notif:hover { background: var(--sheet-2); }
+.notif.unread { background: color-mix(in srgb, var(--blue-soft) 45%, transparent); }
+.notif-ic { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 999px; background: var(--sheet-2); color: var(--ink-2); }
+.notif-ic.up { background: var(--red-soft); color: var(--red); }
+.notif-ic.down { background: var(--green-soft); color: var(--green); }
+.notif-ic.c-market:not(.up):not(.down) { background: var(--blue-soft); color: var(--blue); }
+.notif-main { display: grid; gap: 2px; min-width: 0; }
+.notif-meta { display: flex; gap: 8px; color: var(--ink-3); font-size: 0.75rem; }
+.notif-meta span + span::before { content: "·"; margin-right: 8px; }
+.notif-title { font-weight: 700; line-height: 1.4; }
+.notif.unread .notif-title { font-weight: 800; }
+.notif-body { color: var(--ink-2); font-size: 0.875rem; line-height: 1.5; }
+.notif-dot { width: 8px; height: 8px; margin-top: 8px; border-radius: 999px; background: var(--red); }
+
+/* 알림 설정 */
+.pref-list > li + li { border-top: 1px solid var(--rule); }
+.sw.pref { display: flex; align-items: flex-start; padding: 10px 0; font-weight: 400; }
+.sw.pref input { top: 22px; }
+.sw.pref .trk { margin-top: 2px; }
+.sw.pref b { display: block; font-weight: 700; }
+.sw.pref .hint { display: block; margin-top: 2px; }
+
+/* 전체 메뉴 */
+.more-row { grid-template-columns: auto minmax(0, 1fr) auto; padding: 12px 6px; }
+.more-ic { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: var(--r); background: var(--sheet-2); color: var(--blue); }
+.more-go { color: var(--ink-3); }

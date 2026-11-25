@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from . import costing, importer, sales
+from . import costing, importer, notifications, sales
 from .db import get_db, transaction
 from .deps import current_user, writable_user
 from .routes_breakeven import _payload as breakeven_payload
@@ -136,6 +136,7 @@ def import_sales(file: UploadFile = File(...), user: dict = Depends(writable_use
 
 @router.put("/sales/day")
 def put_day(body: SalesDayIn, user: dict = Depends(writable_user), db=Depends(get_db)):
+    notifications.touch(user["id"])  # 단가·매출이 바뀌면 종 숫자를 바로 다시 센다
     day = sales.parse_day(body.day)
     if day is None:
         raise HTTPException(400, "날짜가 올바르지 않습니다.")

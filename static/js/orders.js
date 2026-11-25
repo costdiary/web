@@ -31,7 +31,7 @@ function orderRow(o) {
 export async function render(box) {
   box.append(
     h('div', { class: 'page-h' },
-      h('a', { class: 'btn ghost sm', href: '#/revenue' }, icon('back', 18), '매출관리'),
+      h('a', { class: 'btn ghost sm back-more', href: '#/more' }, icon('back', 18), '전체 메뉴'),
       h('h1', null, '주문건 연동')),
     h('p', { class: 'hint', style: 'margin-bottom:10px' },
       '실제 배달앱 파트너 연동 전이라 지금은 예시 주문으로 화면을 확인합니다. 메뉴 이름이 똑같으면 자동으로 재료비와 연결되어 건별 손익이 계산됩니다.'));

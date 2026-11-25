@@ -6,7 +6,7 @@ import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from . import config
+from . import config, identity
 from .db import ISO, now_iso, parse_iso
 
 COOKIE_NAME = "sid"
@@ -164,8 +164,8 @@ def oauth_user(db, provider: str, provider_uid: str, email: str | None) -> dict:
         trial_end = (datetime.now(timezone.utc) + timedelta(days=36500)).strftime(ISO)
         placeholder_email = email or f"{provider}-{provider_uid}@oauth.wongaenote.local"
         cur = db.execute(
-            "INSERT INTO users(email, pw_hash, store_name, trial_ends_at, created_at) VALUES (?,?,?,?,?)",
-            (placeholder_email, unusable_password_hash(), "", trial_end, now_iso()),
+            "INSERT INTO users(email, pw_hash, store_name, trial_ends_at, created_at, identity_required) VALUES (?,?,?,?,?,?)",
+            (placeholder_email, unusable_password_hash(), "", trial_end, now_iso(), int(identity.enabled())),
         )
         uid = cur.lastrowid
     db.execute(

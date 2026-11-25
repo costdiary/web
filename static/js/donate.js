@@ -10,8 +10,9 @@
    작성하며 직접 대조했지만, <script> 주소 하나만은 그 문서 페이지에 값이 비어 있어 확인하지
    못한 채 적어 둔 것입니다. 실제 키를 받으면 https://docs.tosspayments.com/sdk/v2/js/environment
    로 주소를 한 번 더 대조하고, 결제창이 실제로 뜨는지 꼭 눈으로 확인해 주세요. */
-import { h, api, app, icon, busy, toast, errMsg, refreshRoute, n0, openDialog, segGroup } from './core.js';
+import { h, api, app, icon, busy, toast, errMsg, refreshRoute, refreshMe, n0, openDialog, segGroup } from './core.js';
 import { num, emptyBlock } from './ui.js';
+import { identityBox, verifiedBadge } from './identity.js';
 
 const PRESETS = [3000, 5000, 10000, 30000];
 
@@ -200,8 +201,23 @@ export async function render(box) {
     await openTossCheckout(created, amount);
   }));
 
-  box.append(h('section', { class: 'sheet' },
+  // 후원은 본인인증을 마친 계정만(서버도 같은 기준으로 막는다). 인증 전이면 폼 대신 인증 칸을 보여준다.
+  const iv = app.me.identity || {};
+  if (iv.enabled && !iv.verified) {
+    box.append(h('section', { class: 'sheet' },
+      h('div', { class: 'sheet-h' }, h('h2', null, '후원하기')),
+      h('p', { style: 'margin-bottom:12px' }, '후원은 휴대폰 본인인증을 마친 계정만 할 수 있어요. 처음 한 번만 하면 됩니다.'),
+      identityBox({
+        purpose: 'account',
+        onVerified: async () => { await refreshMe(); toast('본인인증을 마쳤습니다. 이제 후원하실 수 있어요.'); refreshRoute(); },
+        onError: (m) => toast(m, 'err'),
+      })));
+  }
+
+  box.append(h('section', { class: 'sheet', hidden: Boolean(iv.enabled && !iv.verified) },
     h('div', { class: 'sheet-h' }, h('h2', null, '후원하기')),
+    iv.enabled && iv.verified ? h('div', { class: 'field' }, h('label', null, '후원자'), verifiedBadge(iv.name, iv.phone),
+      h('p', { class: 'hint' }, '실명은 순위에 나오지 않아요. 순위에는 아래 닉네임만 보입니다.')) : null,
     h('div', { class: 'field' }, h('label', null, '닉네임'), nickname),
     h('div', { class: 'field' }, h('label', null, '금액'), amt),
     h('div', { class: 'field' }, h('label', null, '메시지'), message),

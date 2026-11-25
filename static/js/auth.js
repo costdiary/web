@@ -1,6 +1,7 @@
 /* 가입·로그인 대화상자 */
 import { h, api, app, field, openDialog, busy, errMsg, toast } from './core.js';
 import { openDataNotice, openTerms } from './legal.js';
+import { identityBox } from './identity.js';
 
 const SOCIAL_LABEL = { kakao: '카카오로 계속하기', naver: '네이버로 계속하기', google: '구글로 계속하기' };
 
@@ -66,17 +67,30 @@ export function openResetPassword(token) {
   return dlg;
 }
 
-export function openSignup({ onDone } = {}) {
+/* verified: 모바일에서 본인인증 창이 페이지를 이동시켰다 돌아온 경우, 이미 끝난 인증 결과(identity.js).
+   prefill: 그때 적어 두었던 이메일·가게 이름(비밀번호는 저장하지 않으므로 다시 입력). */
+export function openSignup({ onDone, verified = null, prefill = {} } = {}) {
   const err = errorBox();
-  const email = h('input', { class: 'input', type: 'email', name: 'email', autocomplete: 'email', required: true, placeholder: 'owner@example.com' });
+  const email = h('input', { class: 'input', type: 'email', name: 'email', autocomplete: 'email', required: true, placeholder: 'owner@example.com', value: prefill.email || '' });
   const pw = h('input', { class: 'input', type: 'password', name: 'password', autocomplete: 'new-password', required: true, minLength: 8 });
-  const store = h('input', { class: 'input', type: 'text', name: 'store', autocomplete: 'organization', maxLength: 60, placeholder: '예: 한우리식당' });
+  const store = h('input', { class: 'input', type: 'text', name: 'store', autocomplete: 'organization', maxLength: 60, placeholder: '예: 한우리식당', value: prefill.store || '' });
+  // 본인인증을 켠 운영(app.pub.identity_enabled)에서는 가입 전에 휴대폰 인증을 먼저 받는다.
+  let ivResult = verified;
+  const ivField = app.pub?.identity_enabled
+    ? h('div', { class: 'field' }, h('label', null, '본인인증'), identityBox({
+      purpose: 'signup', initial: verified,
+      context: () => ({ email: email.value, store: store.value }),
+      onVerified: (r) => { ivResult = r; err.clear(); },
+      onError: (m) => err.show(m),
+    }))
+    : null;
   const code = app.pub?.signup_code_required
     ? h('input', { class: 'input', type: 'text', name: 'code', autocomplete: 'off', required: true })
     : null;
   const submit = h('button', { class: 'btn block', type: 'submit' }, '가입하고 무료로 시작');
   const form = h('form', { novalidate: true },
     err,
+    ivField,
     field('이메일', email),
     field('비밀번호', pw, '8자 이상. 영문·숫자·기호를 섞으면 더 안전합니다.'),
     field('가게 이름 (선택)', store),
@@ -92,16 +106,17 @@ export function openSignup({ onDone } = {}) {
       err.show(!email.value.trim() ? '이메일을 입력해 주세요.' : '비밀번호는 8자 이상으로 정해 주세요.');
       return;
     }
+    if (ivField && !ivResult) { err.show('휴대폰 본인인증을 먼저 해 주세요.'); return; }
     await busy(submit, async () => {
       try {
-        await api('/api/auth/signup', { method: 'POST', body: { email: email.value, password: pw.value, store_name: store.value, code: code ? code.value : '' } });
+        await api('/api/auth/signup', { method: 'POST', body: { email: email.value, password: pw.value, store_name: store.value, code: code ? code.value : '', identity_verification_id: ivResult ? ivResult.verification_id : '' } });
       } catch (e) { err.show(errMsg(e)); return; }
       dlg.close();
       if (onDone) await onDone();
     });
   });
   const dlg = openDialog({ title: '무료로 시작', content: h('div', null, socialButtons(), form) });
-  email.focus();
+  (verified ? pw : email).focus();
   return dlg;
 }
 

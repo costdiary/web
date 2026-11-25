@@ -44,7 +44,7 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 def public_config() -> dict:
     """로그인 전에도 화면에 보여줘도 되는 설정값. 원가노트는 무료이므로 체험·요금 안내는 없습니다."""
-    from . import oauth  # 지연 import: oauth.py가 config를 쓰므로 모듈 맨 위에서 돌면 순환 참조가 됩니다.
+    from . import identity, oauth  # 지연 import: oauth.py가 config를 쓰므로 모듈 맨 위에서 돌면 순환 참조가 됩니다.
     return {
         "signup_code_required": bool(env_str("SIGNUP_CODE")),
         "contact_email": env_str("CONTACT_EMAIL"),
@@ -60,6 +60,9 @@ def public_config() -> dict:
         "donation_enabled": env_bool("DONATION_ENABLED", True),
         # 토스페이먼츠 키가 아직 없으면 화면에 "테스트로 처리됩니다" 안내를 보여준다(payments.get_provider()와 같은 기준).
         "donation_real_pg": bool(env_str("TOSS_SECRET_KEY")),
+        # 휴대폰 본인인증(identity.py). real=False면 화면이 "테스트 인증" 입력칸을 보여준다.
+        "identity_enabled": identity.enabled(),
+        "identity_real": identity.real_configured(),
         # 키를 넣은 제공자만 True — 화면은 True인 것만 버튼으로 보여준다.
         "oauth_providers": oauth.configured_providers(),
     }

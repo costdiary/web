@@ -13,7 +13,8 @@
   1) 서버: create_intent 로 주문번호(order_id) 발급 + ws_ad_payments 에 method='pg' 로 기록
   2) 프런트: (실결제 시) 토스 결제위젯이 그 주문번호로 결제창을 띄움
   3) 서버: 위젯이 돌려준 paymentKey 로 confirm 호출 → 성공하면 결제 확정
-  4) 서버: 토스가 보내는 웹훅(/api/payments/toss/webhook)으로 지연·취소·환불도 반영
+  4) 서버: 토스가 보내는 웹훅으로 지연·취소·환불도 반영
+     (원가다이어리 후원: /api/payments/toss/webhook, 도매마켓 떨이 광고: /api/ws/payments/toss/webhook)
 """
 from __future__ import annotations
 
@@ -137,13 +138,21 @@ class TossPaymentsProvider(PaymentProvider):
             return None
 
 
-def get_provider() -> PaymentProvider:
-    secret = config.env_str("TOSS_SECRET_KEY")
+# 원가다이어리(후원)와 도매마켓(떨이 광고)은 서로 다른 서비스라 결제 가맹점 키도 따로 둔다.
+# 원가다이어리: TOSS_*, 도매마켓: MARKET_TOSS_*. 한쪽 키가 비어 있으면 그쪽만 모의 결제로 돈다
+# (다른 쪽 키를 빌려 쓰지 않는다 — 돈이 엉뚱한 가맹점으로 들어가지 않게).
+_KEY_PREFIX = {"wongae": "TOSS_", "market": "MARKET_TOSS_"}
+
+
+def get_provider(service: str = "wongae") -> PaymentProvider:
+    prefix = _KEY_PREFIX[service]
+    secret = config.env_str(f"{prefix}SECRET_KEY")
     if secret:
-        return TossPaymentsProvider(secret, config.env_str("TOSS_CLIENT_KEY", ""), config.env_str("TOSS_WEBHOOK_SECRET", ""))
+        return TossPaymentsProvider(secret, config.env_str(f"{prefix}CLIENT_KEY", ""), config.env_str(f"{prefix}WEBHOOK_SECRET", ""))
     return MockProvider()
 
 
-def make_order_id(kind: str, row_id: int) -> str:
-    """영수증·웹훅에서 거래를 되찾을 수 있는 고유 주문번호. PG사 쪽 길이 제한(보통 6~64자)에 맞춘다."""
-    return f"wongae-{kind}-{row_id}"
+def make_order_id(kind: str, row_id: int, service: str = "wongae") -> str:
+    """영수증·웹훅에서 거래를 되찾을 수 있는 고유 주문번호. PG사 쪽 길이 제한(보통 6~64자)에 맞춘다.
+    원가다이어리는 "wongae-", 도매마켓은 "domae-"로 시작한다."""
+    return f"{'domae' if service == 'market' else 'wongae'}-{kind}-{row_id}"

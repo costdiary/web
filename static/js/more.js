@@ -1,7 +1,7 @@
 /* 전체 메뉴: 휴대폰 아래 메뉴(홈·식자재·명세서·메뉴)에 다 넣을 수 없는 화면을 한곳에 모은다.
    PC에서는 왼쪽 메뉴에 같은 목록이 다 보이므로, 이 화면은 주로 휴대폰용이다.
    예전 '매출관리' 화면(#/revenue)도 이 화면으로 온다. */
-import { h, icon, MARKET_ENABLED, ORDERS_ENABLED, DONATE_ENABLED } from './core.js';
+import { h, icon, ORDERS_ENABLED, DONATE_ENABLED } from './core.js';
 
 /* main.js의 PC 왼쪽 메뉴도 이 목록을 그대로 쓴다. [주소, 이름, 아이콘, 한 줄 설명] */
 export function sections() {
@@ -19,13 +19,8 @@ export function sections() {
       ['#/labor', '직원 급여', 'users', '시급에 주휴·야간수당까지 더한 한 달 인건비.'],
       ...(ORDERS_ENABLED ? [['#/orders', '주문건 연동', 'receipt', '배달앱 주문을 가져와 건별 손익을 보여 줘요(지금은 예시 주문).']] : []),
     ] },
-    ...(MARKET_ENABLED ? [{ title: '도매', items: [
-      ['#/market', '도매마켓', 'market', '우리 동네 도매업체의 떨이와 가격.'],
-      ['#/market/offers', '단가제안받기', 'tag', '지금 사는 가격보다 싼 제안이 오면 알려 드려요.'],
-      ['#/market/connections', '연결 요청', 'users', '내가 보낸 연결 요청과 답변.'],
-    ] }] : []),
     { title: '더 보기', items: [
-      ['#/notifications', '알림', 'bell', '단가 변동, 배달 적자, 도매 소식을 한곳에서.'],
+      ['#/notifications', '알림', 'bell', '단가 변동, 배달 적자, 단가 확인할 때를 한곳에서.'],
       ['#/import', '가져오기', 'upload', '쓰던 앱·엑셀의 단가표와 레시피를 옮겨 와요.'],
       ...(DONATE_ENABLED ? [['#/donate', '후원하기', 'heart', '원가다이어리는 무료예요. 도움이 됐다면 응원해 주세요.']] : []),
       ['#/settings', '설정', 'sliders', '목표 원가율, 알림, 내 데이터 내려받기, 계정.'],

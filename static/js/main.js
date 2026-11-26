@@ -16,13 +16,11 @@ import * as importer from './import.js';
 import * as laborPage from './labor.js';
 import * as more from './more.js';
 import * as notifPage from './notifications.js';
-import * as market from './market.js';
-import { openMarketNotice } from './market.js';
 import * as preps from './preps.js';
 import * as orders from './orders.js';
 import * as donate from './donate.js';
 import * as admin from './admin.js';
-import { MARKET_ENABLED, setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled, DONATE_ENABLED, setDonateEnabled } from './core.js';
+import { setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled, DONATE_ENABLED, setDonateEnabled } from './core.js';
 import { openResetPassword, openSignup } from './auth.js';
 import { consumeIdentityReturn, identityBox } from './identity.js';
 
@@ -34,7 +32,8 @@ let token = 0;
 //
 // 휴대폰 아래 메뉴는 엄지로 누르기 좋은 5칸으로 고정한다: 매일 쓰는 홈·식자재·명세서·메뉴와 나머지를 모은 '전체'.
 // (예전에는 매출관리·도매마켓·후원·설정까지 7~9칸이라 390px 화면에서 '설정'이 밖으로 밀렸다.)
-// PC 왼쪽 메뉴는 공간이 넉넉하니 more.js의 분류(원가·매출·손익·도매·더 보기)를 그대로 다 보여 준다.
+// PC 왼쪽 메뉴는 공간이 넉넉하니 more.js의 분류(원가·매출·손익·더 보기)를 그대로 다 보여 준다.
+// 도매마켓은 원가다이어리와 다른 서비스라 이 앱에는 화면이 없다(설정의 '도매마켓 연결'에서 링크로만 간다).
 // 화면(route)마다 tab = 휴대폰 아래 메뉴에서 켜질 칸, nav = PC 왼쪽 메뉴에서 켜질 줄(없으면 tab).
 function getTabs() {
   return [
@@ -69,11 +68,12 @@ function getRoutes() {
     { re: /^#\/area\/?$/, tab: '#/more', nav: '#/area', title: '주변 상권', run: (box) => areaPage.render(box) },
     { re: /^#\/delivery\/?$/, tab: '#/more', nav: '#/delivery', title: '배달앱 수수료', run: (box) => channels.render(box) },
     ...(ORDERS_ENABLED ? [{ re: /^#\/orders\/?$/, tab: '#/more', nav: '#/orders', title: '주문건 연동', run: (box) => orders.render(box) }] : []),
-    ...(MARKET_ENABLED ? [
-      { re: /^#\/market\/?$/, tab: '#/more', nav: '#/market', title: '도매마켓', run: (box) => market.render(box) },
-      { re: /^#\/market\/offers\/?$/, tab: '#/more', nav: '#/market/offers', title: '단가제안받기', run: (box) => market.renderOffers(box) },
-      { re: /^#\/market\/connections\/?$/, tab: '#/more', nav: '#/market/connections', title: '연결 요청', run: (box) => market.renderConnections(box) },
-    ] : []),
+    // 예전 도매 주소(#/market…)로 들어오면 도매마켓이 따로 열린다는 안내만 보여 준다.
+    { re: /^#\/market(?:\/.*)?$/, tab: '#/more', nav: '#/settings', title: '도매마켓', run: (box) => box.append(h('section', { class: 'sheet' }, emptyBlock({
+      title: '도매마켓은 따로 열려요',
+      text: '도매마켓은 원가다이어리와 다른 서비스예요. 받은 단가 제안·떨이·연결 요청은 도매마켓에서 원가다이어리 계정으로 로그인해 볼 수 있어요.',
+      actions: [h('a', { class: 'btn', href: app.pub.market_url || '/partner' }, '도매마켓 열기'), h('a', { class: 'btn ghost', href: '#/settings' }, '설정으로')],
+    }))) },
     // 결제위젯이 성공·실패 후 "#/donate?paymentKey=...&orderId=..." 형태로 돌려보내므로 쿼리스트링도 받아 준다.
     ...(DONATE_ENABLED ? [{ re: /^#\/donate(?:\/|\?.*)?$/, tab: '#/more', nav: '#/donate', title: '후원하기', run: (box) => donate.render(box) }] : []),
     // 사이드바에는 안 보이고, 운영자가 주소를 직접 쳐서 들어가는 화면(권한은 서버가 막음).
@@ -113,13 +113,6 @@ function renderShell() {
     h('main', { id: 'main', class: 'main', tabindex: '-1' }),
     tabs, rail));
   notifPage.startPolling();
-}
-
-let noticeShown = false;
-function maybeShowMarketNotice() {
-  if (!MARKET_ENABLED || noticeShown || !app.me || !app.me.market || !app.me.market.notice_required) return;
-  noticeShown = true;
-  openMarketNotice({ onDone: () => { refreshMe(); if (location.hash.startsWith('#/market')) route(); } });
 }
 
 async function route() {
@@ -220,7 +213,6 @@ async function boot() {
   await finishIdentityReturn(ivReturn);
   renderShell();
   await route();
-  maybeShowMarketNotice();
   maybeRequireIdentity();
 }
 

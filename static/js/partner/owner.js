@@ -1,9 +1,17 @@
-/* 도매마켓(사장님 쪽): 첫 접속 안내, 설정, 더 싼 제안/떨이, 연결 요청, 단가제안받기 켜기 */
+/* 도매마켓 — 식당 사장님 화면: 첫 접속 안내, 단가 제안받기 켜기, 받은 제안, 떨이, 연결 요청.
+   원가다이어리와는 다른 서비스라 원가다이어리 앱 안에는 두지 않고, 도매마켓(/partner)에서만 연다.
+   사장님은 원가다이어리 계정으로 로그인하고, 구매 기록은 사장님이 켠 식자재만 익명으로 쓰인다. */
 import {
-  h, api, app, bus, field, numInput, selectOf, parseNum, n0, n1, nPrice, openDialog, confirmDialog,
-  busy, toast, errMsg, icon, refreshRoute, fill, go,
-} from './core.js';
-import { emptyBlock, termInput } from './ui.js';
+  h, api, app, field, numInput, selectOf, parseNum, n1, nPrice, openDialog,
+  busy, toast, errMsg, refreshRoute, fill,
+} from '../core.js';
+import { emptyBlock, termInput } from '../ui.js';
+
+/* 원가다이어리 화면으로 가는 링크. 같은 서버의 /partner 로 열었으면 '/', 전용 도메인이면 원가다이어리 주소. */
+export function appHref(hash = '') {
+  const base = location.pathname.startsWith('/partner') ? '/' : ((app.pub && app.pub.app_url) || '/');
+  return `${base.replace(/\/$/, '')}/${hash}`;
+}
 
 /* ---------------------------------------------------------------- 첫 접속 안내 모달 */
 
@@ -104,7 +112,7 @@ function openConnect({ title, itemName, origin, grade, onSubmit }) {
   return dlg;
 }
 
-/* ---------------------------------------------------------------- #/market: 더 싼 제안 · 떨이 */
+/* ---------------------------------------------------------------- #/o/deals: 떨이 (제안 카드는 단가 제안 화면에서 씀) */
 
 function offerCard(o) {
   const saving = o.saving_pct;
@@ -154,11 +162,11 @@ function dealCard(d) {
 }
 
 export async function render(box) {
-  box.append(h('div', { class: 'page-h' }, h('h1', null, '도매마켓'),
-    h('button', { class: 'btn ghost sm', type: 'button', onclick: () => openMarketNotice({ onDone: refreshRoute }) }, '안내 다시 보기')));
+  box.append(h('div', { class: 'page-h' }, h('h1', null, '떨이'),
+    h('button', { class: 'btn ghost sm', type: 'button', onclick: () => openMarketNotice({ onDone: refreshRoute }) }, '안내·설정')));
   box.append(h('p', { class: 'small muted', style: 'margin-top:-4px' },
-    '우리 식당이 쓰는 품목을 등록해 두면 같은 품목을 쓰는 다른 사장님들과 익명으로 묶여 수요가 잡히고, 평균 매입가보다 싼 ',
-    h('a', { href: '#/market/offers' }, '단가 제안'), '이 오기 시작합니다.'));
+    '우리 동네 도매업체가 남는 재고를 싸게 내놓으면, 내 권역·품목에 맞는 것만 여기에 보여 드립니다. 평균 매입가보다 싼 가격 제안은 ',
+    h('a', { href: '#/o/offers' }, '단가 제안'), '에서 봅니다.'));
 
   const body = h('div', { style: 'margin-top:4px' });
   async function paint() {
@@ -172,7 +180,7 @@ export async function render(box) {
   await paint();
 }
 
-/* ---------------------------------------------------------------- #/market/offers: 단가제안받기 */
+/* ---------------------------------------------------------------- #/o/offers: 단가 제안 */
 
 const WHY_LABEL = { unmapped: '원산지 필요', optout: '노출 꺼짐', no_region: '권역 미설정', stale: '최근 가격 필요' };
 
@@ -257,9 +265,8 @@ function ingredientRow(it, origins) {
 }
 
 export async function renderOffers(box) {
-  box.append(h('div', { class: 'page-h' },
-    h('a', { class: 'btn ghost sm', href: '#/market' }, icon('back', 18), '도매마켓'),
-    h('h1', { style: 'font-size:1.125rem' }, '단가제안받기')));
+  box.append(h('div', { class: 'page-h' }, h('h1', null, '단가 제안'),
+    h('button', { class: 'btn ghost sm', type: 'button', onclick: () => openMarketNotice({ onDone: refreshRoute }) }, '안내·설정')));
   box.append(h('p', { class: 'small muted', style: 'margin-top:-4px' },
     '쓰는 식자재의 원산지·등급이 같은 다른 사장님들과 익명으로 묶여, 내 평균 매입가보다 싼 제안이 오면 여기에 뜹니다.'));
 
@@ -270,7 +277,7 @@ export async function renderOffers(box) {
     const [{ items }, catalog] = await Promise.all([api('/api/market/ingredients'), api('/api/market/catalog')]);
     originsCache = catalog.origins;
     if (!items.length) {
-      fill(checklistBody, h('section', { class: 'sheet' }, emptyBlock({ title: '등록한 식자재가 없습니다', actions: [h('a', { class: 'btn ghost sm', href: '#/ingredients' }, '식자재로 이동')] })));
+      fill(checklistBody, h('section', { class: 'sheet' }, emptyBlock({ title: '등록한 식자재가 없습니다', text: '원가다이어리에 식자재를 등록하면 여기에서 단가 제안받기를 켤 수 있습니다.', actions: [h('a', { class: 'btn ghost sm', href: appHref('#/ingredients') }, '원가다이어리에서 식자재 등록')] })));
       return;
     }
     const onCount = items.filter((it) => it.exposed).length;
@@ -299,7 +306,7 @@ export async function renderOffers(box) {
   await Promise.all([paintChecklist(), paintOffers()]);
 }
 
-/* ---------------------------------------------------------------- #/market/connections */
+/* ---------------------------------------------------------------- #/o/connections */
 
 function connRow(c) {
   const statusLabel = { requested: '응답 대기', accepted: '수락됨', declined: '거절됨', expired: '기간 만료', closed: '종료' }[c.status] || c.status;
@@ -324,7 +331,7 @@ function connRow(c) {
 export async function renderConnections(box) {
   const { connections } = await api('/api/market/connections');
   box.append(
-    h('div', { class: 'page-h' }, h('a', { class: 'btn ghost sm', href: '#/market' }, icon('back', 18), '도매마켓'), h('h1', { style: 'font-size:1.125rem' }, '연결 요청')),
+    h('div', { class: 'page-h' }, h('h1', null, '연결 요청')),
     connections.length
       ? h('section', { class: 'sheet' }, h('ul', { class: 'rows' }, connections.map(connRow)))
       : h('section', { class: 'sheet' }, emptyBlock({ title: '보낸 연결 요청이 없습니다', text: '더 싼 제안이나 떨이에서 연결 요청을 보내면 여기에서 상태를 볼 수 있습니다.' })));

@@ -2,7 +2,6 @@
 import { h, api, app, bus, field, numInput, parseNum, n1, n3, ymd, openDialog, busy, toast, errMsg, refreshMe, icon, fill } from './core.js';
 import { num } from './ui.js';
 import { openDataNotice, openTerms } from './legal.js';
-import { openMarketNotice } from './market.js';
 import { MARKET_ENABLED } from './core.js';
 import { prefsForm } from './notifications.js';
 import { identityBox } from './identity.js';
@@ -56,45 +55,31 @@ function openPassword() {
   cur.focus();
 }
 
+/* 도매마켓 연결: 도매마켓은 원가다이어리와 다른 서비스다. 여기에는 "내 구매 기록을 도매마켓에 익명으로
+   쓰게 할지"라는 동의 상태와 끄는 스위치, 도매마켓으로 가는 링크만 둔다. 켜기·품목 고르기·받은 제안은
+   도매마켓(원가다이어리 계정으로 로그인)에서 한다. */
 function marketSection() {
   const body = h('div', { class: 'skel' });
-  const section = h('section', { class: 'sheet' }, h('div', { class: 'sheet-h' }, h('h2', null, '도매마켓')), body);
+  const section = h('section', { class: 'sheet' }, h('div', { class: 'sheet-h' }, h('h2', null, '도매마켓 연결')), body);
+  const marketUrl = (app.pub && app.pub.market_url) || '/partner';
 
   async function paint() {
     let st;
     try { st = await api('/api/market/settings'); } catch (e) { body.classList.remove('skel'); fill(body, h('p', { class: 'small muted' }, errMsg(e))); return; }
     body.classList.remove('skel');
-    const optin = h('input', { type: 'checkbox', checked: st.demand_optin });
-    const threshold = numInput({ value: n1(st.threshold_pct) });
-    const regionSel = h('select', { class: 'select' }, h('option', { value: '' }, '권역 선택'), st.regions.map((r) => h('option', { value: r.code }, r.label)));
-    regionSel.value = st.region_code || '';
-    const err = h('div', { class: 'form-err', role: 'alert', hidden: true });
-    const save = h('button', { class: 'btn sm', type: 'submit' }, '저장');
-    const form = h('form', { novalidate: true },
-      err,
-      h('label', { class: 'sw' }, optin, h('span', { class: 'trk' }), '더 싼 제안 받기'),
-      h('div', { class: 'two', style: 'margin-top:10px' },
-        field('알림 기준 (%)', threshold, '평균 매입가보다 이 비율 이상 싼 제안만 알려 드립니다.'),
-        field('내 가게 권역', regionSel)),
-      save);
-    form.addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      err.hidden = true;
-      const t = parseNum(threshold.value);
-      if (!(t >= 1 && t <= 30)) { err.textContent = '알림 기준은 1에서 30 사이로 넣어 주세요.'; err.hidden = false; return; }
-      if (optin.checked && !regionSel.value) { err.textContent = '권역을 선택해 주세요.'; err.hidden = false; return; }
-      await busy(save, async () => {
-        try {
-          await api('/api/market/settings', { method: 'PUT', body: { demand_optin: optin.checked, threshold_pct: t, region_code: regionSel.value || null } });
-        } catch (e) { err.textContent = errMsg(e); err.hidden = false; return; }
-        toast('저장했습니다.');
-      });
-    });
-    fill(body, form,
-      h('p', { class: 'small', style: 'margin-top:12px' }, h('a', { href: '#/market/offers', style: 'display:inline-block;padding:4px 0' }, `지금 노출 중인 품목 ${st.summary.exposed_items}개`)),
+    const on = st.demand_optin && !st.notice_required;
+    const off = h('button', { class: 'btn ghost sm', type: 'button' }, '연결 끊기');
+    off.addEventListener('click', () => busy(off, async () => {
+      try { await api('/api/market/settings', { method: 'PUT', body: { demand_optin: false } }); } catch (e) { toast(errMsg(e), 'err'); return; }
+      toast('도매마켓 연결을 끊었습니다. 구매 기록이 더 이상 쓰이지 않습니다.');
+      paint();
+    }));
+    fill(body,
+      h('p', { class: 'small' }, '도매마켓은 원가다이어리와 다른 서비스예요. 연결하면 내가 고른 식자재의 품목·원산지·등급과 월 구매량 구간만 익명으로 도매마켓에 쓰여, 지금보다 싼 단가 제안을 받을 수 있어요. 가게 이름·매입가·거래처는 도매업체에게 보이지 않아요.'),
+      h('p', { class: 'small', style: 'margin-top:10px' }, h('b', null, on ? `연결됨 · 식자재 ${st.summary.exposed_items}개 제공 중` : '연결 안 됨')),
       h('div', { class: 'btn-row', style: 'margin-top:10px' },
-        h('button', { class: 'btn ghost sm', type: 'button', onclick: () => openMarketNotice({ settings: st, onDone: paint }) }, '안내 다시 보기'),
-        h('a', { class: 'btn ghost sm', href: '#/market' }, '도매마켓 열기')));
+        h('a', { class: 'btn sm', href: marketUrl, target: '_blank', rel: 'noopener' }, on ? '도매마켓에서 제안 보기' : '도매마켓에서 연결하기'),
+        on ? off : null));
   }
   paint();
   return section;

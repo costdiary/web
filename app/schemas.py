@@ -23,6 +23,7 @@ class SignupIn(BaseModel):
     password: str = Field(min_length=1, max_length=200)
     store_name: str = Field("", max_length=60)
     code: str = Field("", max_length=60)
+    identity_verification_id: str = Field("", max_length=80)  # 본인인증을 켠 경우에만 필요(identity.py)
 
 
 class LoginIn(BaseModel):
@@ -402,3 +403,18 @@ class DonationIn(Base):
 
 class RespondIn(Base):
     accept: bool
+
+
+class IdentityStartIn(Base):
+    purpose: str = Field("signup", pattern="^(signup|account)$")
+
+
+class IdentityMockIn(Base):
+    name: str = Field("", max_length=30)
+    phone: str = Field("", max_length=20)
+    birth_date: str = Field("", max_length=10)
+
+
+class IdentityCompleteIn(Base):
+    verification_id: str = Field(min_length=1, max_length=80)
+    mock: IdentityMockIn | None = None  # 키가 없는 테스트 모드에서만 쓰인다(MockIdentityProvider)

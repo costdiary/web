@@ -1,5 +1,5 @@
 /* 앱 시작: 로그인 확인 → 소개 화면 또는 앱 틀 + 화면 전환 */
-import { h, $, api, app, bus, refreshMe, icon, toast, errMsg, ApiError } from './core.js';
+import { h, $, api, app, bus, refreshMe, icon, toast, errMsg, ApiError, openDialog } from './core.js';
 import { skeleton, emptyBlock } from './ui.js';
 import { renderLanding } from './landing.js?v=20';
 import * as dashboard from './dashboard.js';
@@ -22,7 +22,8 @@ import * as orders from './orders.js';
 import * as donate from './donate.js';
 import * as admin from './admin.js';
 import { MARKET_ENABLED, setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled, DONATE_ENABLED, setDonateEnabled } from './core.js';
-import { openResetPassword } from './auth.js';
+import { openResetPassword, openSignup } from './auth.js';
+import { consumeIdentityReturn, identityBox } from './identity.js';
 
 const root = document.getElementById('app');
 let token = 0;
@@ -156,9 +157,41 @@ function handleAuthRedirects() {
   else toast('로그인에 실패했습니다. 다시 시도해 주세요.', 'err');
 }
 
+/* 소셜 로그인으로 새로 가입한 계정은 가입 화면의 본인인증을 거치지 않았으므로, 들어오자마자
+   인증 창을 띄운다(서버가 me.identity.required로 알려 줌). 닫아도 인증 전까지 다시 뜬다. */
+function maybeRequireIdentity() {
+  if (!app.me?.identity?.required) return;
+  const err = h('div', { class: 'form-err', role: 'alert', hidden: true });
+  let done = false;
+  const body = h('div', null,
+    h('p', { style: 'margin-bottom:12px' }, '처음 한 번만 휴대폰 본인인증을 해 주세요. 인증을 마치면 바로 이어서 쓰실 수 있어요.'),
+    err,
+    identityBox({
+      purpose: 'account',
+      onVerified: async () => { done = true; await refreshMe(); toast('본인인증을 마쳤습니다.'); dlg.close(); },
+      onError: (m) => { err.textContent = m; err.hidden = false; },
+    }),
+    h('p', { style: 'margin-top:12px' }, h('button', { class: 'link-btn small', type: 'button', onclick: async () => { done = true; dlg.close(); await api('/api/auth/logout', { method: 'POST' }); bus.dispatchEvent(new Event('logged-out')); } }, '로그아웃')));
+  const dlg = openDialog({ title: '본인인증', content: body, onClose: () => { if (!done) setTimeout(maybeRequireIdentity, 0); } });
+}
+
+/* 모바일에서 본인인증 창이 페이지를 이동시켰다 돌아온 경우: 가입 중이었으면 가입 창을 인증 완료 상태로
+   다시 열고, 로그인한 계정에서 인증한 것이면 결과만 알린다. */
+async function finishIdentityReturn(ret) {
+  if (!ret) return;
+  if (ret.purpose === 'signup' && !app.me) {
+    if (ret.error) toast(ret.error, 'err');
+    openSignup({ verified: ret.result || null, prefill: ret.context || {}, onDone: boot });
+    return;
+  }
+  if (ret.error) toast(ret.error, 'err');
+  else { await refreshMe(); toast('본인인증을 마쳤습니다.'); }
+}
+
 async function boot() {
   handleAuthRedirects();
   try { app.pub = await api('/api/public'); } catch { app.pub = {}; }
+  const ivReturn = await consumeIdentityReturn();
   setMarketEnabled(app.pub.market_enabled);
   setOrdersEnabled(app.pub.orders_enabled);
   setDonateEnabled(app.pub.donation_enabled);
@@ -169,11 +202,14 @@ async function boot() {
   if (!app.me) {
     document.title = '원가다이어리 · 식당 식자재 단가와 메뉴 원가율 관리';
     renderLanding(root, boot);
+    await finishIdentityReturn(ivReturn);
     return;
   }
+  await finishIdentityReturn(ivReturn);
   renderShell();
   await route();
   maybeShowMarketNotice();
+  maybeRequireIdentity();
 }
 
 function leaveApp(message) {

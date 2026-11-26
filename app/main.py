@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_admin
+from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_identity, routes_admin
 from .config import ROOT, load_env_file
 from .db import connect, init_db, transaction
 
@@ -34,10 +34,14 @@ for _ext, _mime in {
 # 목록을 공식 문서로 확인하지는 못했다. 실제 키로 결제창을 띄워 보고, 브라우저 콘솔에 또 다른
 # CSP 차단 메시지가 남으면 거기 나오는 도메인만 더 좁혀서 추가해도 된다.
 TOSS_CSP = "https://*.tosspayments.com"
+# 포트원 본인인증 SDK(cdn.portone.io)와 그 SDK가 띄우는 인증 창(포트원·다날 등 본인인증사). 토스와 같은
+# 이유로 넉넉히 열어 둔 것이라, 실제 키로 인증 창을 띄웠을 때 콘솔에 CSP 차단이 남으면 그 도메인을 더한다.
+PORTONE_CSP = "https://*.portone.io https://*.iamport.co https://*.danalpay.com https://*.danal.co.kr"
+PAY_CSP = f"{TOSS_CSP} {PORTONE_CSP}"
 CSP = (
-    f"default-src 'self'; img-src 'self' data: blob: {TOSS_CSP}; style-src 'self' 'unsafe-inline' {TOSS_CSP}; "
-    f"script-src 'self' {TOSS_CSP}; font-src 'self' {TOSS_CSP}; connect-src 'self' {TOSS_CSP}; "
-    f"frame-src {TOSS_CSP}; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    f"default-src 'self'; img-src 'self' data: blob: {PAY_CSP}; style-src 'self' 'unsafe-inline' {PAY_CSP}; "
+    f"script-src 'self' {PAY_CSP}; font-src 'self' {PAY_CSP}; connect-src 'self' {PAY_CSP}; "
+    f"frame-src {PAY_CSP}; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 )
 
 FIELD_LABELS = {
@@ -150,6 +154,7 @@ app.include_router(routes_payments.router)
 app.include_router(routes_preps.router)
 app.include_router(routes_orders.router)
 app.include_router(routes_donations.router)
+app.include_router(routes_identity.router)
 app.include_router(routes_admin.router)
 
 

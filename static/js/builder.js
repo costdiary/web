@@ -27,6 +27,50 @@ function rollTo(el, to, fmt) {
   requestAnimationFrame(step);
 }
 
+/* 재료 이름으로 그릇 속 색을 고릅니다(사진 대신 색 덩어리로 보여 주기 위함). */
+const TONES = [
+  [/달걀|계란/, '#f2c14e', '#fff3c4'],
+  [/김치|고추장|고춧가루|다대기|비빔장|케첩|토마토|양념/, '#c2412d', '#f08a6c'],
+  [/돼지|소고기|소갈비|양지|닭|삼겹|등심|우삼겹|고기|편육|머리|베이컨/, '#a4553a', '#e0a083'],
+  [/햄|소시지|순대/, '#c46a66', '#f1b2a8'],
+  [/오징어|낙지|주꾸미|새우|바지락|홍합|동태|고등어|황태|맛살|어묵|참치/, '#e3896d', '#ffd2bf'],
+  [/당근/, '#e2873b', '#ffc48f'],
+  [/파|부추|시금치|깻잎|상추|오이|애호박|쑥갓|고수|양배추|우거지|고사리|고추|라임/, '#5f9443', '#b6dc8f'],
+  [/양파|무|감자|마늘|배$|콩나물|숙주|고구마|목이|버섯|단무지/, '#d9c49b', '#fbf1da'],
+  [/두부|치즈|순두부|유부|생크림|마요/, '#efe6cf', '#ffffff'],
+  [/간장|된장|춘장|굴소스|소스|카레|맛술|쌈장|새우젓|국간장|데미/, '#6b3f22', '#b07a4f'],
+  [/육수|국물/, '#d8b67a', '#f6e2b8'],
+  [/기름|유$|올리브/, '#e3c157', '#fff0a8'],
+  [/쌀|면|국수|사리|떡|가루|빵가루|전분|당면|김밥/, '#efe4cc', '#ffffff'],
+  [/김$/, '#2c3a2a', '#5b6b55'],
+  [/설탕|소금|식초|겨자/, '#e9e4da', '#ffffff'],
+];
+/* 재료 그림(Twemoji, CC-BY 4.0 · static/img/ing/CREDITS.txt). 위에서부터 먼저 맞는 그림을 씁니다. */
+const PICS = [
+  [/달걀|계란/, '1f95a'], [/김치/, '1f96c'], [/고춧가루|청양|고추$|고추 /, '1f336'],
+  [/고추장|된장|춘장|쌈장|새우젓|다대기|비빔장|양념/, '1fad9'], [/케첩|마요|소스|굴소스|데미/, '1f9f4'],
+  [/간장|맛술|식초|국간장/, '1f376'], [/토마토/, '1f345'], [/카레/, '1f372'],
+  [/닭/, '1f357'], [/삼겹|베이컨/, '1f953'], [/갈비|등뼈/, '1f356'], [/돼지|소고기|양지|등심|우삼겹|고기|편육|머리/, '1f969'],
+  [/햄|소시지/, '1f32d'], [/새우/, '1f990'], [/오징어/, '1f991'], [/낙지|주꾸미/, '1f419'],
+  [/바지락|홍합/, '1f9aa'], [/동태|고등어|황태|참치/, '1f41f'], [/어묵|맛살|순대/, '1f362'],
+  [/당근/, '1f955'], [/양파/, '1f9c5'], [/마늘/, '1f9c4'], [/고구마/, '1f360'], [/감자/, '1f954'],
+  [/콩나물|숙주/, '1f331'], [/버섯/, '1f344'], [/오이|애호박|단무지/, '1f952'], [/^배$/, '1f350'], [/라임|레몬/, '1f34b'],
+  [/배추|상추|시금치|깻잎|양배추|우거지|고사리/, '1f96c'], [/파|부추|쑥갓|고수/, '1f33f'],
+  [/두부|유부/, '1f9c8'], [/치즈/, '1f9c0'], [/생크림|우유/, '1f95b'],
+  [/스파게티/, '1f35d'], [/면|국수|사리|당면/, '1f35c'], [/떡/, '1f361'], [/쌀|밥/, '1f35a'], [/^김$/, '1f359'],
+  [/빵가루/, '1f35e'], [/가루|전분/, '1f33e'], [/설탕|소금|겨자/, '1f9c2'], [/캔/, '1f96b'],
+  [/올리브/, '1fad2'], [/기름|유$/, '1fad7'], [/육수|국물/, '1f963'],
+];
+const picOf = (name) => { const hit = PICS.find(([re]) => re.test(name)); return hit ? `/static/img/ing/${hit[1]}.svg` : null; };
+const toneOf = (name) => (TONES.find(([re]) => re.test(name)) || [null, '#c9a27a', '#f0d8b8']).slice(1);
+const SOUPS = [
+  [/짜장|자장|춘장/, '#3a2213'], [/카레/, '#c8892c'], [/된장|뼈해장|감자탕/, '#8a5a2b'],
+  [/김치|부대|순두부|육개장|짬뽕|떡볶이|라볶이|제육|오징어|낙지|주꾸미|닭갈비|닭볶음|비빔|쫄면|동태|찌개/, '#a5321f'],
+  [/설렁|곰탕|사골|칼국수|국수|우동|냉면|쌀국수|국밥|북엇|무국|미역|갈비탕|순대국|어묵|계란찜/, '#d9c39a'],
+  [/스파게티|토마토/, '#b23a24'], [/까르보|크림/, '#efe2c4'],
+];
+const soupOf = (name) => (SOUPS.find(([re]) => re.test(name || '')) || [null, '#e8dcc4'])[1];
+
 const niceStep = (max) => (max > 400 ? 5 : max > 60 ? 1 : max > 6 ? 0.5 : 0.1);
 
 export async function render(box) {
@@ -95,11 +139,16 @@ export async function render(box) {
 
   /* ---------------- 가운데: 그릇 ---------------- */
   const menuName = h('input', { class: 'input mb-name', type: 'text', maxLength: 60, autocomplete: 'off', placeholder: '메뉴 이름', 'aria-label': '메뉴 이름' });
-  const bowl = h('div', { class: 'mb-bowl', role: 'list', 'aria-label': '그릇에 담긴 재료' });
+  const bowl = h('div', { class: 'mb-soup', role: 'list', 'aria-label': '그릇에 담긴 재료' });
+  const bowl3d = h('div', { class: 'mb-bowl3d' },
+    h('div', { class: 'mb-light', 'aria-hidden': 'true' }),
+    h('div', { class: 'mb-steam', 'aria-hidden': 'true' }, h('i'), h('i'), h('i')),
+    h('div', { class: 'mb-plate' }, h('div', { class: 'mb-rim' }, bowl)),
+    h('div', { class: 'mb-shadow', 'aria-hidden': 'true' }));
   const bowlNote = h('p', { class: 'xs muted mb-bowl-note' });
-  const bowlPanel = h('section', { class: 'sheet mb-mid', 'aria-label': '그릇' },
-    h('h2', { class: 'mb-h' }, h('span', { class: 'mb-step' }, '2'), '그릇에 담긴 재료'),
-    menuName, h('div', { class: 'mb-bowl-wrap' }, bowl), bowlNote);
+  const bowlPanel = h('section', { class: 'mb-mid', 'aria-label': '그릇' },
+    h('p', { class: 'mb-kicker' }, '오늘의 한 그릇'), menuName, bowl3d, bowlNote,
+    h('p', { class: 'mb-credit' }, '재료 그림: ', h('a', { href: 'https://github.com/jdecked/twemoji', target: '_blank', rel: 'noopener' }, 'Twemoji'), ' (CC-BY 4.0)'));
 
   /* ---------------- 오른쪽: 양 조절과 원가 ---------------- */
   const portion = h('div', { class: 'seg mb-portion', role: 'group', 'aria-label': '양 전체 바꾸기' },
@@ -134,12 +183,17 @@ export async function render(box) {
   const sticky = h('div', { class: 'mb-sticky', hidden: true },
     stickyText, h('button', { class: 'btn sm', type: 'button', onclick: () => receipt.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' }) }, '영수증 보기'));
 
-  box.append(
-    h('div', { class: 'page-h' },
+  const stepNames = ['메뉴 고르기', '그릇 채우기', '양·가격 맞추기', '저장'];
+  const steps = stepNames.map((t, i) => h('li', { class: 'mb-stp' }, h('span', { class: 'mb-stp-n' }, String(i + 1)), h('span', null, t)));
+  const stepper = h('ol', { class: 'mb-stepper', 'aria-label': '진행 단계' }, steps);
+  box.append(h('div', { class: 'mb-stage' },
+    h('div', { class: 'mb-top' },
       h('a', { class: 'btn ghost sm', href: '#/menus' }, icon('back', 18), '메뉴 목록'),
-      h('h1', { style: 'font-size:1.125rem' }, '그릇 채우기로 메뉴 만들기')),
-    h('div', { class: 'mb-grid' }, findPanel, bowlPanel, adjustPanel),
+      h('h1', { class: 'mb-title' }, 'Build your ', h('em', null, 'bowl.'), h('span', { class: 'mb-title-ko' }, '그릇 채우기로 메뉴 만들기'))),
+    stepper,
+    h('div', { class: 'mb-grid' }, findPanel, bowlPanel, adjustPanel)),
     sticky);
+  const setStep = (n) => steps.forEach((el, i) => { el.classList.toggle('done', i < n); el.classList.toggle('now', i === n); });
 
   /* ---------------- 재료 한 줄 ---------------- */
   function makeLine(src, touched = false) {
@@ -178,26 +232,59 @@ export async function render(box) {
   }
 
   /* ---------------- 그리기 ---------------- */
+  /* 그릇 속 자리: 가장 많은 재료는 가운데, 나머지는 안쪽·바깥 고리에 고르게 놓습니다(위에서 본 타원 그릇). */
+  function slots(n) {
+    const out = [[50, 50]];
+    const inner = Math.min(n - 1, 6);
+    for (let i = 0; i < inner; i++) {
+      const a = (i / inner) * Math.PI * 2 - Math.PI / 2;
+      out.push([50 + 27 * Math.cos(a), 50 + 31 * Math.sin(a)]);
+    }
+    const outer = n - 1 - inner;
+    for (let i = 0; i < outer; i++) {
+      const a = (i / outer) * Math.PI * 2 - Math.PI / 2 + Math.PI / Math.max(outer, 1);
+      out.push([50 + 41 * Math.cos(a), 50 + 39 * Math.sin(a)]);
+    }
+    return out;
+  }
+
   function paintBowl() {
+    bowl3d.style.setProperty('--soup', soupOf(picked?.name || menuName.value));
+    bowl3d.classList.toggle('full', lines.length > 0);
     if (!lines.length) {
-      fill(bowl, h('p', { class: 'mb-empty' }, '왼쪽에서 메뉴를 찾으면', h('br'), '재료가 여기에 담겨요'));
+      fill(bowl, h('p', { class: 'mb-empty' }, '메뉴를 고르면', h('br'), '재료가 여기로 날아와요'));
       bowlNote.textContent = '';
       return;
     }
-    const total = lines.reduce((s, l) => s + (l.kind === 'ea' ? 60 * l.qty : l.qty), 0) || 1; // 개수는 대략 60g 으로 보고 크기만 비교
+    const w = (l) => (l.kind === 'ea' ? 60 * l.qty : l.qty);
+    const total = lines.reduce((s2, l) => s2 + w(l), 0) || 1;
+    const order = [...lines].sort((a, b) => w(b) - w(a));
+    const pos = slots(order.length);
+    const soupBox = bowl.getBoundingClientRect();
+    const from = findPanel.getBoundingClientRect();
+    const fromX = from.left + from.width / 2;
+    const fromY = from.top + Math.min(from.height / 2, 200);
     let fresh = 0;
-    fill(bowl, lines.map((ln) => {
-      const share = (ln.kind === 'ea' ? 60 * ln.qty : ln.qty) / total;
-      const scale = Math.max(0.86, Math.min(1.35, 0.86 + share * 2.2));
-      const chip = h('div', {
-        class: `mb-chip${ingOf(ln) ? '' : ' unlinked'}${ln.fresh ? ' drop' : ''}`, role: 'listitem', 'data-key': ln.key,
-        style: { '--s': scale.toFixed(3), '--d': `${(ln.fresh ? fresh++ : 0) * 55}ms` },
+    fill(bowl, order.map((ln, i) => {
+      const share = w(ln) / total;
+      const size = Math.round(Math.max(40, Math.min(84, 34 + share * 150)));
+      const [x, y] = pos[i];
+      const [c1, c2] = toneOf(ln.name);
+      const px = soupBox.left + (soupBox.width * x) / 100;
+      const py = soupBox.top + (soupBox.height * y) / 100;
+      const narrow = window.matchMedia('(max-width: 899px)').matches;
+      const fx = narrow ? 0 : fromX - px;
+      const fy = narrow ? -260 : fromY - py;
+      const tok = h('div', {
+        class: `mb-tok${ingOf(ln) ? '' : ' unlinked'}${ln.fresh ? ' fly' : ''}${i < 3 ? ' big' : ''}`, role: 'listitem', 'data-key': ln.key,
+        style: { left: `${x}%`, top: `${y}%`, '--z': String(size), '--c1': c1, '--c2': c2, '--fx': `${fx}px`, '--fy': `${fy}px`, '--d': `${(ln.fresh ? fresh++ : 0) * 90}ms`, 'z-index': String(100 - i) },
       },
-      h('button', { class: 'mb-chip-name', type: 'button', onclick: () => focusRow(ln.key), title: '양 조절로 가기' }, ln.name),
-      h('span', { class: 'mb-chip-q' }, `${n3(ln.qty)}${ln.unit}`),
-      h('button', { class: 'mb-chip-x', type: 'button', 'aria-label': `${ln.name} 빼기`, onclick: () => removeLine(ln.key) }, '×'));
+      h('button', { class: 'mb-blob', type: 'button', onclick: () => focusRow(ln.key), 'aria-label': `${ln.name} ${n3(ln.qty)}${ln.unit}, 양 조절로 가기` },
+        picOf(ln.name) ? h('img', { src: picOf(ln.name), alt: '', loading: 'lazy', draggable: false }) : null),
+      h('span', { class: 'mb-tag' }, h('b', null, ln.name), ' ', h('span', { class: 'mb-chip-q' }, `${n3(ln.qty)}${ln.unit}`),
+        h('button', { class: 'mb-chip-x', type: 'button', 'aria-label': `${ln.name} 빼기`, onclick: () => removeLine(ln.key) }, '×')));
       ln.fresh = false;
-      return chip;
+      return tok;
     }));
     const unl = lines.filter((l) => !ingOf(l)).length;
     bowlNote.textContent = [picked ? `${picked.source} · ${picked.serving_note}` : '', unl ? `점선 재료 ${unl}개는 내 식자재와 아직 연결되지 않았어요` : '']
@@ -248,7 +335,8 @@ export async function render(box) {
     num.addEventListener('input', () => { const v = parseNum(num.value); if (v > 0) set(v, 'num'); });
     link.addEventListener('change', () => { ln.ingId = link.value === 'new' ? null : Number(link.value); band(); paintBowl(); paintReceipt(); });
     const row = h('div', { class: 'mb-row', 'data-key': ln.key },
-      h('div', { class: 'mb-row-h' }, h('b', null, ln.name), tag, cost),
+      h('div', { class: 'mb-row-h' }, h('b', null, ln.name), tag, cost,
+        h('button', { class: 'mb-chip-x', type: 'button', 'aria-label': `${ln.name} 빼기`, onclick: () => removeLine(ln.key) }, '×')),
       h('div', { class: 'mb-row-ctl' }, slider, h('span', { class: 'mb-num' }, num, h('span', { class: 'xs muted' }, ln.unit))),
       link,
       ln.note ? h('p', { class: 'xs muted' }, ln.note) : null);
@@ -288,6 +376,8 @@ export async function render(box) {
     if (t.ratio == null && priced.length) hints.push('판매가를 넣으면 원가율이 나와요.');
     if (t.recommended && priced.length) hints.push(`목표 원가율 ${target}%면 권장 판매가는 약 ${n0(t.recommended)}원이에요.`);
     rcHint.textContent = hints.join(' ');
+    setStep(!lines.length ? 0 : (!lines.some((l) => l.touched) && !(p > 0)) ? 1 : 2);
+    receipt.classList.toggle('printed', lines.length > 0);
     save.textContent = lines.length ? `재료 ${lines.length}개로 메뉴 저장` : '재료를 담아 주세요';
     save.disabled = !lines.length || !canWrite;
     sticky.hidden = !lines.length;

@@ -56,7 +56,7 @@ export async function render(box) {
           h('li', null, '국물·소스 속 재료나 양념은 보이지 않아서, 보통 들어가는 양으로 짐작합니다.')),
         h('div', { style: 'margin-top:12px' }, usageLine),
         !canWrite ? h('p', { class: 'hint', style: 'margin-top:8px' }, '지금은 올릴 수 없습니다.') : null,
-        h('p', { class: 'hint', style: 'margin-top:10px' }, '사진 없이 만들려면 ', h('a', { href: '#/menus/new' }, '직접 입력'), '하거나 ', h('a', { href: '#/import' }, '엑셀·다른 앱에서 가져오세요'), '.')));
+        h('p', { class: 'hint', style: 'margin-top:10px' }, '사진 없이 만들려면 ', h('a', { href: '#/menus/build' }, '메뉴 이름으로 검색'), '하거나 ', h('a', { href: '#/import' }, '엑셀·다른 앱에서 가져오세요'), '.')));
   }
 
   /* ---------------- 2. 읽는 중 ---------------- */

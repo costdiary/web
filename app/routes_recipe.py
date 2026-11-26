@@ -3,16 +3,169 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from difflib import SequenceMatcher
 
-from . import auth, ocr, recipe_ai, refdata, services, units
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
+
+from . import auth, menu_presets, ocr, recipe_ai, refdata, services, units
 from .db import get_db, now_iso, transaction
-from .deps import writable_user
+from .deps import current_user, writable_user
 from .routes_data import _one_menu, _owned, _resolve_items, _write_items
 from .schemas import MenuItemIn, RecipeConfirmIn
 
 log = logging.getLogger("wongaenote")
 router = APIRouter(prefix="/api")
+
+
+def _my_ingredients(db, uid: int):
+    return db.execute(
+        "SELECT i.id, i.name, i.unit_kind, i.unit_price FROM ingredients i WHERE i.user_id = ? "
+        "ORDER BY (SELECT COUNT(*) FROM menu_items mi WHERE mi.ingredient_id = i.id) DESC, i.name",
+        (uid,),
+    ).fetchall()
+
+
+def _attach_matches(db, uid: int, lines: list[dict], ings) -> None:
+    """각 재료 줄에 '내 식자재' 연결 후보를 붙입니다(별칭 -> 같은 이름 -> 비슷한 이름)."""
+    by_id = {r["id"]: r for r in ings}
+    aliases = services.load_aliases(db, uid)
+    for ln in lines:
+        m = services.best_match(ln["name"], ings, aliases)
+        ing = by_id.get(m[0]) if m else None
+        # 무게로 적힌 재료를 개수로 쓰는 식자재에 억지로 붙이지 않습니다(단위 종류가 다르면 연결 안 함).
+        if ing is not None and ing["unit_kind"] == ln["kind"]:
+            ln["match"] = {"id": ing["id"], "name": ing["name"], "score": m[1], "priced": ing["unit_price"] is not None}
+        else:
+            ln["match"] = None
+
+
+# ---------------------------------------------------------------- 메뉴 검색으로 그릇 채우기(외부 API 호출 없음)
+
+_SRC_LABEL = {"preset": "기본 레시피", refdata.SRC: "공공 레시피", refdata.SRC_USER: "사장님들이 확정한 레시피"}
+
+
+def _score(key: str, cand: str) -> float:
+    if not key or not cand:
+        return 0.0
+    if cand == key:
+        return 1.0
+    if cand.startswith(key):
+        return 0.92
+    if key in cand:
+        return 0.86
+    if len(cand) >= 2 and cand in key:
+        return 0.8
+    return SequenceMatcher(None, key, cand).ratio()
+
+
+def search_menus(q: str, limit: int = 8) -> list[dict]:
+    """메뉴 이름으로 기본 레시피·공공 레시피·사장님 확정 레시피를 찾습니다. q 가 비면 기본 레시피 앞쪽을 돌려줍니다."""
+    key = refdata.name_key(q)
+    presets = menu_presets.all_presets()
+    if not key:
+        return [{"id": f"p{p['id']}", "name": p["name"], "category": p["category"], "source": _SRC_LABEL["preset"],
+                 "count": len(p["lines"])} for p in presets[:limit]]
+    scored: list[tuple[float, int, dict]] = []
+    for p in presets:
+        s = max(_score(key, refdata.name_key(n)) for n in [p["name"], *p["aliases"]])
+        if s >= 0.55:
+            scored.append((s, 0, {"id": f"p{p['id']}", "name": p["name"], "category": p["category"],
+                                  "source": _SRC_LABEL["preset"], "count": len(p["lines"])}))
+    conn = refdata.connect()
+    if conn is not None:
+        try:
+            rows = conn.execute(
+                "SELECT r.id, r.src, r.name, r.name_key, r.category, "
+                "(SELECT COUNT(*) FROM ref_lines l WHERE l.recipe_id = r.id AND l.qty IS NOT NULL) AS n FROM ref_recipes r"
+            ).fetchall()
+        finally:
+            conn.close()
+        for r in rows:
+            if r["n"] < 2:
+                continue
+            s = _score(key, r["name_key"])
+            if s >= 0.6:
+                order = 1 if r["src"] == refdata.SRC_USER else 2
+                scored.append((s, order, {"id": f"r{r['id']}", "name": r["name"], "category": r["category"] or "",
+                                          "source": _SRC_LABEL.get(r["src"], "참고 레시피"), "count": r["n"]}))
+    scored.sort(key=lambda x: (-x[0], x[1], len(x[2]["name"])))
+    out, seen = [], set()
+    for _, _, item in scored:
+        k = (item["name"], item["source"])
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(item)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _est_line(name: str, qty: float, unit: str, lo: float, hi: float, conf: str, note: str = "") -> dict:
+    kind = {"g": "g", "ml": "ml", "개": "ea"}[unit]
+    q = recipe_ai._nice(qty, unit)
+    low = min(q, recipe_ai._nice(qty * lo, unit))
+    high = max(q, recipe_ai._nice(qty * hi, unit))
+    return {"name": name, "qty": q, "qty_low": low, "qty_high": high, "unit": unit, "kind": kind,
+            "visible": True, "confidence": conf, "note": note}
+
+
+def menu_template(tid: str) -> dict | None:
+    """검색 결과 하나 -> 1인분 재료 줄(모두 추정, 범위 포함)."""
+    if len(tid) < 2 or not tid[1:].isdigit():
+        return None
+    num = int(tid[1:])
+    if tid[0] == "p":
+        p = menu_presets.get(num)
+        if p is None:
+            return None
+        lines = [_est_line(ln["name"], ln["qty"], ln["unit"], 0.7, 1.35, "medium") for ln in p["lines"]]
+        return {"name": p["name"], "category": p["category"], "serving_note": p["serving_note"],
+                "source": _SRC_LABEL["preset"], "lines": lines}
+    if tid[0] != "r":
+        return None
+    conn = refdata.connect()
+    if conn is None:
+        return None
+    try:
+        r = conn.execute("SELECT id, src, name, category, weight_note FROM ref_recipes WHERE id = ?", (num,)).fetchone()
+        rows = conn.execute("SELECT name, qty, unit FROM ref_lines WHERE recipe_id = ? ORDER BY pos", (num,)).fetchall() if r else []
+    finally:
+        conn.close()
+    if r is None:
+        return None
+    mine = r["src"] == refdata.SRC_USER
+    lines, seen = [], set()
+    for ln in rows:
+        if ln["qty"] is None or ln["unit"] not in ("g", "ml", "개") or not (ln["qty"] > 0) or ln["name"] in seen:
+            continue
+        seen.add(ln["name"])
+        if mine:
+            lines.append(_est_line(ln["name"], ln["qty"], ln["unit"], 0.85, 1.15, "high"))
+        else:
+            lines.append(_est_line(ln["name"], ln["qty"], ln["unit"], 0.5, 1.5, "low", "레시피 원문 분량이라 1인분과 다를 수 있음"))
+        if len(lines) >= recipe_ai.MAX_LINES:
+            break
+    if not lines:
+        return None
+    return {"name": r["name"], "category": r["category"] or "", "serving_note": "1인분" if mine else (r["weight_note"] or "레시피 원문 기준"),
+            "source": _SRC_LABEL.get(r["src"], "참고 레시피"), "lines": lines}
+
+
+@router.get("/recipe/search")
+def recipe_search(q: str = Query("", max_length=60), user: dict = Depends(current_user)):
+    if services.user_rate_hit(f"rsearch:{user['id']}", 120, 60):
+        raise HTTPException(429, "검색이 너무 잦습니다. 잠시 뒤에 다시 시도해 주세요.")
+    return {"items": search_menus(recipe_ai.one_line(q, 60))}
+
+
+@router.get("/recipe/template")
+def recipe_template(id: str = Query(..., max_length=20), user: dict = Depends(current_user), db=Depends(get_db)):
+    t = menu_template(id)
+    if t is None:
+        raise HTTPException(404, "레시피를 찾지 못했습니다.")
+    _attach_matches(db, user["id"], t["lines"], _my_ingredients(db, user["id"]))
+    return t
 
 
 @router.post("/recipe/estimate")
@@ -33,12 +186,7 @@ def estimate(
     except ocr.OcrError as e:
         raise HTTPException(400, str(e))
 
-    ings = db.execute(
-        "SELECT i.id, i.name, i.unit_kind, i.unit_price FROM ingredients i WHERE i.user_id = ? "
-        "ORDER BY (SELECT COUNT(*) FROM menu_items mi WHERE mi.ingredient_id = i.id) DESC, i.name",
-        (uid,),
-    ).fetchall()
-    by_id = {r["id"]: r for r in ings}
+    ings = _my_ingredients(db, uid)
     hint = recipe_ai.one_line(name, 60)
 
     limit = auth.ocr_limit(auth.plan_status(user)["state"])
@@ -65,15 +213,7 @@ def estimate(
     if not est["lines"]:
         raise HTTPException(422, "요리 사진으로 보이지 않거나 재료를 알아보지 못했습니다. 요리가 잘 보이게 위에서 다시 찍어 주세요.")
 
-    aliases = services.load_aliases(db, uid)
-    for ln in est["lines"]:
-        m = services.best_match(ln["name"], ings, aliases)
-        ing = by_id.get(m[0]) if m else None
-        # 무게로 적힌 재료를 개수로 쓰는 식자재에 억지로 붙이지 않습니다(단위 종류가 다르면 연결 안 함).
-        if ing is not None and ing["unit_kind"] == ln["kind"]:
-            ln["match"] = {"id": ing["id"], "name": ing["name"], "score": m[1], "priced": ing["unit_price"] is not None}
-        else:
-            ln["match"] = None
+    _attach_matches(db, uid, est["lines"], ings)
     return {
         "demo": demo,
         "dish_name": est["dish_name"] or hint,

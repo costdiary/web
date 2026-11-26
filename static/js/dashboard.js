@@ -1,5 +1,6 @@
-/* 홈: 평균 원가율, 단가 상승 알림, 원가율이 높은 메뉴, 확인이 필요한 식자재 */
-import { h, api, app, n0, n1, nT, nPrice, ago, ymd, busy, refreshRoute, toast, MARKET_ENABLED } from './core.js';
+/* 홈: 자주 하는 일 바로가기, 평균 원가율, 단가 상승, 원가율이 높은 메뉴, 확인이 필요한 식자재.
+   사장님이 휴대폰으로 가장 자주 하는 일(명세서 찍기·매출 넣기·메뉴 추가)을 제목 바로 아래에 둔다. */
+import { h, api, app, icon, n0, n1, nT, nPrice, ago, ymd, busy, refreshRoute, toast } from './core.js';
 import { marginBar, stamp, chg, num, emptyBlock, sgn } from './ui.js';
 import { openIngredientEditor } from './ingredients.js';
 
@@ -107,10 +108,31 @@ function onboarding() {
           h('div', { class: 'row-sub' }, '구매 규격과 가격만 넣으면 kg·L·개당 단가는 계산해 드려요.')), h('span', { class: 'btn ghost sm' }, '등록')))));
 }
 
+function todayLabel() {
+  const d = new Date(Date.now() + 9 * 3600e3); // 한국 시간
+  return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 ${'일월화수목금토'[d.getUTCDay()]}요일`;
+}
+
+function quickActions() {
+  const act = (href, ic, label, sub, main = false) => h('a', { class: `qa${main ? ' qa-main' : ''}`, href },
+    h('span', { class: 'qa-ic', 'aria-hidden': 'true' }, icon(ic, 22)),
+    h('span', { class: 'qa-t' }, label), h('span', { class: 'qa-s' }, sub));
+  return h('nav', { class: 'qa-row', 'aria-label': '바로 하기' },
+    act('#/invoice', 'camera', '명세서 찍기', '단가 자동 반영', true),
+    act('#/sales', 'trend', '매출 넣기', '오늘·어제 매출'),
+    act('#/menus/new', 'plus', '메뉴 추가', '원가율 계산'));
+}
+
+/* 요약 숫자를 누르면 그 내용이 있는 곳으로 */
+function jump(id) {
+  return (e) => { const el = document.getElementById(id); if (!el) return; e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+}
+
 export async function render(box) {
   const d = await api('/api/dashboard');
   const s = d.summary;
-  box.append(h('div', { class: 'page-h' }, h('h1', null, '오늘의 원가')));
+  box.append(h('div', { class: 'page-h' }, h('h1', null, '오늘의 원가', h('span', { class: 'sub' }, todayLabel()))));
+  if (s.menu_count || s.ingredient_count) box.append(quickActions());
   if (!s.menu_count && !s.ingredient_count) {
     box.append(onboarding());
     return;
@@ -154,9 +176,9 @@ export async function render(box) {
         ? `목표 ${nT(s.target)}%를 넘는 메뉴가 ${s.menu_count}개 중 ${s.over_target}개입니다.`
         : `메뉴 ${s.menu_count}개가 모두 목표 ${nT(s.target)}% 안에 있습니다.`),
       h('dl', { class: 'ledger' },
-        h('div', null, h('dt', null, '식자재'), h('dd', null, num(n0(s.ingredient_count), '개'))),
-        h('div', null, h('dt', null, '최근 30일 오른 식자재'), h('dd', null, num(n0(s.rising_count), '개'))),
-        h('div', null, h('dt', null, '단가 확인이 필요한 식자재'), h('dd', null, num(n0(s.stale_count), '개')))));
+        h('div', null, h('dt', null, h('a', { href: '#/ingredients' }, '식자재')), h('dd', null, num(n0(s.ingredient_count), '개'))),
+        h('div', null, h('dt', null, h('a', { href: '#al-t', onclick: jump('al-t') }, '최근 30일 오른 식자재')), h('dd', null, num(n0(s.rising_count), '개'))),
+        h('div', null, h('dt', null, s.stale_count ? h('a', { href: '#st-t', onclick: jump('st-t') }, '단가 확인이 필요한 식자재') : '단가 확인이 필요한 식자재'), h('dd', null, num(n0(s.stale_count), '개')))));
   }
   box.append(kpi);
 
@@ -164,12 +186,11 @@ export async function render(box) {
   if (d.unpriced_count) notes.push(h('p', null, h('b', null, `단가가 없는 식자재 ${d.unpriced_count}개. `), '이 재료는 메뉴 원가에 아직 들어가지 않습니다. ', h('a', { href: '#/invoice' }, '거래명세서를 올리거나'), ' ', h('a', { href: '#/ingredients' }, '직접 단가를 넣어'), ' 주세요.'));
   if (d.estimated_menu_count) notes.push(h('p', null, h('b', null, `사진으로 추정한 양이 들어 있는 메뉴 ${d.estimated_menu_count}개. `), '실제로 재 보고 고치면 원가율이 정확해집니다. ', h('a', { href: '#/menus' }, '메뉴에서 확인하기')));
   if (notes.length) box.append(h('div', { class: 'note-warn', role: 'status', style: 'margin:12px 0' }, notes));
-  if (MARKET_ENABLED && (app.me.market.unread_offers || 0) + (app.me.market.unread_deals || 0) > 0) {
-    const n = app.me.market.unread_offers + app.me.market.unread_deals;
-    box.append(h('a', { class: 'sheet', href: '#/market', style: 'display:block;margin:12px 0;text-decoration:none' },
-      h('div', { class: 'row-main' },
-        h('span', { class: 'row-title' }, '도매마켓에 새 소식이 있어요'),
-        h('div', { class: 'row-sub' }, `더 싼 제안·떨이 알림 ${n}건`))));
+  // 도매마켓 새 소식(더 싼 제안·떨이)은 이제 상단 종(알림 센터)으로 모았다.
+  const unread = app.me.notifications?.unread || 0;
+  if (unread) {
+    box.append(h('a', { class: 'notif-strip', href: '#/notifications' },
+      icon('bell', 18), h('span', null, h('b', null, `확인할 알림 ${unread}개`), ' · 단가 변동, 배달 적자 등'), icon('chevron', 16)));
   }
   if (s.menu_count && !d.delivery.configured) {
     box.append(h('div', { class: 'banner info', style: 'margin:12px 0' }, h('div', null, h('b', null, '배달앱에서 팔고 계신가요? '),

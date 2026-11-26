@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
 
-from . import auth, config, market, market_catalog, ocr, payments, security, services, units, wholesale_verify
+from . import auth, config, market, market_catalog, notifications, ocr, payments, security, services, units, wholesale_verify
 from .db import connect, get_db, now_iso, transaction
 from .deps import current_wholesaler, verified_wholesaler
 from .schemas import AdIn, AdPayIn, BidIn, LoginIn, OutcomeIn, PgConfirmIn, RespondIn, WsProfileIn, WsSignupIn, WsVerifyIn
@@ -489,7 +489,8 @@ def ws_respond(conn_id: int, body: RespondIn, ws: dict = Depends(verified_wholes
     with transaction(db):
         db.execute("UPDATE mk_connections SET status=?, responded_at=? WHERE id=?", (status, ts, conn_id))
         market.recompute_ws_stats(db)
-    fresh = db.execute("SELECT * FROM mk_connections WHERE id = ?", (conn_id,)).fetchone()
+        fresh = db.execute("SELECT * FROM mk_connections WHERE id = ?", (conn_id,)).fetchone()
+        notifications.notify_connection_answer(db, fresh)  # 사장님 알림 센터로 바로
     return _ws_connection_payload(db, fresh)
 
 

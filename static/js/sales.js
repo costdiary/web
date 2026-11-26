@@ -126,7 +126,7 @@ export async function render(box) {
   }
 
   box.append(
-    h('div', { class: 'page-h' }, h('a', { class: 'btn ghost sm', href: '#/revenue' }, icon('back', 18), '매출관리'), h('h1', { style: 'font-size:1.125rem' }, '내 매출')),
+    h('div', { class: 'page-h' }, h('a', { class: 'btn ghost sm back-more', href: '#/more' }, icon('back', 18), '전체 메뉴'), h('h1', { style: 'font-size:1.125rem' }, '내 매출')),
     body);
   await load(month);
 }

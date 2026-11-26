@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hmac
+import logging
 import re
 import time
 from collections import defaultdict
@@ -10,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
-from . import auth, config, identity, mailer, market, oauth, security, services
+from . import auth, config, identity, mailer, market, notifications, oauth, security, services
 from .db import ISO, get_db, now_iso, transaction
 from .deps import current_user
 from .routes_market import market_me_summary
@@ -90,8 +91,19 @@ def me_payload(db, user: dict) -> dict:
             "menus": db.execute("SELECT COUNT(*) AS c FROM menus WHERE user_id = ?", (uid,)).fetchone()["c"],
         },
         "market": market_me_summary(db, uid),
+        "notifications": {"unread": _notif_unread(db, user)},
         "identity": identity.me_summary(user),
     }
+
+
+def _notif_unread(db, user: dict) -> int:
+    """상단 종 배지 숫자. 상태 알림 만들기가 실패해도 /api/me는 살아 있어야 한다."""
+    try:
+        with transaction(db):
+            notifications.sync(db, user)
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).exception("notification sync failed")
+    return notifications.unread_count(db, user["id"])
 
 
 @router.get("/public")
@@ -325,6 +337,7 @@ def delete_account(body: DeleteAccountIn, request: Request, response: Response, 
             "menus", "ingredient_aliases", "price_history", "invoice_lines", "mk_matches", "mk_demand_signals",
             "mk_buyer_settings", "ws_ad_deliveries", "mk_connections", "ingredients", "invoices", "ocr_usage",
             "channels", "fixed_costs", "shop_profile", "daily_sales", "shop_location", "staff", "sessions",
+            "notifications", "notification_prefs",
             "identity_verifications",  # 본인인증 결과(이름·휴대폰)도 탈퇴하면 남기지 않는다.
             "ocr_logs",  # 올린 명세서·요리 사진도 "입력 자료"이므로 탈퇴 시 함께 지운다(개인정보처리방침과 일치).
         ):

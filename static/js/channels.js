@@ -234,7 +234,7 @@ export async function render(box) {
   };
   box.append(
     h('div', { class: 'page-h' },
-      h('a', { class: 'btn ghost sm', href: '#/revenue' }, icon('back', 18), '매출관리'),
+      h('a', { class: 'btn ghost sm back-more', href: '#/more' }, icon('back', 18), '전체 메뉴'),
       h('h1', { style: 'font-size:1.125rem' }, '배달앱 수수료')),
     h('div', { class: 'banner info', role: 'note' }, h('div', null,
       h('b', null, `요율 기준일 ${asOfKo(asOf)}. `),
@@ -242,7 +242,7 @@ export async function render(box) {
       '쓰는 앱을 켜 두면 배달 주문 한 건에 실제로 남는 돈을 메뉴마다 계산해 드립니다.')),
     items.some((it) => it.stale && it.state.enabled)
       ? h('div', { class: 'banner warn', role: 'status' }, h('div', null, h('b', null, '요율 확인한 지 90일이 지났어요. '), '배달앱은 요율을 수시로 바꾸니, 최근 정산내역서와 한 번 맞춰 보고 \'확인한 날\'을 갱신해 주세요.'))
-      : null,
+      : '', // box.append(null)은 화면에 'null' 글자를 찍는다
     ...items.map((it) => channelCard({ ...it, as_of: asOf }, ctx)),
     h('details', { class: 'sheet more how' },
       h('summary', null, '계산 방식'),

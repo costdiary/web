@@ -638,6 +638,33 @@ CREATE TABLE IF NOT EXISTS donations (
 );
 CREATE INDEX IF NOT EXISTS idx_donations_paid_day ON donations(status, paid_at);
 
+-- 알림 센터(notifications.py). 상태를 보고 만드는 알림은 dedupe_key로 한 번만 넣는다.
+-- category는 kind에서 정해지지만 분류별 끄기·거르기를 빠르게 하려고 같이 저장한다.
+-- 새 표라 SCHEMA의 CREATE TABLE IF NOT EXISTS로 기존 DB에도 바로 생긴다(버전 번호 불필요).
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  category TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  link TEXT NOT NULL DEFAULT '',
+  dedupe_key TEXT,
+  data TEXT,
+  created_at TEXT NOT NULL,
+  read_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_notif_dedupe ON notifications(user_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
+
+-- 알림 분류(cost/sales/market/system)별 켜고 끄기. 행이 없으면 켜진 것으로 본다.
+CREATE TABLE IF NOT EXISTS notification_prefs (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  PRIMARY KEY (user_id, category)
+);
+
 -- 휴대폰 본인인증(19) — identity.py. id는 포트원에 넘기는 추측 불가능한 인증 번호.
 -- 가입 전 인증은 user_id가 비어 있다가 가입하면서 채워진다(status 'used'). CI 원문은 저장하지 않고 해시만.
 CREATE TABLE IF NOT EXISTS identity_verifications (

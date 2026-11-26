@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 
-from . import auth, channels, config, costing, market, ocr, security, seed, services, units
+from . import auth, channels, config, costing, market, notifications, ocr, security, seed, services, units
 from .db import ISO, get_db, now_iso, transaction
 from .deps import current_user, writable_user
 from .routes_sales import _summary as _sales_summary
@@ -173,6 +173,7 @@ def get_ingredient(iid: int, user: dict = Depends(current_user), db=Depends(get_
 
 @router.put("/ingredients/{iid}")
 def update_ingredient(iid: int, body: IngredientIn, user: dict = Depends(writable_user), db=Depends(get_db)):
+    notifications.touch(user["id"])  # 단가·매출이 바뀌면 종 숫자를 바로 다시 센다
     uid = user["id"]
     ing = _owned(db, "ingredients", iid, uid)
     if ing["from_prep_id"] is not None:
@@ -471,6 +472,7 @@ def parse_invoice(file: UploadFile = File(...), user: dict = Depends(writable_us
 
 @router.post("/invoices/confirm")
 def confirm_invoice(body: InvoiceConfirmIn, user: dict = Depends(writable_user), db=Depends(get_db)):
+    notifications.touch(user["id"])  # 단가·매출이 바뀌면 종 숫자를 바로 다시 센다
     uid = user["id"]
     applied = [ln for ln in body.lines if ln.apply]
     if not applied:

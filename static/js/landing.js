@@ -633,6 +633,7 @@ export function renderLanding(root, onAuth) {
       h('div', { class: 'lp-wrap lp-foot-in' },
         h('span', { class: 'lp-brand is-sm' }, logo(), pub.business_name && pub.business_name !== '원가다이어리' ? h('span', null, pub.business_name) : null),
         pub.contact_email ? h('a', { href: `mailto:${pub.contact_email}` }, pub.contact_email) : null,
+        h('a', { class: 'lp-link', href: '/guide/menu-cost-rate' }, '메뉴 원가율 계산법'),
         h('button', { class: 'lp-link', type: 'button', onclick: openTerms }, '이용약관'),
         h('button', { class: 'lp-link', type: 'button', onclick: openDataNotice }, h('b', null, '개인정보처리방침')))),
 

@@ -38,11 +38,34 @@ def blocked_agent(ua: str) -> bool:
     return any(t.lower() in u for t in AI_CRAWLERS) or any(t in u for t in SCRAPER_TOKENS)
 
 
+# AI 검색·답변 서비스가 쓰는 수집기. 사장님이 ChatGPT·Claude·Gemini·Perplexity 등에 "식당 원가 관리 앱"을 물었을 때
+# 원가다이어리를 찾아 소개할 수 있도록, 로그인 전 공개 소개 페이지는 읽게 열어 둔다.
+# (API는 여기서 열지 않는다. API 요청은 blocked_agent()가 계속 막는다.)
+AI_ANSWER_BOTS = (
+    "OAI-SearchBot", "ChatGPT-User", "GPTBot", "ClaudeBot", "Claude-User", "Claude-SearchBot", "Claude-Web", "anthropic-ai",
+    "PerplexityBot", "Perplexity-User", "Google-Extended", "Applebot-Extended", "CCBot", "Amazonbot", "meta-externalagent",
+    "cohere-ai", "YouBot", "DuckAssistBot", "MistralAI-User",
+)
+# 공개 페이지도 읽지 못하게 하는 대량 수집기(검색·답변과 관계없는 SEO 분석·데이터 판매용)
+ROBOTS_BLOCKED = ("Bytespider", "Diffbot", "ImagesiftBot", "Omgilibot", "PetalBot", "AhrefsBot", "SemrushBot",
+                  "MJ12bot", "DotBot", "DataForSeoBot")
+# /static/js/ 는 막지 않는다: 구글이 소개 화면(자바스크립트로 그림)을 그려 보려면 읽어야 한다.
+PRIVATE_PATHS = ("/api/", "/partner", "/docs", "/openapi.json")
+
+
+def site_url() -> str:
+    return (config.env_str("APP_BASE_URL") or "https://mycostdiary.com").rstrip("/")
+
+
 def robots_txt() -> str:
-    lines = []
-    for bot in AI_CRAWLERS:
+    lines = ["# 원가다이어리: 로그인 전 소개 페이지와 안내 글은 검색엔진과 AI 검색이 읽어도 됩니다.",
+             "# 회원 데이터(API)와 도매마켓 화면은 읽지 않습니다.", ""]
+    for bot in ROBOTS_BLOCKED:
         lines += [f"User-agent: {bot}", "Disallow: /", ""]
-    lines += ["User-agent: *", "Disallow: /api/", "Disallow: /static/js/", ""]
+    lines += [f"User-agent: {bot}" for bot in AI_ANSWER_BOTS]
+    lines += [f"Disallow: {p}" for p in PRIVATE_PATHS] + [""]
+    lines += ["User-agent: *"] + [f"Disallow: {p}" for p in PRIVATE_PATHS] + [""]
+    lines += [f"Sitemap: {site_url()}/sitemap.xml", ""]
     return "\n".join(lines)
 
 

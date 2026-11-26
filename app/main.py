@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager, closing
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_identity, routes_admin, routes_notifications
@@ -169,6 +169,33 @@ async def on_error(request: Request, exc: Exception):
 @app.get("/robots.txt", include_in_schema=False)
 def robots():
     return PlainTextResponse(security.robots_txt())
+
+
+# ---------------------------------------------------------------- 검색엔진·AI 검색용 공개 문서
+GUIDE_DIR = STATIC_DIR / "guide"
+GUIDES = ("menu-cost-rate",)  # static/guide/<이름>.html. 새 안내 글을 넣으면 여기에도 더한다(사이트맵에 실림).
+
+
+@app.get("/llms.txt", include_in_schema=False)
+def llms_txt():
+    # AI가 원가다이어리를 한눈에 이해하도록 정리한 소개 글(llmstxt.org 형식)
+    return FileResponse(STATIC_DIR / "llms.txt", media_type="text/plain; charset=utf-8", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    base = security.site_url()
+    urls = [f"{base}/"] + [f"{base}/guide/{g}" for g in GUIDES]
+    body = "".join(f"<url><loc>{u}</loc></url>" for u in urls)
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</urlset>'
+    return Response(xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/guide/{slug}", include_in_schema=False)
+def guide(slug: str):
+    if slug not in GUIDES:
+        return PlainTextResponse("찾는 글이 없습니다.", status_code=404)
+    return FileResponse(GUIDE_DIR / f"{slug}.html", headers={"Cache-Control": "public, max-age=600"})
 
 
 @app.get("/healthz")

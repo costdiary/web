@@ -1,7 +1,7 @@
 /* 전체 메뉴: 휴대폰 아래 메뉴(홈·식자재·명세서·메뉴)에 다 넣을 수 없는 화면을 한곳에 모은다.
    PC에서는 왼쪽 메뉴에 같은 목록이 다 보이므로, 이 화면은 주로 휴대폰용이다.
    예전 '매출관리' 화면(#/revenue)도 이 화면으로 온다. */
-import { h, icon, MARKET_ENABLED, ORDERS_ENABLED, DONATE_ENABLED } from './core.js';
+import { h, icon, app, MARKET_ENABLED, ORDERS_ENABLED, DONATE_ENABLED } from './core.js';
 
 /* main.js의 PC 왼쪽 메뉴도 이 목록을 그대로 쓴다. [주소, 이름, 아이콘, 한 줄 설명] */
 export function sections() {
@@ -30,6 +30,13 @@ export function sections() {
       ...(DONATE_ENABLED ? [['#/donate', '후원하기', 'heart', '원가다이어리는 무료예요. 도움이 됐다면 응원해 주세요.']] : []),
       ['#/settings', '설정', 'sliders', '목표 원가율, 알림, 내 데이터 내려받기, 계정.'],
     ] },
+    // 운영자(ADMIN_EMAILS)에게만 보인다. 서버도 운영자가 아니면 막는다.
+    ...(app.me?.is_admin ? [{ title: '운영자', items: [
+      ['#/admin/stats', '운영 현황', 'trend', '가입자 수와 방문자 수, 어디서 왔는지.'],
+      ['#/admin/users', '사장님 계정', 'users', '계정 찾기, 쓴 만큼 보기, 임시 비밀번호.'],
+      ['#/admin/db', 'DB 보기', 'list', '서버 데이터베이스 표를 읽기 전용으로.'],
+      ['#/admin/ocr', 'OCR 인식 로그', 'camera', '사진 자동 인식이 어떻게 읽혔는지.'],
+    ] }] : []),
   ];
 }
 

@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_identity, routes_admin, routes_notifications
+from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_identity, routes_admin, routes_notifications, visits
 from .config import ROOT, load_env_file
 from .db import connect, init_db, transaction
 
@@ -38,9 +38,12 @@ TOSS_CSP = "https://*.tosspayments.com"
 # 이유로 넉넉히 열어 둔 것이라, 실제 키로 인증 창을 띄웠을 때 콘솔에 CSP 차단이 남으면 그 도메인을 더한다.
 PORTONE_CSP = "https://*.portone.io https://*.iamport.co https://*.danalpay.com https://*.danal.co.kr"
 PAY_CSP = f"{TOSS_CSP} {PORTONE_CSP}"
+# 구글 애널리틱스(GA4). 사장님이 쿠키 동의 창에서 "통계"를 허용했을 때만 화면이 이 스크립트를 불러온다(analytics.js).
+GA_SCRIPT_CSP = "https://www.googletagmanager.com"
+GA_CONNECT_CSP = "https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com"
 CSP = (
-    f"default-src 'self'; img-src 'self' data: blob: {PAY_CSP}; style-src 'self' 'unsafe-inline' {PAY_CSP}; "
-    f"script-src 'self' {PAY_CSP}; font-src 'self' {PAY_CSP}; connect-src 'self' {PAY_CSP}; "
+    f"default-src 'self'; img-src 'self' data: blob: {PAY_CSP} {GA_CONNECT_CSP}; style-src 'self' 'unsafe-inline' {PAY_CSP}; "
+    f"script-src 'self' {PAY_CSP} {GA_SCRIPT_CSP}; font-src 'self' {PAY_CSP}; connect-src 'self' {PAY_CSP} {GA_CONNECT_CSP}; "
     f"frame-src {PAY_CSP}; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 )
 
@@ -192,9 +195,10 @@ def sitemap():
 
 
 @app.get("/guide/{slug}", include_in_schema=False)
-def guide(slug: str):
+def guide(slug: str, request: Request):
     if slug not in GUIDES:
         return PlainTextResponse("찾는 글이 없습니다.", status_code=404)
+    visits.record(request)
     return FileResponse(GUIDE_DIR / f"{slug}.html", headers={"Cache-Control": "public, max-age=600"})
 
 
@@ -220,6 +224,7 @@ def _is_market_host(request: Request) -> bool:
 def index(request: Request):
     if _is_market_host(request):
         return FileResponse(STATIC_DIR / "partner.html", headers={"Cache-Control": "no-cache"})
+    visits.record(request)  # 운영자용 방문자 수(쿠키 없음, 실패해도 화면은 그대로)
     return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 

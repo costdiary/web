@@ -698,6 +698,32 @@ CREATE TABLE IF NOT EXISTS ocr_logs (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ocr_logs_user_day ON ocr_logs(user_id, created_at);
+
+-- 방문자 수(운영자 화면 #/admin/stats). 쿠키·외부 분석 도구 없이 서버가 첫 화면 요청을 직접 센다(visits.py).
+-- 날짜별 숫자만 오래 남기고, 같은 사람을 하루 한 번만 세는 데 쓰는 해시(visit_seen)와 그날의 소금(visit_salts)은
+-- 이틀 뒤 지운다. 새 표뿐이라 CREATE TABLE IF NOT EXISTS로 기존 DB에도 바로 생긴다(버전 번호 불필요).
+CREATE TABLE IF NOT EXISTS visit_daily (
+  day TEXT PRIMARY KEY,
+  views INTEGER NOT NULL DEFAULT 0,
+  visitors INTEGER NOT NULL DEFAULT 0,
+  member_visitors INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS visit_sources (
+  day TEXT NOT NULL,
+  source TEXT NOT NULL,
+  visitors INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, source)
+);
+CREATE TABLE IF NOT EXISTS visit_seen (
+  day TEXT NOT NULL,
+  vhash TEXT NOT NULL,
+  member INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, vhash)
+);
+CREATE TABLE IF NOT EXISTS visit_salts (
+  day TEXT PRIMARY KEY,
+  salt TEXT NOT NULL
+);
 """
 
 

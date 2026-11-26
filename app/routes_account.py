@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
 from . import auth, config, identity, mailer, market, notifications, oauth, security, services
-from .db import ISO, get_db, now_iso, transaction
+from .db import ISO, get_db, now_iso, parse_iso, transaction
 from .deps import current_user
 from .routes_market import market_me_summary
 from .schemas import (
@@ -213,7 +213,11 @@ def oauth_callback(
         user = auth.oauth_user(db, provider, provider_uid, email)
     token = auth.new_session(db, user["id"])
     security.audit("login_ok", user_id=user["id"], ip=ip, detail=provider)
-    resp = RedirectResponse(f"{config.env_str('APP_BASE_URL').rstrip('/')}/", status_code=302)
+    # 화면(analytics.js)이 GA4에 가입/로그인을 알릴 수 있게 표시만 붙인다. 개인정보는 없음(제공자 이름뿐).
+    created = parse_iso(user.get("created_at"))
+    is_new = created is not None and (datetime.now(timezone.utc) - created).total_seconds() < 120
+    flag = "joined" if is_new else "login"
+    resp = RedirectResponse(f"{config.env_str('APP_BASE_URL').rstrip('/')}/?{flag}={provider}", status_code=302)
     resp.delete_cookie(OAUTH_STATE_COOKIE, path="/")
     _set_cookie(resp, token)
     return resp

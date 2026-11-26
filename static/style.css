@@ -2058,3 +2058,6 @@ a.dm-stat:active { transform: scale(0.98); }
 .iv-ok b { color: var(--ink); font-weight: 700; }
 .iv-ok svg { flex: none; }
 .iv-test-note { margin-bottom: 12px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--amber-soft); color: var(--ink-2); }
+
+/* index.html 안의 검색엔진·AI용 소개 글. 사람에게는 앱(자바스크립트) 화면만 보인다. */
+.seo-pre { display: none; }

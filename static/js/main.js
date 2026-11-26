@@ -1,7 +1,7 @@
 /* 앱 시작: 로그인 확인 → 소개 화면 또는 앱 틀 + 화면 전환 */
 import { h, $, api, app, bus, refreshMe, icon, toast, errMsg, ApiError, openDialog } from './core.js';
 import { skeleton, emptyBlock } from './ui.js';
-import { renderLanding } from './landing.js?v=20';
+import { renderLanding } from './landing.js?v=21';
 import * as dashboard from './dashboard.js';
 import * as ingredients from './ingredients.js';
 import * as menus from './menus.js';

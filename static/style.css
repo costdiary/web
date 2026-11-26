@@ -2077,3 +2077,5 @@ a.dm-stat:active { transform: scale(0.98); }
 .ad-bar { display: block; width: 100%; max-width: 18px; margin: 0 auto; background: var(--bar); border-radius: 4px 4px 0 0; }
 .ad-tip { position: absolute; top: 0; transform: translateX(-50%); background: var(--ink); color: var(--sheet); font-size: 0.75rem; padding: 3px 8px; border-radius: var(--r-sm); white-space: nowrap; pointer-events: none; z-index: 2; }
 .ad-axis { display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.75rem; color: var(--ink-2); }
+/* index.html 안의 검색엔진·AI용 소개 글. 사람에게는 앱(자바스크립트) 화면만 보인다. */
+.seo-pre { display: none; }

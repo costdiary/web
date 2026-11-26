@@ -136,6 +136,23 @@ class TossPaymentsProvider(PaymentProvider):
         except ValueError:
             return None
 
+    def lookup(self, payment_key: str) -> dict | None:
+        """토스에 결제 상태를 직접 물어본다. 웹훅 내용은 누구나 꾸며 보낼 수 있으므로, 웹훅을 받으면
+        이 값(토스가 직접 준 orderId·status·totalAmount)으로만 결제를 확정한다."""
+        if not payment_key:
+            return None
+        try:
+            resp = httpx.get(f"{TOSS_API_BASE}/payments/{payment_key}", auth=(self.secret_key, ""), timeout=10.0)
+        except httpx.HTTPError as e:
+            log.warning("toss 결제 조회 실패: %s", type(e).__name__)
+            return None
+        if resp.status_code != 200:
+            return None
+        try:
+            return resp.json()
+        except ValueError:
+            return None
+
 
 def get_provider() -> PaymentProvider:
     secret = config.env_str("TOSS_SECRET_KEY")

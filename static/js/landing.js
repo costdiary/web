@@ -6,6 +6,7 @@
 import { h, api, app, field, busy, errMsg, n0, n1, roundUp100, selectOf, icon } from './core.js';
 import { openSignup, openLogin } from './auth.js';
 import { openDataNotice, openTerms } from './legal.js';
+import { openCookieSettings } from './analytics.js';
 
 export { openDataNotice, openTerms };
 
@@ -635,7 +636,8 @@ export function renderLanding(root, onAuth) {
         pub.contact_email ? h('a', { href: `mailto:${pub.contact_email}` }, pub.contact_email) : null,
         h('a', { class: 'lp-link', href: '/guide/menu-cost-rate' }, '메뉴 원가율 계산법'),
         h('button', { class: 'lp-link', type: 'button', onclick: openTerms }, '이용약관'),
-        h('button', { class: 'lp-link', type: 'button', onclick: openDataNotice }, h('b', null, '개인정보처리방침')))),
+        h('button', { class: 'lp-link', type: 'button', onclick: openDataNotice }, h('b', null, '개인정보처리방침')),
+        h('button', { class: 'lp-link', type: 'button', onclick: openCookieSettings }, '쿠키 설정'))),
 
     /* 모바일: 스크롤하면 아래에 붙는 가입 버튼 */
     h('div', { class: 'lp-dock', 'aria-hidden': 'true' },

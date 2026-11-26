@@ -48,3 +48,54 @@ def test_visits_and_signups_for_admin_only():
 
         # 운영자가 아니면 숫자를 볼 수 없다
         assert anon.get("/api/admin/stats").status_code == 404
+
+
+def test_admin_panel_users_tables_and_funnel():
+    admin_email = f"boss{os.urandom(3).hex()}@example.com"
+    os.environ["ADMIN_EMAILS"] = admin_email
+    with TestClient(app) as adm, TestClient(app) as other:
+        _signup(adm, admin_email)
+        owner = f"o{os.urandom(3).hex()}@example.com"
+        _signup(other, owner)
+        assert other.post("/api/demo/seed", headers=H).status_code == 200
+
+        st = adm.get("/api/admin/stats?days=30").json()
+        f = {x["key"]: x["count"] for x in st["funnel"]}
+        assert f["signup"] >= 2 and f["menu"] >= 1 and f["ingredient"] >= 1
+
+        users = adm.get(f"/api/admin/users?q={owner[:8]}").json()
+        assert users["total"] == 1 and users["items"][0]["menus"] > 0
+        uid = users["items"][0]["id"]
+        d = adm.get(f"/api/admin/users/{uid}").json()
+        assert d["email"] == owner and d["counts"]["menus"] > 0
+
+        r = adm.post(f"/api/admin/users/{uid}/temp-password", headers=H).json()
+        assert r["temp_password"]
+        assert other.get("/api/me").status_code == 401  # 기존 로그인은 풀린다
+        assert adm.post("/api/auth/logout", headers=H).status_code == 200
+        with TestClient(app) as again:
+            assert again.post("/api/auth/login", json={"email": owner, "password": r["temp_password"]}, headers=H).status_code == 200
+        assert adm.post("/api/auth/login", json={"email": admin_email, "password": "password1234"}, headers=H).status_code == 200
+
+        tables = {t["name"] for t in adm.get("/api/admin/tables").json()["items"]}
+        assert {"users", "menus", "visit_daily"} <= tables
+        tu = adm.get("/api/admin/tables/users", params={"q": owner}).json()
+        row = dict(zip(tu["columns"], tu["rows"][0]))
+        assert row["email"] == owner and row["pw_hash"] == "••••"
+        assert adm.get("/api/admin/tables/nope; DROP TABLE users").status_code == 404
+
+        # 운영자가 아니면 전부 404
+        with TestClient(app) as stranger:
+            _signup(stranger, f"s{os.urandom(3).hex()}@example.com")
+            for path in ("/api/admin/users", f"/api/admin/users/{uid}", "/api/admin/tables", "/api/admin/tables/users"):
+                assert stranger.get(path).status_code == 404, path
+            assert stranger.post(f"/api/admin/users/{uid}/temp-password", headers=H).status_code == 404
+
+
+def test_public_config_and_csp_for_ga4():
+    os.environ["GA4_MEASUREMENT_ID"] = "G-TEST12345"
+    with TestClient(app) as c:
+        assert c.get("/api/public").json()["ga4_id"] == "G-TEST12345"
+        csp = c.get("/", headers={"user-agent": CHROME}).headers["content-security-policy"]
+        assert "https://www.googletagmanager.com" in csp and "google-analytics.com" in csp
+    del os.environ["GA4_MEASUREMENT_ID"]

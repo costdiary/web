@@ -160,6 +160,27 @@ def summary(db, days: int = 30) -> dict:
         "SELECT source, SUM(visitors) AS visitors FROM visit_sources WHERE day >= ? GROUP BY source ORDER BY visitors DESC LIMIT 12",
         (start,))]
 
+    # 퍼널: 이 기간에 가입한 사장님 중 몇 명이 실제로 써 봤는지(실제 계정 기준이라 GA4보다 정확).
+    # 예시 데이터(demo/seed)로 만든 식자재·메뉴도 섞일 수 있어, 명세서 반영은 따로 본다.
+    def users_with(table: str) -> int:
+        # table 은 아래 고정 문자열만 넘깁니다.
+        return db.execute(
+            f"SELECT COUNT(DISTINCT u.id) FROM users u JOIN {table} t ON t.user_id = u.id WHERE u.created_at >= ?",
+            (start_utc,)).fetchone()[0]
+    start_utc = (datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=KST).astimezone(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    new_users = db.execute("SELECT COUNT(*) FROM users WHERE created_at >= ?", (start_utc,)).fetchone()[0]
+    returned = db.execute(
+        "SELECT COUNT(DISTINCT u.id) FROM users u JOIN sessions s ON s.user_id = u.id "
+        "WHERE u.created_at >= ? AND julianday(s.created_at) - julianday(u.created_at) >= 1", (start_utc,)).fetchone()[0]
+    funnel = [
+        {"key": "visitors", "label": "방문자", "count": sum(r["visitors"] for r in visit_rows.values())},
+        {"key": "signup", "label": "가입", "count": new_users},
+        {"key": "ingredient", "label": "식자재 1개 이상 등록", "count": users_with("ingredients")},
+        {"key": "menu", "label": "메뉴 1개 이상 등록", "count": users_with("menus")},
+        {"key": "invoice", "label": "명세서 1장 이상 반영", "count": users_with("invoices")},
+        {"key": "returned", "label": "다음 날 이후 다시 로그인", "count": returned},
+    ]
+
     series = []
     for d in span:
         v = visit_rows.get(d, {})
@@ -186,5 +207,6 @@ def summary(db, days: int = 30) -> dict:
             "period_members": visits_between(start, today, "member_visitors"),
         },
         "sources": sources,
+        "funnel": funnel,
         "series": series,
     }

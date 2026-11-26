@@ -65,4 +65,8 @@ def public_config() -> dict:
         "identity_real": identity.real_configured(),
         # 키를 넣은 제공자만 True — 화면은 True인 것만 버튼으로 보여준다.
         "oauth_providers": oauth.configured_providers(),
+        # 구글 애널리틱스(GA4) 측정 ID(G-로 시작). 비어 있으면 화면이 GA를 전혀 불러오지 않는다.
+        "ga4_id": env_str("GA4_MEASUREMENT_ID").strip(),
+        # 광고를 붙이면 1. 쿠키 동의 창에 "광고" 항목이 생긴다(광고 코드 자체는 아직 없음).
+        "ads_enabled": env_bool("ADS_ENABLED", False),
     }

@@ -33,6 +33,8 @@ export function sections() {
     // 운영자(ADMIN_EMAILS)에게만 보인다. 서버도 운영자가 아니면 막는다.
     ...(app.me?.is_admin ? [{ title: '운영자', items: [
       ['#/admin/stats', '운영 현황', 'trend', '가입자 수와 방문자 수, 어디서 왔는지.'],
+      ['#/admin/users', '사장님 계정', 'users', '계정 찾기, 쓴 만큼 보기, 임시 비밀번호.'],
+      ['#/admin/db', 'DB 보기', 'list', '서버 데이터베이스 표를 읽기 전용으로.'],
       ['#/admin/ocr', 'OCR 인식 로그', 'camera', '사진 자동 인식이 어떻게 읽혔는지.'],
     ] }] : []),
   ];

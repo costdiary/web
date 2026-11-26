@@ -77,6 +77,7 @@ function getRoutes() {
     // 결제위젯이 성공·실패 후 "#/donate?paymentKey=...&orderId=..." 형태로 돌려보내므로 쿼리스트링도 받아 준다.
     ...(DONATE_ENABLED ? [{ re: /^#\/donate(?:\/|\?.*)?$/, tab: '#/more', nav: '#/donate', title: '후원하기', run: (box) => donate.render(box) }] : []),
     // 사이드바에는 안 보이고, 운영자가 주소를 직접 쳐서 들어가는 화면(권한은 서버가 막음).
+    { re: /^#\/admin\/stats\/?$/, tab: '#/admin/stats', title: '운영 현황', run: (box) => admin.renderStats(box) },
     { re: /^#\/admin\/ocr\/?$/, tab: '#/admin/ocr', title: 'OCR 인식 로그', run: (box) => admin.renderOcrLogs(box) },
     { re: /^#\/admin\/ocr\/(\d+)\/?$/, tab: '#/admin/ocr', title: 'OCR 인식 로그', run: (box, m) => admin.renderOcrLog(box, Number(m[1])) },
   ];

@@ -1,4 +1,4 @@
-"""운영자(ADMIN_EMAILS) 전용 화면 — 지금은 OCR 인식 로그만. 사장님이 올린 거래명세서/요리
+"""운영자(ADMIN_EMAILS) 전용 화면 — 가입자·방문자 수(운영 현황)와 OCR 인식 로그. 사장님이 올린 거래명세서/요리
 사진이 Claude(비전)에 어떻게 읽혔는지(또는 왜 실패했는지) 확인하는 용도.
 
 메뉴·사이드바에는 노출하지 않는다(일반 사용자에게 보일 이유가 없음) — 운영자가 주소를
@@ -12,6 +12,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 
 from .db import get_db
+from . import visits
 from .deps import current_admin
 
 router = APIRouter(prefix="/api/admin")
@@ -57,3 +58,9 @@ def get_ocr_log(log_id: int, admin: dict = Depends(current_admin), db=Depends(ge
     except json.JSONDecodeError:
         d["result"] = None
     return d
+
+
+@router.get("/stats")
+def site_stats(days: int = 30, admin: dict = Depends(current_admin), db=Depends(get_db)):
+    """가입자 수와 방문자 수(한국 날짜 기준). 방문자는 visits.py 가 첫 화면 요청을 센 값."""
+    return visits.summary(db, days)

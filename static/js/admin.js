@@ -1,6 +1,6 @@
 /* 운영자(ADMIN_EMAILS)만 보는 화면 — 사이드바에는 안 올리고 주소(#/admin/ocr)로 직접 들어간다.
    권한 자체는 서버(deps.current_admin)가 막으므로, 여긴 화면만 그린다. */
-import { h, api, icon, toast, errMsg } from './core.js';
+import { h, api, icon, toast, errMsg, segGroup } from './core.js';
 import { emptyBlock } from './ui.js';
 
 const KIND_LABEL = { invoice: '거래명세서', recipe: '요리 사진' };
@@ -100,4 +100,85 @@ export async function renderOcrLog(box, id) {
       style: 'white-space:pre-wrap;word-break:break-all;background:#f7f8fa;border-radius:8px;padding:12px;font-size:0.8125rem;overflow:auto',
     }, JSON.stringify(log.result, null, 2)));
   }
+}
+
+/* ---------------------------------------------------------------- 운영 현황: 가입자·방문자 수(#/admin/stats) */
+
+const METHOD_LABEL = { email: '이메일', kakao: '카카오', naver: '네이버', google: '구글' };
+const nf = new Intl.NumberFormat('ko-KR');
+const md = (day) => `${Number(day.slice(5, 7))}.${Number(day.slice(8, 10))}`;
+
+function tile(label, value, unit, sub) {
+  return h('div', { class: 'ad-tile' },
+    h('p', { class: 'kpi-label' }, label),
+    h('p', { class: 'ad-num' }, nf.format(value), h('span', { class: 'u' }, unit)),
+    sub ? h('p', { class: 'ad-sub' }, sub) : null);
+}
+
+/* 한 가지 숫자만 보여 주는 날짜별 막대(한 축, 한 색). 막대에 손을 올리면 그날 숫자가 뜬다. */
+function dayBars(title, series, key, unit) {
+  const max = Math.max(1, ...series.map((d) => d[key]));
+  const tip = h('div', { class: 'ad-tip', hidden: true });
+  const bars = series.map((d, i) => {
+    const pct = (d[key] / max) * 100;
+    const label = `${md(d.day)} · ${nf.format(d[key])}${unit}`;
+    const col = h('div', { class: 'ad-col', tabindex: '0', 'aria-label': label },
+      h('span', { class: 'ad-bar', style: `height:${d[key] ? Math.max(pct, 2) : 0}%` }));
+    const show = () => { tip.textContent = label; tip.hidden = false; tip.style.left = `${Math.min(90, Math.max(10, ((i + 0.5) / series.length) * 100))}%`; };
+    col.addEventListener('mouseenter', show);
+    col.addEventListener('focus', show);
+    col.addEventListener('mouseleave', () => { tip.hidden = true; });
+    col.addEventListener('blur', () => { tip.hidden = true; });
+    return col;
+  });
+  const total = series.reduce((s, d) => s + d[key], 0);
+  return h('section', { class: 'sheet' },
+    h('div', { class: 'sheet-h' }, h('h2', null, title), h('span', { class: 'sub' }, `${series.length}일 합계 ${nf.format(total)}${unit} · 가장 많은 날 ${nf.format(max === 1 && !total ? 0 : max)}${unit}`)),
+    h('div', { class: 'ad-chart' }, tip, h('div', { class: 'ad-cols' }, bars)),
+    h('div', { class: 'ad-axis' }, h('span', null, md(series[0].day)), h('span', null, '오늘')));
+}
+
+export async function renderStats(box) {
+  box.append(h('div', { class: 'page-h' }, h('h1', null, '운영 현황')));
+  let period = 30;
+  const body = h('div', { class: 'stack' });
+  const seg = segGroup('기간', [[7, '7일'], [30, '30일'], [90, '90일']], period, (d) => { period = d; load(); });
+  box.append(h('div', { class: 'sheet-tools', style: 'margin:0 0 14px' }, seg), body);
+
+  async function load() {
+    body.replaceChildren(h('div', { class: 'skel' }));
+    let s;
+    try { s = await api(`/api/admin/stats?days=${period}`); } catch (e) {
+      body.replaceChildren(emptyBlock({ title: '불러오지 못했습니다', text: errMsg(e) }));
+      return;
+    }
+    const { signups: sg, visits: v } = s;
+    const methods = Object.entries(sg.by_method).sort((a, b) => b[1] - a[1])
+      .map(([k, n]) => `${METHOD_LABEL[k] || k} ${n}`).join(' · ');
+    const conv = v.period ? `방문자 100명 중 ${(sg.period / v.period * 100).toFixed(1)}명 가입` : '';
+    body.replaceChildren(
+      h('section', { class: 'sheet' },
+        h('div', { class: 'ad-tiles' },
+          tile('전체 가입자', sg.total, '명', `오늘 +${sg.today} · 7일 +${sg.week}`),
+          tile(`최근 ${s.days}일 가입`, sg.period, '명', methods || '아직 없음'),
+          tile('오늘 방문자', v.today, '명', `화면 열림 ${nf.format(v.today_views)}회`),
+          tile(`최근 ${s.days}일 방문자`, v.period, '명', [`7일 ${nf.format(v.week)}명`, conv].filter(Boolean).join(' · '))),
+        h('p', { class: 'hint', style: 'margin-top:12px' },
+          v.tracking_since
+            ? `방문자는 ${v.tracking_since.replace(/-/g, '.')}부터 세고 있어요. 그 전 날짜는 0으로 보입니다. `
+            : '방문자 세기는 이 버전을 올린 뒤부터 시작돼요. 아직 기록이 없습니다. ',
+          '같은 날 같은 사람은 한 명으로 세고, 검색엔진·AI 로봇은 빼요. 쿠키나 외부 분석 도구는 쓰지 않아요.')),
+      dayBars('날짜별 방문자', s.series, 'visitors', '명'),
+      dayBars('날짜별 가입', s.series, 'signups', '명'),
+      h('section', { class: 'sheet' },
+        h('div', { class: 'sheet-h' }, h('h2', null, '어디서 왔나요'), h('span', { class: 'sub' }, `최근 ${s.days}일 방문자 기준`)),
+        s.sources.length
+          ? h('ul', { class: 'rows' }, s.sources.map((r) => h('li', null, h('div', { class: 'row' },
+            h('div', { class: 'row-main' }, h('span', { class: 'row-title' }, r.source || '직접 방문(주소 입력·즐겨찾기·앱)')),
+            h('div', { class: 'row-end' }, `${nf.format(r.visitors)}명`)))))
+          : h('p', { class: 'muted' }, '아직 기록이 없어요.'),
+        h('p', { class: 'hint', style: 'margin-top:10px' }, '홍보 글에 링크를 걸 때 주소 끝에 ?utm_source=instagram 처럼 붙이면 여기서 따로 셀 수 있어요.')),
+    );
+  }
+  load();
 }

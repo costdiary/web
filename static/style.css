@@ -2058,3 +2058,22 @@ a.dm-stat:active { transform: scale(0.98); }
 .iv-ok b { color: var(--ink); font-weight: 700; }
 .iv-ok svg { flex: none; }
 .iv-test-note { margin-bottom: 12px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--amber-soft); color: var(--ink-2); }
+
+/* 운영 현황(#/admin/stats) */
+.ad-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+.ad-tile { padding: 4px 14px 4px 0; }
+.ad-tile + .ad-tile { padding-left: 14px; border-left: 1px solid var(--rule); }
+.ad-num { font-size: 2.25rem; line-height: 1.1; font-weight: 700; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.ad-num .u { font-size: 1rem; color: var(--ink-2); margin-left: 3px; }
+.ad-sub { color: var(--ink-2); font-size: 0.8125rem; }
+@media (max-width: 720px) {
+  .ad-tiles { grid-template-columns: 1fr 1fr; row-gap: 16px; }
+  .ad-tile:nth-child(3) { padding-left: 0; border-left: 0; }
+}
+.ad-chart { position: relative; height: 170px; padding-top: 30px; border-bottom: 1px solid var(--rule-2); margin-top: 8px; }
+.ad-cols { display: flex; align-items: flex-end; gap: 2px; height: 100%; }
+.ad-col { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; outline-offset: 2px; }
+.ad-col:hover .ad-bar, .ad-col:focus .ad-bar { background: var(--blue); }
+.ad-bar { display: block; width: 100%; max-width: 18px; margin: 0 auto; background: var(--bar); border-radius: 4px 4px 0 0; }
+.ad-tip { position: absolute; top: 0; transform: translateX(-50%); background: var(--ink); color: var(--sheet); font-size: 0.75rem; padding: 3px 8px; border-radius: var(--r-sm); white-space: nowrap; pointer-events: none; z-index: 2; }
+.ad-axis { display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.75rem; color: var(--ink-2); }

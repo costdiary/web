@@ -12,6 +12,7 @@ import * as salesPage from './sales.js';
 import * as areaPage from './area.js';
 import * as channels from './channels.js';
 import * as recipe from './recipe.js';
+import * as builder from './builder.js';
 import * as importer from './import.js';
 import * as laborPage from './labor.js';
 import * as more from './more.js';
@@ -51,6 +52,7 @@ function getRoutes() {
     { re: /^#?\/?$/, tab: '#/', title: '홈', run: (box) => dashboard.render(box) },
     { re: /^#\/ingredients\/?$/, tab: '#/ingredients', title: '식자재', run: (box) => ingredients.render(box) },
     { re: /^#\/menus\/?$/, tab: '#/menus', title: '메뉴', run: (box) => menus.renderList(box) },
+    { re: /^#\/menus\/build\/?$/, tab: '#/menus', title: '그릇 채우기로 메뉴 만들기', run: (box) => builder.render(box) },
     { re: /^#\/menus\/photo\/?$/, tab: '#/menus', title: '사진으로 메뉴 만들기', run: (box) => recipe.render(box) },
     { re: /^#\/menus\/new\/?$/, tab: '#/menus', title: '새 메뉴', run: (box) => menus.renderEditor(box, null) },
     { re: /^#\/menus\/(\d+)\/?$/, tab: '#/menus', title: '메뉴 수정', run: (box, m) => menus.renderEditor(box, Number(m[1])) },

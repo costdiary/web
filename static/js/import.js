@@ -53,7 +53,7 @@ export async function render(box) {
         h('div', { class: 'btn-row', style: 'margin-top:10px' },
           h('a', { class: 'btn ghost', href: '/api/import/template.xlsx', download: '' }, icon('download', 20), '엑셀 양식 내려받기'),
           h('a', { class: 'btn ghost', href: '#/ingredients' }, '식자재 직접 등록'),
-          h('a', { class: 'btn ghost', href: '#/menus/photo' }, '요리 사진으로 메뉴 만들기'))));
+          h('a', { class: 'btn ghost', href: '#/menus/build' }, '메뉴 검색으로 만들기'))));
   }
 
   /* ---------------- 2. 읽는 중 ---------------- */

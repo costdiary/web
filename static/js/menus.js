@@ -46,14 +46,16 @@ export async function renderList(box) {
   // 사진으로 만들기 — 정확도 부족으로 비공개 처리
   // const photo = h('a', { class: 'btn ghost sm', href: '#/menus/photo', 'aria-disabled': String(!canWrite) }, icon('camera', 18), '사진으로 만들기');
   const preps = h('a', { class: 'btn ghost sm', href: '#/preps' }, '프렙 레시피');
-  box.append(h('div', { class: 'page-h' }, h('h1', null, '메뉴', h('span', { class: 'sub' }, `${items.length}개`)), h('div', { class: 'btn-row' }, preps, add)));
+  const build = h('a', { class: 'btn ghost sm', href: '#/menus/build', 'aria-disabled': String(!canWrite) }, icon('search', 18), '검색으로 만들기');
+  box.append(h('div', { class: 'page-h' }, h('h1', null, '메뉴', h('span', { class: 'sub' }, `${items.length}개`)), h('div', { class: 'btn-row' }, preps, build, add)));
 
   if (!items.length) {
     box.append(h('section', { class: 'sheet' }, emptyBlock({
       title: '아직 등록한 메뉴가 없습니다',
       text: '메뉴마다 재료와 양을 넣으면 원가율과 권장 판매가가 계산됩니다. 쓰던 엑셀이 있으면 그대로 가져올 수도 있습니다.',
       actions: [
-        h('a', { class: 'btn', href: '#/menus/new' }, '직접 입력하기'),
+        h('a', { class: 'btn', href: '#/menus/build' }, '메뉴 이름으로 검색해서 만들기'),
+        h('a', { class: 'btn ghost', href: '#/menus/new' }, '직접 입력하기'),
         h('a', { class: 'btn ghost', href: '#/import' }, '엑셀·다른 앱에서 가져오기'),
       ],
     })));

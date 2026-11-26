@@ -5,6 +5,7 @@ import { openDataNotice, openTerms } from './legal.js';
 import { openMarketNotice } from './market.js';
 import { MARKET_ENABLED } from './core.js';
 import { prefsForm } from './notifications.js';
+import { identityBox } from './identity.js';
 
 function planText(p) {
   if (p.state === 'paid') return `이용 중 · ${ymd(p.ends_at)}까지`;
@@ -112,6 +113,12 @@ export async function render(box) {
     h('div', { class: 'sheet-h' }, h('h2', null, '이용 현황')),
     h('dl', { class: 'kv' },
       h('dt', null, '계정'), h('dd', null, me.email),
+      ...(me.identity?.enabled ? [h('dt', null, '본인인증'), h('dd', null, identityBox({
+        purpose: 'account',
+        initial: me.identity.verified ? { name: me.identity.name, phone: me.identity.phone } : null,
+        onVerified: async () => { await refreshMe(); toast('본인인증을 마쳤습니다.'); },
+        onError: (m) => toast(m, 'err'),
+      }))] : []),
       h('dt', null, '상태'), h('dd', null, h('b', null, planText(p))),
       h('dt', null, '자동 인식'), h('dd', null, u.ocr_enabled
         ? [`(명세서·요리 사진 합계) 이번 달 ${u.ocr_used} / ${u.ocr_limit}회`, h('div', { class: 'meter', 'aria-hidden': 'true' }, h('i', { style: { width: `${Math.min(100, (u.ocr_used / Math.max(1, u.ocr_limit)) * 100)}%` } }))]

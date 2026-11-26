@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from . import donations, payments
+from . import donations, identity, payments
 from .db import get_db, now_iso
 from .deps import current_user
 from .schemas import DonationIn, PgConfirmIn
@@ -17,6 +17,9 @@ router = APIRouter(prefix="/api/donations")
 
 @router.post("")
 def start_donation(body: DonationIn, user: dict = Depends(current_user), db=Depends(get_db)):
+    # 후원과 본인인증을 한 계정으로 묶는다: 인증을 켠 운영에서는 실명 확인된 계정만 후원할 수 있다.
+    if identity.enabled() and not identity.is_verified(user):
+        raise HTTPException(403, "후원하려면 휴대폰 본인인증을 먼저 해 주세요.")
     donation_id = donations.create_donation(db, user["id"], body.nickname, body.amount, body.message, body.amount_public)
     provider = payments.get_provider()
     order_id = payments.make_order_id("don", donation_id)

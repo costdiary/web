@@ -665,6 +665,22 @@ CREATE TABLE IF NOT EXISTS notification_prefs (
   PRIMARY KEY (user_id, category)
 );
 
+-- 휴대폰 본인인증(19) — identity.py. id는 포트원에 넘기는 추측 불가능한 인증 번호.
+-- 가입 전 인증은 user_id가 비어 있다가 가입하면서 채워진다(status 'used'). CI 원문은 저장하지 않고 해시만.
+CREATE TABLE IF NOT EXISTS identity_verifications (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  purpose TEXT NOT NULL CHECK (purpose IN ('signup', 'account')),
+  status TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested', 'verified', 'used', 'failed')),
+  name TEXT,
+  phone TEXT,
+  birth_date TEXT,
+  gender TEXT,
+  ci_hash TEXT,
+  created_at TEXT NOT NULL,
+  verified_at TEXT
+);
+
 -- OCR 인식 로그 — 사장님이 올린 거래명세서/요리 사진마다 남겨서, 운영자(ADMIN_EMAILS)가
 -- 인식이 이상할 때 원본 사진과 모델 응답을 같이 볼 수 있게 한다. image는 ocr.py가 이미
 -- API로 보내기 전에 줄인 JPEG(긴 변 1568px 이하)라서 원본보다 훨씬 작다.
@@ -722,7 +738,10 @@ def connect() -> sqlite3.Connection:
 #     (줄인 크기로) 서버에 남기기 시작하는 변경이라, ocr.py 맨 위 설명도 같이 고쳤다.
 # 18: donations.amount_public — 후원 금액을 순위에 공개할지를 운영자 환경변수가 아니라 후원하는
 #     사장님이 후원할 때마다 직접 고르게 바꾸면서 생긴 칸. 기존 행(있다면)은 공개(1)로 채운다.
-SCHEMA_VERSION = 18
+# 19: 휴대폰 본인인증 — identity_verifications는 새 표(SCHEMA). users에 인증 결과 칸
+#     (verified_name/phone/birth, ci_hash, identity_verified_at, identity_required)을 ALTER로 더하고,
+#     한 사람 한 계정을 지키려고 ci_hash에 부분 UNIQUE 색인을 건다(기존 계정은 모두 NULL이라 충돌 없음).
+SCHEMA_VERSION = 19
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -834,6 +853,15 @@ def migrate(conn: sqlite3.Connection) -> None:
         if conn.execute("PRAGMA user_version").fetchone()[0] < 18:
             if "amount_public" not in _columns(conn, "donations"):
                 conn.execute("ALTER TABLE donations ADD COLUMN amount_public INTEGER NOT NULL DEFAULT 1")
+        if conn.execute("PRAGMA user_version").fetchone()[0] < 19:
+            have = _columns(conn, "users")
+            for col, ddl in (
+                ("verified_name", "TEXT"), ("verified_phone", "TEXT"), ("verified_birth", "TEXT"), ("ci_hash", "TEXT"),
+                ("identity_verified_at", "TEXT"), ("identity_required", "INTEGER NOT NULL DEFAULT 0"),
+            ):
+                if col not in have:
+                    conn.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ci ON users(ci_hash) WHERE ci_hash IS NOT NULL")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.execute("COMMIT")
     except BaseException:

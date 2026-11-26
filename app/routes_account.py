@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
-from . import auth, config, mailer, market, notifications, oauth, security, services
+from . import auth, config, identity, mailer, market, notifications, oauth, security, services
 from .db import ISO, get_db, now_iso, transaction
 from .deps import current_user
 from .routes_market import market_me_summary
@@ -92,6 +92,7 @@ def me_payload(db, user: dict) -> dict:
         },
         "market": market_me_summary(db, uid),
         "notifications": {"unread": _notif_unread(db, user)},
+        "identity": identity.me_summary(user),
     }
 
 
@@ -128,6 +129,7 @@ def signup(body: SignupIn, request: Request, response: Response, db=Depends(get_
     if required and not hmac.compare_digest(body.code.strip().encode("utf-8"), required.encode("utf-8")):
         raise HTTPException(403, "가입 코드가 맞지 않습니다.")
     _record(f"signup:{ip}")
+    need_identity = identity.enabled()
     # trial_ends_at 컬럼은 과거 체험 요금제에서 남은 것으로, 더는 기능을 막는 데 쓰지 않습니다
     # (원가노트는 무료). NOT NULL이라 값은 계속 채우되, 의미 없는 먼 미래 날짜를 넣습니다.
     trial_end = (datetime.now(timezone.utc) + timedelta(days=36500)).strftime(ISO)
@@ -135,10 +137,17 @@ def signup(body: SignupIn, request: Request, response: Response, db=Depends(get_
     with transaction(db):
         if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
             raise HTTPException(409, "이미 가입된 이메일입니다. 로그인해 주세요.")
+        if need_identity:
+            try:
+                iv = identity.claim_for_signup(db, body.identity_verification_id)
+            except identity.IdentityError as e:
+                raise HTTPException(e.status, str(e))
         cur = db.execute(
             "INSERT INTO users(email, pw_hash, store_name, trial_ends_at, created_at) VALUES (?,?,?,?,?)",
             (email, pw_hash, body.store_name.strip(), trial_end, now_iso()),
         )
+        if need_identity:
+            identity.attach(db, iv["id"], cur.lastrowid)
         token = auth.new_session(db, cur.lastrowid)
     security.audit("signup", user_id=cur.lastrowid, ip=ip)
     _set_cookie(response, token)
@@ -329,6 +338,7 @@ def delete_account(body: DeleteAccountIn, request: Request, response: Response, 
             "mk_buyer_settings", "ws_ad_deliveries", "mk_connections", "ingredients", "invoices", "ocr_usage",
             "channels", "fixed_costs", "shop_profile", "daily_sales", "shop_location", "staff", "sessions",
             "notifications", "notification_prefs",
+            "identity_verifications",  # 본인인증 결과(이름·휴대폰)도 탈퇴하면 남기지 않는다.
             "ocr_logs",  # 올린 명세서·요리 사진도 "입력 자료"이므로 탈퇴 시 함께 지운다(개인정보처리방침과 일치).
         ):
             db.execute(f"DELETE FROM {table} WHERE user_id = ?", (uid,))  # nosec B608

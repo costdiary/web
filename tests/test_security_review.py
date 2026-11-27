@@ -22,6 +22,7 @@ def _signup(c, email):
 def test_forged_webhook_cannot_mark_donation_paid():
     os.environ.pop("TOSS_SECRET_KEY", None)
     os.environ.pop("PAYMENTS_MOCK_WEBHOOK", None)
+    os.environ["DONATION_ENABLED"] = "1"
     with TestClient(app) as c:
         _signup(c, f"d{os.urandom(3).hex()}@example.com")
         r = c.post("/api/donations", json={"nickname": "가짜", "amount": 1000, "message": "", "amount_public": True}, headers=H)
@@ -65,3 +66,13 @@ def test_unverified_social_email_is_ignored(monkeypatch):
     assert oauth._profile("google", "tok")[1] == "me@example.com"
     monkeypatch.setattr(oauth.httpx, "get", lambda *a, **k: _Resp({"response": {"id": "n2", "email": "me@naver.com"}}))
     assert oauth._profile("naver", "tok")[1] == "me@naver.com"
+
+
+def test_donations_hidden_by_default():
+    os.environ.pop("DONATION_ENABLED", None)
+    with TestClient(app) as c:
+        _signup(c, f"h{os.urandom(3).hex()}@example.com")
+        assert c.get("/api/public").json()["donation_enabled"] is False
+        r = c.post("/api/donations", json={"nickname": "a", "amount": 1000, "message": "", "amount_public": False}, headers=H)
+        assert r.status_code == 404
+        assert c.get("/api/donations/leaderboard").status_code == 404

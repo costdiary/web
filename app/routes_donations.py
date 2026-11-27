@@ -7,12 +7,19 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from . import donations, identity, payments
+from . import config, donations, identity, payments
 from .db import get_db, now_iso
 from .deps import current_user
 from .schemas import DonationIn, PgConfirmIn
 
-router = APIRouter(prefix="/api/donations")
+
+def donations_on() -> None:
+    """DONATION_ENABLED=0(기본)이면 후원 API 전체를 없는 것처럼(404) 둔다. 화면 메뉴만 숨기면 주소를 직접 불러 쓸 수 있어서."""
+    if not config.env_bool("DONATION_ENABLED", False):
+        raise HTTPException(404)
+
+
+router = APIRouter(prefix="/api/donations", dependencies=[Depends(donations_on)])
 
 
 @router.post("")

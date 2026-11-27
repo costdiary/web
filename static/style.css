@@ -364,9 +364,15 @@ a.row:hover, button.row:hover { background: var(--sheet-2); border-radius: var(-
 .input:focus, .select:focus, .textarea:focus { outline: 2px solid var(--blue); outline-offset: 0; border-color: var(--blue); }
 .input::placeholder, .textarea::placeholder { color: var(--ink-3); }
 .ti { position: relative; }
-.ti-list { position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin: 2px 0 0; padding: 4px 0; list-style: none; max-height: 240px; overflow-y: auto; background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--r); box-shadow: 0 6px 18px var(--scrim); }
+.ti-list { position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin: 2px 0 0; padding: 4px 0; list-style: none; max-height: min(300px, 50vh); overflow-y: auto; background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--r); box-shadow: 0 6px 18px var(--scrim); }
 .ti-list li { padding: 9px 12px; cursor: pointer; }
 .ti-list li[aria-selected="true"], .ti-list li:hover { background: var(--blue-soft); }
+.ti-list li.on { font-weight: 700; }
+.ti-list li.ti-note { padding: 7px 12px 6px; cursor: default; font-size: 0.8125rem; color: var(--ink-2); border-top: 1px solid var(--rule); }
+.ti-list li.ti-note:first-child { border-top: 0; }
+.ti-list li.ti-note:hover { background: none; }
+/* 검색형 드롭다운(comboSelect): 보통 드롭다운처럼 오른쪽에 꺾쇠를 둬서 '고르는 칸'임을 알린다 */
+.ti.combo .input { padding-right: 30px; background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%); background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
 .input.num { font-family: var(--font-num); font-size: 1.1875rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .select { appearance: none; padding-right: 30px; background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%); background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
 .pair { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 8px; }

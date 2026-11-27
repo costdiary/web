@@ -1,5 +1,5 @@
 /* 내 가게 매출: 파일로 올리거나 하루씩 입력하고, 이번 달 목표와 비교합니다. */
-import { h, api, app, field, numInput, parseNum, selectOf, n0, busy, toast, errMsg, fill, icon, confirmDialog } from './core.js';
+import { h, api, app, field, numInput, parseNum, selectOf, comboSelect, n0, busy, toast, errMsg, fill, icon, confirmDialog } from './core.js';
 import { num, emptyBlock } from './ui.js';
 
 const thisMonth = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 7);
@@ -95,7 +95,7 @@ export async function render(box) {
     // 메뉴별 판매 수량 입력(선택): 날짜 + 메뉴 + 수량을 고르면, 그 날 매출에서 재료비를 빼서
     // 실제 순이익을 계산해 보여 준다. 메뉴가 하나도 없으면 안내만 하고 입력칸은 보여주지 않는다.
     const miDate = h('input', { class: 'input', type: 'date', value: date.value, disabled: !canWrite });
-    const miMenu = s.menus.length ? selectOf(s.menus.map((m) => [String(m.id), m.name]), String(s.menus[0].id), { disabled: !canWrite, 'aria-label': '메뉴' }) : null;
+    const miMenu = s.menus.length ? comboSelect(s.menus.map((m) => [String(m.id), m.name]), String(s.menus[0].id), { disabled: !canWrite, placeholder: '메뉴 이름으로 찾기' }) : null;
     const miQty = numInput({ placeholder: '0', disabled: !canWrite, 'aria-label': '판매 수량' });
     const miErr = h('div', { class: 'form-err', role: 'alert', hidden: true });
     const miAddBtn = h('button', { class: 'btn', type: 'button', disabled: !canWrite, onclick: () => busy(miAddBtn, async () => {

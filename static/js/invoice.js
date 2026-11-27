@@ -135,7 +135,7 @@ export async function render(box) {
     const matched = line.match ? ingById.get(line.match.id) : null;
     const complete = line.pack_size > 0 && line.pack_unit && line.pack_price > 0;
     const chk = h('input', { type: 'checkbox', checked: complete, 'aria-label': `${line.name} 반영` });
-    const link = selectOf([['new', '새 식자재로 추가'], ...ings.map((i) => [String(i.id), i.name])], matched ? String(matched.id) : 'new', { 'aria-label': '연결할 식자재' });
+    const link = comboSelect([['new', '새 식자재로 추가'], ...ings.map((i) => [String(i.id), i.name])], matched ? String(matched.id) : 'new', { placeholder: '식자재 이름으로 찾기', 'aria-label': '연결할 식자재' });
     const newName = h('input', { class: 'input', type: 'text', maxLength: 60, value: line.name.slice(0, 60), 'aria-label': '새 식자재 이름' });
     const size = numInput({ value: line.pack_size ? n3(line.pack_size) : '', 'aria-label': '구매 수량' });
     const unit = selectOf(ALL_UNITS, line.pack_unit ?? 'kg', { 'aria-label': '단위' });

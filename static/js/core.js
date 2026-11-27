@@ -244,59 +244,164 @@ export function selectOf(options, value, props = {}) {
   return el;
 }
 
+/* ---------- 검색형 드롭다운 공통 ---------- */
+
+/* 글자 검색: 띄어쓰기·대소문자 무시, 초성만 쳐도 찾는다(예: 'ㄷㅍ' → 대파).
+   searchRank(labels, q)는 맞는 것만 남기고 '앞글자가 같은 것'을 먼저 보여 준다. */
+const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const squash = (s) => String(s).toLowerCase().replace(/\s+/g, '');
+const choOf = (s) => [...s].map((c) => { const k = c.charCodeAt(0) - 0xac00; return k >= 0 && k < 11172 ? CHO[Math.floor(k / 588)] : c; }).join('');
+function hitAt(label, q) {
+  const l = squash(label);
+  const i = l.indexOf(q);
+  if (i >= 0) return i;
+  return /^[ㄱ-ㅎ]+$/.test(q) ? choOf(l).indexOf(q) : -1;
+}
+export function searchRank(items, q, labelOf = (x) => x) {
+  const nq = squash(q);
+  if (!nq) return items.slice();
+  return items.map((it, i) => [it, hitAt(labelOf(it), nq), i]).filter(([, at]) => at >= 0)
+    .sort((a, b) => (a[1] === 0 ? 0 : 1) - (b[1] === 0 ? 0 : 1) || a[2] - b[2]).map(([it]) => it);
+}
+
+const COMBO_FEW = 8; // 이 개수 이하면 보통 드롭다운처럼 처음부터 다 보여 준다
+const COMBO_PREVIEW = 5; // 그보다 많으면 처음엔 이만큼만 보여 주고 검색을 권한다
+const COMBO_MAX = 40; // 검색 결과도 너무 많으면 여기까지만
+
+/* 펼침 목록 하나를 그리는 공통 부품(comboSelect·attachSuggest가 같이 씀).
+   items: [{ key, label }], note: 목록 아래 회색 안내(없으면 ''). */
+function popList(listId, input) {
+  const list = h('ul', { class: 'ti-list', id: listId, role: 'listbox', hidden: true });
+  let cur = -1;
+  let items = [];
+  const opts = () => [...list.querySelectorAll('[role="option"]')];
+  const mark = (i) => {
+    cur = i;
+    opts().forEach((li, j) => li.setAttribute('aria-selected', String(j === i)));
+    if (i >= 0) input.setAttribute('aria-activedescendant', opts()[i].id); else input.removeAttribute('aria-activedescendant');
+    if (i >= 0) opts()[i].scrollIntoView({ block: 'nearest' });
+  };
+  return {
+    list,
+    get open() { return !list.hidden; },
+    show(next, note, onPick, current) {
+      items = next;
+      fill(list, items.map((it, i) => h('li', {
+        id: `${listId}-${i}`, role: 'option', 'aria-selected': 'false', class: it.key === current ? 'on' : null,
+        onmousedown: (e) => { e.preventDefault(); onPick(it); },
+      }, it.label)), note ? h('li', { class: 'ti-note', role: 'presentation' }, note) : null);
+      list.hidden = !items.length && !note;
+      input.setAttribute('aria-expanded', String(!list.hidden));
+      mark(-1);
+    },
+    close() { list.hidden = true; input.setAttribute('aria-expanded', 'false'); mark(-1); },
+    /* 화살표·Enter·Esc. 처리했으면 true */
+    key(e, onPick) {
+      const n = list.hidden ? 0 : items.length;
+      if (e.key === 'Escape' && !list.hidden) { e.stopPropagation(); this.close(); return true; } // 대화상자까지 닫히지 않게
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) { e.preventDefault(); mark((cur + 1 + (e.key === 'ArrowDown' ? 1 : n)) % (n + 1) - 1); return true; }
+      if (e.key === 'Enter' && cur >= 0 && n) { e.preventDefault(); onPick(items[cur]); return true; }
+      return false;
+    },
+  };
+}
+
 /* 검색되는 드롭다운: selectOf처럼 정해진 [코드, 라벨] 목록 중에서만 고르지만, 글자를 치면
-   라벨로 걸러 준다(목록이 길 때 - 예: 원산지 국가 목록). termInput과 달리 서버를 부르지 않고
-   받아 둔 options 배열 안에서만 검색하고, 목록에 없는 값을 직접 입력할 수는 없다(blur하면
-   마지막으로 고른 값으로 되돌아간다). wrap.value로 코드를 읽고 쓸 수 있고, wrap.setOptions(opts)로
-   목록 자체를 바꿀 수 있다(분류에 따라 원산지 후보가 달라질 때 씀). field()에 넘기면 라벨은
-   wrap.control(입력칸)에 연결된다. */
+   라벨로 걸러 준다(띄어쓰기 무시, 초성 검색 됨). 목록이 짧으면(8개 이하) 누르자마자 다 보여 주고,
+   길면 앞의 몇 개와 "글자를 입력해 찾아 보세요" 안내만 보여 준다. 서버를 부르지 않고 받아 둔
+   options 안에서만 찾으며, 목록에 없는 값은 고를 수 없다(blur하면 마지막으로 고른 값으로 되돌아감).
+   wrap.value로 코드를 읽고 쓰고, 고르면 wrap에서 'change'가 올라온다(select처럼 쓰면 된다).
+   wrap.setOptions(opts)로 목록 자체를 바꿀 수 있다. field()에 넘기면 라벨은 wrap.control에 붙는다. */
 let comboUid = 0;
 export function comboSelect(options, value = '', props = {}) {
   const listId = `cb-${++comboUid}`;
-  const input = h('input', { class: 'input', type: 'text', autocomplete: 'off', placeholder: props.placeholder || '',
-    role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': listId });
-  const list = h('ul', { class: 'ti-list', id: listId, role: 'listbox', hidden: true });
-  const wrap = h('div', { class: 'ti' }, input, list);
+  const { placeholder = '', disabled = false, ...rest } = props;
+  const input = h('input', { class: 'input', type: 'text', autocomplete: 'off', placeholder: placeholder || '검색 또는 선택', disabled,
+    role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': listId, ...rest });
+  const pop = popList(listId, input);
+  const wrap = h('div', { class: 'ti combo' }, input, pop.list);
   wrap.control = input;
-  let opts = options;
+  let opts = options.map((o) => (Array.isArray(o) ? o : [o, o]));
   let code = '';
-  let cur = -1;
-  let shown = [];
   const labelOf = (c) => opts.find(([v]) => v === c)?.[1] ?? '';
-  const setCode = (c) => { code = opts.some(([v]) => v === c) ? c : ''; input.value = labelOf(code); };
+  const setCode = (c) => { c = c == null ? '' : String(c); code = opts.some(([v]) => v === c) ? c : ''; input.value = labelOf(code); };
   setCode(value);
-  const mark = (i) => {
-    cur = i;
-    [...list.children].forEach((li, j) => li.setAttribute('aria-selected', String(j === i)));
-    if (i >= 0) input.setAttribute('aria-activedescendant', list.children[i].id); else input.removeAttribute('aria-activedescendant');
-  };
-  const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); mark(-1); };
-  const pick = (c) => { setCode(c); close(); input.dispatchEvent(new Event('change', { bubbles: true })); };
+  const pick = (it) => { setCode(it.key); pop.close(); wrap.dispatchEvent(new Event('change', { bubbles: true })); };
   const render = (all = false) => {
-    // 포커스 직후(all=true)는 지금 골라진 값의 글자로 걸러지면 안 되니 전체를 보여준다.
-    const q = all ? '' : input.value.trim().toLowerCase();
-    shown = opts.filter(([, label]) => !q || label.toLowerCase().includes(q));
-    fill(list, shown.map(([v, label], i) => h('li', { id: `${listId}-${i}`, role: 'option', 'aria-selected': 'false',
-      onmousedown: (e) => { e.preventDefault(); pick(v); } }, label)));
-    list.hidden = !shown.length;
-    input.setAttribute('aria-expanded', String(shown.length > 0));
-    mark(-1);
+    // 포커스 직후(all=true)는 지금 골라진 값의 글자로 걸러지면 안 되니 검색어 없이 그린다.
+    const q = all ? '' : input.value.trim();
+    const hits = searchRank(opts, q, ([, label]) => label);
+    const many = !q && opts.length > COMBO_FEW;
+    const shown = hits.slice(0, many ? COMBO_PREVIEW : COMBO_MAX);
+    const rest = hits.length - shown.length;
+    const note = q && !hits.length ? `'${q}'와(과) 맞는 항목이 없어요`
+      : rest > 0 ? (q ? `${rest}개 더 있어요. 글자를 더 입력해 좁혀 보세요` : `전체 ${opts.length}개 · 글자를 입력해 찾아 보세요`) : '';
+    pop.show(shown.map(([key, label]) => ({ key, label })), note, pick, code);
   };
   input.addEventListener('focus', () => { input.select(); render(true); });
+  input.addEventListener('click', () => { if (!pop.open) render(true); });
   input.addEventListener('input', () => render());
-  input.addEventListener('blur', () => { close(); input.value = labelOf(code); }); // 직접 입력은 못 하니 원래 값으로 되돌림
+  input.addEventListener('change', (e) => e.stopPropagation()); // 타이핑 중 생기는 입력칸 change는 밖으로 안 보냄(고를 때만 wrap에서 올림)
+  input.addEventListener('blur', () => { pop.close(); input.value = labelOf(code); }); // 직접 입력은 못 하니 원래 값으로 되돌림
   input.addEventListener('keydown', (e) => {
-    const n = list.hidden ? 0 : shown.length;
-    if (e.key === 'Escape' && n) { e.stopPropagation(); close(); }
-    else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) { e.preventDefault(); mark((cur + 1 + (e.key === 'ArrowDown' ? 1 : n)) % (n + 1) - 1); }
-    else if (e.key === 'Enter' && cur >= 0) { e.preventDefault(); pick(shown[cur][0]); }
+    if (pop.key(e, pick)) return;
+    if (e.key === 'ArrowDown' && !pop.open) { e.preventDefault(); render(true); }
   });
   Object.defineProperty(wrap, 'value', { get: () => code, set: setCode });
+  Object.defineProperty(wrap, 'disabled', { get: () => input.disabled, set: (v) => { input.disabled = !!v; } });
+  wrap.focus = () => input.focus();
   wrap.setOptions = (next, keepIfPresent = true) => {
-    opts = next;
+    opts = next.map((o) => (Array.isArray(o) ? o : [o, o]));
     setCode(keepIfPresent ? code : '');
-    if (!list.hidden) render(true); // 목록이 펼쳐진 채로 분류가 바뀌면 새 목록으로 다시 그린다
+    if (pop.open) render(true); // 목록이 펼쳐진 채로 분류가 바뀌면 새 목록으로 다시 그린다
   };
+  return wrap;
+}
+
+/* 자유 입력칸에 검색 후보를 붙인다(목록에 없는 값도 그대로 입력 가능). 이미 만든 input을 받아
+   감싼 div(.ti)를 돌려준다. source(q)는 후보 글자 배열(또는 그 Promise)을 돌려주는 함수.
+   빈칸으로 누르면 앞의 preview개만 보여 주고, 글자를 치면 맞는 후보만 보여 준다. */
+let sugUid = 0;
+export function attachSuggest(input, { source, preview = COMBO_PREVIEW, delay = 0 }) {
+  const listId = `sg-${++sugUid}`;
+  input.setAttribute('autocomplete', 'off');
+  input.removeAttribute('list');
+  Object.entries({ role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': listId })
+    .forEach(([k, v]) => input.setAttribute(k, v));
+  const pop = popList(listId, input);
+  const wrap = h('div', { class: 'ti' }, input, pop.list);
+  wrap.control = input;
+  let seq = 0;
+  let timer;
+  const pick = (it) => {
+    input.value = it.label;
+    pop.close();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  async function load() {
+    const my = ++seq; // 늦게 온 옛 응답은 버린다
+    const q = input.value.trim();
+    let terms;
+    try { terms = await source(q); } catch { return; } // 후보를 못 받아도 직접 입력은 그대로 된다
+    if (my !== seq || document.activeElement !== input) return;
+    const shown = q ? terms.slice(0, COMBO_MAX) : terms.slice(0, preview);
+    const note = !q && terms.length > preview ? '글자를 입력하면 맞는 것만 찾아 드려요' : '';
+    // 이미 정확히 같은 값 하나만 남았으면 굳이 펼치지 않는다
+    if (q && shown.length === 1 && shown[0] === q) { pop.close(); return; }
+    pop.show(shown.map((t) => ({ key: t, label: t })), note, pick, q);
+  }
+  input.addEventListener('focus', load);
+  input.addEventListener('input', (e) => {
+    if (!e.isTrusted) return; // pick()이 보낸 이벤트는 목록을 다시 열지 않는다
+    clearTimeout(timer);
+    if (delay) timer = setTimeout(load, delay); else load();
+  });
+  input.addEventListener('blur', () => { seq++; clearTimeout(timer); pop.close(); });
+  input.addEventListener('keydown', (e) => {
+    if (pop.key(e, pick)) return;
+    if (e.key === 'ArrowDown' && !pop.open) { e.preventDefault(); load(); }
+  });
   return wrap;
 }
 

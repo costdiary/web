@@ -817,7 +817,8 @@ def connect() -> sqlite3.Connection:
 #     제공자가 확인해 준 진짜 이메일이 있는 계정은 확인된 것으로 채운다(이메일 가입 계정은 비워 둔다).
 # 22: 새로 추가한 식자재·프렙에 NEW 표시 — ingredients.created_at, preps.created_at을 ALTER로 더한다.
 #     기존 행은 언제 만들었는지 몰라 비워 둔다(NEW로 보이지 않음). 예시 데이터(seed.py)도 비워 둔다.
-SCHEMA_VERSION = 22
+# 23: 분류·등급·부위 자동완성 후보를 정육 밖의 분류까지 넉넉히(TERMS_SEED_V23, 약 640개) — INSERT OR IGNORE라 사장님 값은 그대로.
+SCHEMA_VERSION = 23
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -953,6 +954,8 @@ def migrate(conn: sqlite3.Connection) -> None:
             for table in ("ingredients", "preps"):
                 if "created_at" not in _columns(conn, table):
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN created_at TEXT")
+        if conn.execute("PRAGMA user_version").fetchone()[0] < 23:
+            conn.executemany("INSERT OR IGNORE INTO mk_terms(kind, category, term) VALUES (?,?,?)", market_catalog.TERMS_SEED_V23)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.execute("COMMIT")
     except BaseException:

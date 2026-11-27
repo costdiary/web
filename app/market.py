@@ -159,13 +159,26 @@ def search_catalog(db, q: str, unit_kind: str | None = None, limit: int = 200) -
     return [item for _, item in scored[:limit]]
 
 
-def search_terms(db, uid: int, kind: str, q: str = "", category: str = "") -> list[str]:
+_CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+
+
+def _chosung(s: str) -> str:
+    """'대파' -> 'ㄷㅍ'. 한글 음절이 아닌 글자는 그대로 둔다."""
+    return "".join(_CHO[(ord(c) - 0xAC00) // 588] if 0xAC00 <= ord(c) <= 0xD7A3 else c for c in s)
+
+
+def search_terms(db, uid: int, kind: str, q: str = "", category: str = "", limit: int = 10) -> list[str]:
     """GET /api/market/terms. 분류·등급·부위 자동완성 후보: 시드(``mk_terms``) + 사장님들이 실제로
     ``ingredients.<kind>``에 입력한 값. 개인정보 보호를 위해 다른 사장님의 자유 입력은 서로 다른
-    2명 이상이 쓴 값만 넣는다(내 값은 항상). category는 정렬 가산점일 뿐 필터가 아니다."""
+    2명 이상이 쓴 값만 넣는다(내 값은 항상).
+    - q가 비어 있으면: category가 있고 그 분류 후보가 있으면 그 분류 것만(없으면 전체에서) 보여 준다.
+    - q가 있으면: 띄어쓰기를 무시하고 글자가 들어간 후보를 찾되, category가 같은 것을 먼저 보여 준다.
+      'ㄷㅍ'처럼 초성만 치면 초성으로 찾는다."""
     if kind not in ("category", "grade", "cut"):
         return []
-    esc = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    nq = "".join(q.split())
+    cho = bool(nq) and all(c in _CHO for c in nq)
+    esc = nq.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     rows = db.execute(
         f"""WITH ok AS (
               SELECT {kind} AS term FROM ingredients WHERE {kind} IS NOT NULL AND {kind} != ''
@@ -175,16 +188,21 @@ def search_terms(db, uid: int, kind: str, q: str = "", category: str = "") -> li
               WHERE {kind} IN (SELECT term FROM ok) GROUP BY {kind}, category),
             cand AS (SELECT term, category AS cat FROM mk_terms WHERE kind = :kind
                      UNION SELECT term, cat FROM used)
-            SELECT cand.term FROM cand LEFT JOIN used ON used.term = cand.term AND used.cat = cand.cat
-            WHERE cand.term LIKE :like ESCAPE '\\'
+            SELECT cand.term, MAX(cand.cat = :category AND :category != '') AS incat
+            FROM cand LEFT JOIN used ON used.term = cand.term AND used.cat = cand.cat
+            WHERE :cho OR REPLACE(cand.term, ' ', '') LIKE :like ESCAPE '\\'
             GROUP BY cand.term
-            ORDER BY MAX(cand.cat = :category AND :category != '') DESC, SUM(COALESCE(used.cnt, 0)) DESC,
-                     cand.term LIKE :prefix ESCAPE '\\' DESC,
-                     COALESCE((SELECT MIN(rowid) FROM mk_terms t WHERE t.kind = :kind AND t.term = cand.term), 1000000), cand.term
-            LIMIT 10""",  # nosec B608 — kind는 위에서 화이트리스트로 거른 열 이름
-        {"uid": uid, "kind": kind, "like": f"%{esc}%", "prefix": f"{esc}%", "category": category},
+            ORDER BY incat DESC, REPLACE(cand.term, ' ', '') LIKE :prefix ESCAPE '\\' DESC,
+                     SUM(COALESCE(used.cnt, 0)) DESC,
+                     COALESCE((SELECT MIN(rowid) FROM mk_terms t WHERE t.kind = :kind AND t.term = cand.term), 1000000), cand.term""",  # nosec B608 — kind는 위에서 화이트리스트로 거른 열 이름
+        {"uid": uid, "kind": kind, "like": f"%{esc}%", "prefix": f"{esc}%", "category": category, "cho": int(cho)},
     ).fetchall()
-    return [r["term"] for r in rows]
+    if cho:
+        hits = [(r, _chosung("".join(r["term"].split())).find(nq)) for r in rows]
+        rows = [r for r, at in sorted((x for x in hits if x[1] >= 0), key=lambda x: (not x[0]["incat"], x[1] != 0))]
+    elif not nq and category and any(r["incat"] for r in rows):
+        rows = [r for r in rows if r["incat"]]
+    return [r["term"] for r in rows[:limit]]
 
 
 def find_similar_catalog_item(db, name: str, unit_kind: str) -> dict | None:

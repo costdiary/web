@@ -2,7 +2,7 @@
    원가다이어리와는 다른 서비스라 원가다이어리 앱 안에는 두지 않고, 도매마켓(/partner)에서만 연다.
    사장님은 원가다이어리 계정으로 로그인하고, 구매 기록은 사장님이 켠 식자재만 익명으로 쓰인다. */
 import {
-  h, api, app, field, numInput, selectOf, parseNum, n1, nPrice, openDialog,
+  h, api, app, field, numInput, comboSelect, parseNum, n1, nPrice, openDialog,
   busy, toast, errMsg, refreshRoute, fill,
 } from '../core.js';
 import { emptyBlock, termInput } from '../ui.js';
@@ -17,7 +17,7 @@ export function appHref(hash = '') {
 
 export function openMarketNotice({ settings, onDone } = {}) {
   let st = settings;
-  const regionSel = h('select', { class: 'select' });
+  const regionSel = comboSelect([], '', { placeholder: '권역을 검색하거나 고르세요' });
   const optin = h('input', { type: 'checkbox', checked: true });
   const threshold = numInput({ value: '5' });
   const err = h('div', { class: 'form-err', role: 'alert', hidden: true });
@@ -25,7 +25,7 @@ export function openMarketNotice({ settings, onDone } = {}) {
 
   async function load() {
     st = st || (await api('/api/market/settings'));
-    fill(regionSel, h('option', { value: '' }, '권역을 선택하세요'), st.regions.map((r) => h('option', { value: r.code }, r.label)));
+    regionSel.setOptions(st.regions.map((r) => [r.code, r.label]));
     regionSel.value = st.region_code || '';
     optin.checked = st.demand_optin !== false;
     threshold.value = String(st.threshold_pct ?? 5);
@@ -201,7 +201,7 @@ function ingredientRow(it, origins) {
   /* 상세: 원산지·등급·부위를 펼쳐서 수정. 저장 시 지금 토글 상태(enabled)를 그대로 함께 보낸다.
      꺼진 상태로 저장해도(enabled:false) 원산지·등급·부위 값은 그대로 남는다 — 백엔드가
      노출 여부와 식자재 정보를 분리해서 다룬다. */
-  const detailOriginSel = selectOf([['', '원산지 선택'], ...origins.map((o) => [o.code, o.label])], it.origin || '');
+  const detailOriginSel = comboSelect(origins.map((o) => [o.code, o.label]), it.origin || '', { placeholder: '원산지 검색 또는 선택' });
   const gradeInput = termInput({ kind: 'grade', category: () => it.category, maxLength: 10, value: it.grade || '', placeholder: '예: 1++, Prime (선택)' });
   const cutInput = termInput({ kind: 'cut', category: () => it.category, maxLength: 40, value: it.cut || '', placeholder: '예: 등심, 삼겹살, 안심 (선택)' });
   const detailErr = h('div', { class: 'form-err', role: 'alert', hidden: true });

@@ -4,7 +4,7 @@ import {
   h, api, app, field, numInput, selectOf, parseNum, n0, n3, icon, go, refreshRoute, fill,
   confirmDialog, busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS,
 } from './core.js';
-import { emptyBlock, num, newTag } from './ui.js';
+import { emptyBlock, num, newTag, localSuggest } from './ui.js';
 
 function prepRow(p) {
   const sub = [`완성량 ${n3(p.yield_qty)}${p.unit_kind}`, `재료 ${p.items.length}개`, p.used_in_menus ? `메뉴 ${p.used_in_menus}개에 사용` : '아직 메뉴에 안 씀'].join(' · ');
@@ -71,7 +71,7 @@ export async function renderEditor(box, id) {
     else { yieldUnit.value = prep.unit_kind; yieldQty.value = n3(prep.yield_qty); }
   }
 
-  const datalist = h('datalist', { id: 'prep-ing-options' }, ings.map((i) => h('option', { value: i.name })));
+  const ingNames = ings.map((i) => i.name);
   const rowsBox = h('div', { 'aria-label': '재료 목록' });
   const rows = [];
   const totalCost = h('span', { class: 'n' }, '–');
@@ -81,15 +81,16 @@ export async function renderEditor(box, id) {
 
   function addRow(pre = {}) {
     const r = {
-      name: h('input', { class: 'input', type: 'text', list: 'prep-ing-options', autocomplete: 'off', placeholder: '재료 이름', value: pre.name ?? '' }),
+      name: h('input', { class: 'input', type: 'text', autocomplete: 'off', placeholder: '재료 이름', 'aria-label': '재료 이름', value: pre.name ?? '' }),
       qty: numInput({ placeholder: '양', value: pre.qty != null ? n3(pre.qty) : '' }),
       unit: selectOf(ALL_UNITS, pre.unit ?? 'g'),
       cost: h('span', { class: 'm-cost muted' }, '–'),
       err: h('div', { class: 'err', role: 'alert' }),
     };
     const del = h('button', { class: 'icon-btn m-del', type: 'button', 'aria-label': '이 재료 빼기', onclick: () => { rows.splice(rows.indexOf(r), 1); r.el.remove(); recalc(); } }, icon('trash', 20));
-    r.name.classList.add('m-name'); r.qty.classList.add('m-qty'); r.unit.classList.add('m-unit');
-    r.el = h('div', { class: 'mrow' }, r.name, r.qty, r.unit, r.cost, del, r.err);
+    const nameBox = localSuggest(r.name, ingNames); // 내 식자재 이름 중에서 글자로 찾기
+    nameBox.classList.add('m-name'); r.qty.classList.add('m-qty'); r.unit.classList.add('m-unit');
+    r.el = h('div', { class: 'mrow' }, nameBox, r.qty, r.unit, r.cost, del, r.err);
     const setUnits = () => {
       const ing = byName.get(r.name.value.trim());
       if (!ing) return;
@@ -200,6 +201,6 @@ export async function renderEditor(box, id) {
     h('div', { class: 'page-h' },
       h('a', { class: 'btn ghost sm', href: '#/preps' }, icon('back', 18), '프렙 목록'),
       h('h1', { style: 'font-size:1.125rem' }, prep ? '프렙 수정' : '새 프렙')),
-    datalist, form);
+    form);
   if (!prep) name.focus();
 }

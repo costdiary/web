@@ -265,6 +265,7 @@ export function createBowl3D(el, opts = {}) {
 
   let fill = 0; let fillShown = 0;
   const soupY = (f) => BOTTOM + 0.16 + 0.3 * f;
+  const TOP = soupY(1) + 0.02; // 재료가 쌓일 수 있는 가장 높은 곳(입구보다 한참 아래)
   const radiusAt = (y) => { const t = (y - BOTTOM) / DEPTH; return R_IN * (0.72 + 0.28 * Math.min(1, Math.max(0, t)) ** 0.7) - 0.02; };
 
   /* 쌓임: 바닥 격자의 높이를 기억했다가 조각이 그 위에 내려앉습니다 */
@@ -280,11 +281,11 @@ export function createBowl3D(el, opts = {}) {
       const m = spec.make(r, count);
       m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       // 떨어질 자리: 가운데로 모이게, 무더기 근처면 그 위로
-      const a = r() * Math.PI * 2; const rr = Math.min(0.74, Math.abs((r() + r() + r() - 1.5) * 0.8)) * R_IN;
+      const a = r() * Math.PI * 2; const rr = Math.min(0.42, Math.abs((r() + r() + r() - 1.5) * 0.5)) * R_IN;
       const x = (from ? from.x : 0) * 0.3 + Math.cos(a) * rr; const z = (from ? from.z : 0) * 0.3 + Math.sin(a) * rr;
-      m.position.set(x, 1.6 + r() * 0.4, z);
+      m.position.set(x, 1.3 + r() * 0.3, z);
       m.rotation.set(r() * 6.28, r() * 6.28, r() * 6.28);
-      const rest = new THREE.Euler((r() - 0.5) * 0.9, r() * 6.28, (r() - 0.5) * 0.9);
+      const rest = new THREE.Euler((r() - 0.5) * 0.5, r() * 6.28, (r() - 0.5) * 0.5);
       scene.add(m);
       pieces.push({ m, vy: 0, rest, spin: new THREE.Vector3(r() - 0.5, r() - 0.5, r() - 0.5).multiplyScalar(6), size: spec.size, settled: false, x, z, t: 0 });
     }
@@ -298,18 +299,25 @@ export function createBowl3D(el, opts = {}) {
       const h0 = hAt(p.x, p.z); let best = null; let bh = h0;
       for (let k = 0; k < 8; k++) {
         const a = (k / 8) * Math.PI * 2; const nx = p.x + Math.cos(a) * st; const nz = p.z + Math.sin(a) * st;
-        if (nx * nx + nz * nz > 0.74 * 0.74) continue;
+        if (Math.hypot(nx, nz) > maxR(p, hAt(nx, nz))) continue;
         const hh = hAt(nx, nz); if (hh < bh) { bh = hh; best = [nx, nz]; }
       }
       if (!best || h0 - bh < p.size * 0.22) break;
       p.x = best[0]; p.z = best[1];
     }
+    keepInside(p, hAt(p.x, p.z));
     p.m.position.x = p.x; p.m.position.z = p.z;
+  }
+  // 그릇 벽 안쪽에만: 그 높이의 안쪽 반지름에서 조각 반 크기만큼 뺀 거리까지
+  function maxR(p, y) { return Math.max(0.05, radiusAt(Math.min(y, TOP)) - p.size * 0.62); }
+  function keepInside(p, y) {
+    const d = Math.hypot(p.x, p.z); const m = maxR(p, y);
+    if (d > m) { p.x *= m / d; p.z *= m / d; }
   }
   function settleHeight(p) {
     let base = BOTTOM; const rad = p.size * 0.45;
     for (let dx = -rad; dx <= rad; dx += rad) for (let dz = -rad; dz <= rad; dz += rad) base = Math.max(base, hmap[cell(p.x + dx, p.z + dz)]);
-    return base + p.size * 0.12;
+    return Math.min(TOP, base + p.size * 0.12);
   }
   function stamp(p) {
     // 이 조각이 차지한 칸들을 높여서 다음 조각이 위에 쌓이게

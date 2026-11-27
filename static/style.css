@@ -2294,3 +2294,94 @@ a.dm-stat:active { transform: scale(0.98); }
   .mb-tok.fly, .mb-receipt.printed, .mb-steam i { animation: none; }
   .mb-tok.out, .mb-blob { transition: none; }
 }
+
+/* ---- 집어서 붓기: 표지판, 손, 알갱이, 주방 저울 ---- */
+.mb-sign {
+  display: inline-flex; align-items: center; gap: 8px; margin: 14px auto 0; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--rule-2); background: rgba(0, 0, 0, 0.25); color: var(--ink-2); font-size: 0.8125rem; font-weight: 600;
+  transform-origin: 50% 0;
+}
+.mb-sign::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.mb-sign.on { color: var(--ink); border-color: var(--blue); }
+.mb-sign.on::before { background: var(--blue); box-shadow: 0 0 0 4px rgba(244, 165, 76, 0.25); }
+.mb-sign.flip { animation: mbFlip .45s cubic-bezier(.3, 1.4, .5, 1) both; }
+@keyframes mbFlip { 0% { transform: perspective(400px) rotateX(-90deg); opacity: 0; } 100% { transform: perspective(400px) rotateX(0); opacity: 1; } }
+
+.mb-bowl3d.holding { cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.mb-bowl3d.holding.pouring { cursor: grabbing; }
+.mb-bowl3d:focus-visible { outline: 2px dashed var(--blue); outline-offset: 6px; border-radius: 50%; }
+@media (hover: hover) and (pointer: fine) { .mb-stage:has(.mb-hand.show) .mb-bowl3d.holding { cursor: none; } }
+.mb-bowl3d.pouring .mb-soup { animation: mbRipple .5s ease-in-out infinite alternate; }
+@keyframes mbRipple { from { filter: brightness(1); } to { filter: brightness(1.08) saturate(1.1); } }
+.mb-tok.held .mb-blob { outline: 3px solid var(--blue); outline-offset: 3px; }
+.mb-tok.held { z-index: 150 !important; }
+.mb-tok.held .mb-tag { opacity: 1; pointer-events: auto; }
+.mb-tok.gulp .mb-blob { animation: mbGulp .5s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes mbGulp { 0% { transform: scale(1); } 30% { transform: scale(1.22, .86); } 60% { transform: scale(.94, 1.08); } 100% { transform: scale(1); } }
+.mb-tok { transition: width .18s ease-out, height .18s ease-out; }
+
+.mb-hand {
+  position: absolute; left: 0; top: 0; z-index: 400; width: 58px; height: 58px; margin: -46px 0 0 -12px; pointer-events: none;
+  opacity: 0; transition: opacity .15s ease-out;
+}
+.mb-hand.show { opacity: 1; }
+.mb-hand img, .mb-hand i { display: block; width: 100%; height: 100%; border-radius: 50%; filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.55)); transform: rotate(-8deg); transition: transform .2s cubic-bezier(.3, 1.4, .5, 1); }
+.mb-hand.pour img, .mb-hand.pour i { transform: rotate(-58deg) translate(-6px, 4px); animation: mbShake .16s ease-in-out infinite alternate; }
+@keyframes mbShake { from { translate: 0 0; } to { translate: 2px 2px; } }
+
+.mb-drop { position: absolute; z-index: 300; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none; animation: mbDrop .55s cubic-bezier(.5, 0, .9, .5) forwards; }
+.mb-drop img, .mb-drop i { display: block; width: 100%; height: 100%; border-radius: 50%; }
+@keyframes mbDrop {
+  0% { transform: translate(0, 0) scale(var(--s)) rotate(0); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(var(--dx), 70px) scale(calc(var(--s) * .6)) rotate(var(--rot)); opacity: 0; }
+}
+
+.mb-scale { width: min(100%, 360px); margin: 4px auto 0; padding: 10px; border-radius: 16px; background: linear-gradient(#3b2d21, #241910); border: 1px solid #5a4430; box-shadow: 0 16px 30px -16px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08); transform-origin: 50% 100%; }
+.mb-scale.wobble { animation: mbWobble .5s ease-in-out; }
+@keyframes mbWobble { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-2.2deg); } 45% { transform: rotate(1.8deg); } 70% { transform: rotate(-1deg); } }
+.mb-sc-lcd { padding: 8px 10px 10px; border-radius: 10px; background: #0f1a12; color: #b8f5c8; box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.7); text-align: left; }
+.mb-scale:not(.on) .mb-sc-lcd { color: #5f7f68; }
+.mb-sc-top { display: flex; align-items: center; gap: 8px; min-height: 26px; font-size: 0.8125rem; font-weight: 700; }
+.mb-sc-pic { width: 24px; height: 24px; flex: none; }
+.mb-sc-pic img, .mb-sc-pic i { display: block; width: 100%; height: 100%; border-radius: 50%; }
+.mb-sc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mb-sc-sound { flex: none; padding: 2px 8px; border-radius: 999px; border: 1px solid #2f4a37; background: none; color: #8fc09d; font-size: 0.6875rem; min-height: 24px; }
+.mb-sc-sound[aria-pressed="true"] { background: #1f3a27; color: #d7ffe1; }
+.mb-sc-read { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 6px; }
+.mb-sc-val { flex: 1; text-align: center; white-space: nowrap; }
+.mb-sc-num { font: 700 clamp(2rem, 6vw, 2.6rem)/1.1 var(--font-num); letter-spacing: 0.02em; text-shadow: 0 0 12px rgba(120, 255, 160, 0.35); }
+.mb-sc-unit { margin-left: 4px; font-size: 1rem; font-weight: 700; }
+.mb-sc-btn { width: 44px; height: 44px; flex: none; border-radius: 12px; border: 1px solid #2f4a37; background: #16261b; color: #d7ffe1; font-size: 1.375rem; line-height: 1; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.mb-sc-btn:active:not(:disabled) { background: #22402c; transform: translateY(1px); }
+.mb-sc-btn:disabled { opacity: 0.35; }
+.mb-sc-bar { position: relative; height: 8px; border-radius: 999px; background: #1b2a1f; overflow: visible; }
+.mb-sc-band { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: rgba(120, 255, 160, 0.3); }
+.mb-sc-mark { position: absolute; top: -4px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: #d7ffe1; box-shadow: 0 0 8px rgba(120, 255, 160, 0.6); transition: left .08s linear; }
+.mb-sc-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; min-height: 24px; font-size: 0.75rem; }
+.mb-sc-drop { padding: 2px 10px; min-height: 28px; border-radius: 999px; border: 1px solid #2f4a37; background: none; color: #b8f5c8; font-size: 0.75rem; }
+.mb-scale[data-where="high"] .mb-sc-lcd { color: #ffd38a; }
+.mb-scale[data-where="high"] .mb-sc-mark { background: #ffb347; box-shadow: 0 0 8px rgba(255, 179, 71, 0.7); }
+.mb-scale[data-where="high"] .mb-sc-num { text-shadow: 0 0 12px rgba(255, 179, 71, 0.45); }
+.mb-scale[data-where="low"] .mb-sc-state { color: #9fd6ff; }
+
+.mb-pick { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 700; text-align: left; cursor: grab; text-decoration: underline dotted var(--ink-3); text-underline-offset: 3px; }
+.mb-row.held { border-color: var(--blue) !important; box-shadow: inset 3px 0 0 var(--blue); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-sign.flip, .mb-scale.wobble, .mb-tok.gulp .mb-blob, .mb-bowl3d.pouring .mb-soup, .mb-hand.pour img, .mb-hand.pour i { animation: none; }
+  .mb-tok, .mb-sc-mark, .mb-hand img { transition: none; }
+}
+
+/* 양념: 숟가락으로 넣기(가루는 솔솔, 액체는 똑똑) */
+.mb-hand.spoon img { transform: rotate(20deg); }
+.mb-hand.spoon.pour img { transform: rotate(-75deg) translate(-4px, 2px); }
+.mb-drop.dust, .mb-drop.drip { width: 6px; height: 6px; margin: -3px 0 0 -3px; animation-duration: .5s; }
+.mb-drop.drip { width: 7px; height: 10px; }
+.mb-drop.drip i { border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%; }
+.mb-sc-spoon { display: block; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0; color: inherit; opacity: .85; min-height: 1.2em; }
+.mb-sauce { margin-top: 12px; }
+.mb-sauce .mb-add-row > .input { grid-column: auto; }
+.mb-sauce .mb-add-row > .select { grid-column: 1 / -1; }
+.mb-sauce-note { margin-top: 6px; }
+.mb-sticky.held { border-color: var(--blue); }

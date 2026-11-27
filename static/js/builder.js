@@ -71,11 +71,37 @@ const SOUPS = [
 ];
 const soupOf = (name) => (SOUPS.find(([re]) => re.test(name || '')) || [null, '#e8dcc4'])[1];
 
+/* 양념은 꾹 눌러 붓지 않고 숟가락으로 넣습니다. 한 번 누르면 1작은술(=1/3큰술), 누르고 있으면 한 숟갈씩 이어서.
+   숫자는 1큰술의 대략 무게(g). 액체(ml)는 1큰술=15ml. 가게마다 숟가락이 달라 '약'으로 보여 줍니다. */
+const SPOON = [
+  [/고춧가루/, 7], [/설탕/, 12], [/소금/, 15], [/후추|후춧/, 6], [/깨$|통깨|참깨/, 8], [/다진\s?마늘|다진\s?생강/, 15],
+  [/고추장|된장|춘장|쌈장|다대기|양념장/, 18], [/굴소스|물엿|올리고당|조청/, 20], [/케첩|마요|소스|머스타드|겨자/, 16],
+  [/간장|식초|맛술|미림|기름|액젓|청주|소주|레몬즙/, 15], [/가루|전분|조미료|다시다|미원/, 8],
+];
+const LIQUID = /간장|식초|맛술|미림|기름|액젓|청주|소주|즙/;
+const spoonOf = (ln) => {
+  if (ln.kind === 'ea' || ln.base > 60) return null;
+  const hit = SPOON.find(([re]) => re.test(ln.name));
+  return hit ? (ln.kind === 'ml' ? 15 : hit[1]) : null;
+};
+/* 받침이 있으면 '을/이', 없으면 '를/가' */
+const josa = (w, withF, without) => {
+  const c = (w || '').trim().slice(-1).charCodeAt(0);
+  return c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 ? withF : without;
+};
+/* 0.33 → '1작은술', 1 → '1큰술', 1.67 → '1큰술 2작은술' */
+const spoonText = (tbsp) => {
+  const tsp = Math.round(tbsp * 3);
+  if (!tsp) return '한 꼬집';
+  const T = Math.floor(tsp / 3); const t = tsp % 3;
+  return [T ? `${T}큰술` : '', t ? `${t}작은술` : ''].filter(Boolean).join(' ');
+};
 const niceStep = (max) => (max > 400 ? 5 : max > 60 ? 1 : max > 6 ? 0.5 : 0.1);
 
 export async function render(box) {
-  const ingRes = await api('/api/ingredients');
+  const [ingRes, prepRes] = await Promise.all([api('/api/ingredients'), api('/api/preps').catch(() => ({ items: [] }))]);
   const ings = ingRes.items;
+  const preps = prepRes.items; // 양념장·육수처럼 한 통 만들어 두는 것(프렙 레시피)
   const ingById = new Map(ings.map((i) => [i.id, i]));
   const canWrite = app.me.plan.writable;
   const { target_cost_ratio: target, vat_mode: vat } = app.me.settings;
@@ -84,6 +110,8 @@ export async function render(box) {
   let lines = [];
   let picked = null; // { name, source, serving_note }
   let uid = 0;
+  let held = null; // 손에 든 재료(line key)
+  const rowMap = new Map(); // key → 오른쪽 줄
 
   /* ---------------- 왼쪽: 메뉴 찾기 ---------------- */
   const q = h('input', { class: 'input', type: 'search', maxLength: 60, autocomplete: 'off', placeholder: '예: 제육볶음, 김치찌개', 'aria-label': '메뉴 이름으로 찾기' });
@@ -127,6 +155,38 @@ export async function render(box) {
   };
   addName.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addOne(); } });
 
+  /* 양념장 한 통: 프렙 레시피로 만들어 둔 양념장을 '한 통이 몇 인분인지'로 나눠 1인분만 담습니다. */
+  const sauceSel = selectOf(preps.map((pr) => [String(pr.id), pr.name]), preps[0] ? String(preps[0].id) : '', { 'aria-label': '양념장', class: 'select' });
+  const sauceN = numInput({ placeholder: '인분', value: '', 'aria-label': '한 통으로 몇 인분' });
+  const sauceNote = h('p', { class: 'xs muted mb-sauce-note' });
+  const prepOf = (id) => preps.find((pr) => pr.id === Number(id));
+  const unitOfKind = (k) => UNIT_OF[k] || 'g';
+  const paintSauceNote = () => {
+    const pr = prepOf(sauceSel.value); const n = parseNum(sauceN.value);
+    if (!pr) { sauceNote.textContent = ''; return; }
+    const u = unitOfKind(pr.unit_kind);
+    sauceNote.textContent = n > 0 ? `한 통 ${n3(pr.yield_qty)}${u} ÷ ${n0(n)}인분 = 1인분 ${n3(pr.yield_qty / n)}${u}${pr.unit_price != null ? ` · ${n0((pr.yield_qty / n) * pr.unit_price)}원` : ''}`
+      : `한 통 ${n3(pr.yield_qty)}${u}. 한 통으로 몇 인분 나오는지 넣어 주세요.`;
+  };
+  sauceSel.addEventListener('change', paintSauceNote);
+  sauceN.addEventListener('input', paintSauceNote);
+  const addSauce = () => {
+    const pr = prepOf(sauceSel.value); const n = parseNum(sauceN.value);
+    if (!pr) return;
+    if (!(n > 0)) { sauceN.focus(); toast('한 통으로 몇 인분이 나오는지 넣어 주세요.', 'err'); return; }
+    const per = Math.round((pr.yield_qty / n) * 10) / 10;
+    const ln = makeLine({ name: pr.name, qty: per, qty_low: per * 0.9, qty_high: per * 1.1, unit: unitOfKind(pr.unit_kind), kind: pr.unit_kind, confidence: 'high', note: `양념장 한 통 ${n3(pr.yield_qty)}${unitOfKind(pr.unit_kind)}을 ${n0(n)}인분으로 나눈 양`, match: { id: pr.ingredient_id } }, true);
+    ln.batch = { total: pr.yield_qty, n };
+    lines.push(ln);
+    paintAll();
+  };
+  const saucePanel = h('div', { class: 'mb-add mb-sauce' },
+    h('p', { class: 'xs muted', style: 'margin-bottom:6px' }, '양념장 한 통으로 넣기'),
+    preps.length
+      ? [h('div', { class: 'mb-add-row' }, sauceSel, sauceN, h('button', { class: 'btn sm ghost', type: 'button', onclick: addSauce, 'aria-label': '양념장 1인분 담기' }, icon('plus', 16))), sauceNote]
+      : h('p', { class: 'xs muted' }, '양념장을 한 통씩 만들어 쓰신다면 ', h('a', { href: '#/preps/new' }, '프렙 레시피'), '에 한 통 기준으로 적어 두세요. 여기서 인분 수로 나눠 1인분만 담을 수 있어요.'));
+  paintSauceNote();
+
   const findPanel = h('section', { class: 'sheet mb-find', 'aria-label': '메뉴 찾기' },
     h('h2', { class: 'mb-h' }, h('span', { class: 'mb-step' }, '1'), '메뉴 찾기'),
     h('div', { class: 'search' }, icon('search', 18), q),
@@ -135,6 +195,7 @@ export async function render(box) {
       h('p', { class: 'xs muted', style: 'margin-bottom:6px' }, '재료 하나씩 더하기'),
       h('div', { class: 'mb-add-row' }, addName, addKind, h('button', { class: 'btn sm ghost', type: 'button', onclick: addOne, 'aria-label': '재료 더하기' }, icon('plus', 16))),
       addList),
+    saucePanel,
     h('p', { class: 'xs muted mb-photo' }, '요리 사진이 있다면 ', h('a', { href: '#/menus/photo' }, '사진으로 짐작하기'), '도 써 볼 수 있어요. (사진 인식 횟수 차감)'));
 
   /* ---------------- 가운데: 그릇 ---------------- */
@@ -146,8 +207,36 @@ export async function render(box) {
     h('div', { class: 'mb-plate' }, h('div', { class: 'mb-rim' }, bowl)),
     h('div', { class: 'mb-shadow', 'aria-hidden': 'true' }));
   const bowlNote = h('p', { class: 'xs muted mb-bowl-note' });
+
+  /* 표지판: 지금 무엇을 하면 되는지 한 줄로. 문구가 바뀌면 판이 한 번 뒤집힙니다. */
+  const signText = h('span');
+  const sign = h('p', { class: 'mb-sign', 'aria-live': 'polite' }, signText);
+
+  /* 주방 저울: 손에 든 재료의 양을 크게 보여 주고, 보통 쓰는 양 범위 안인지 알려 줍니다. */
+  const scPic = h('span', { class: 'mb-sc-pic', 'aria-hidden': 'true' });
+  const scName = h('span', { class: 'mb-sc-name' });
+  const scNum = h('b', { class: 'mb-sc-num n' });
+  const scUnit = h('span', { class: 'mb-sc-unit' });
+  const scBand = h('span', { class: 'mb-sc-band' });
+  const scMark = h('span', { class: 'mb-sc-mark' });
+  const scState = h('span', { class: 'mb-sc-state' });
+  const scSpoon = h('span', { class: 'mb-sc-spoon' });
+  const scMinus = h('button', { class: 'mb-sc-btn', type: 'button', 'aria-label': '조금 덜기' }, '−');
+  const scPlus = h('button', { class: 'mb-sc-btn', type: 'button', 'aria-label': '조금 더 담기' }, '+');
+  const scDrop = h('button', { class: 'mb-sc-drop', type: 'button' }, '내려놓기');
+  const scSound = h('button', { class: 'mb-sc-sound', type: 'button', 'aria-pressed': 'false' });
+  const scale = h('div', { class: 'mb-scale', 'aria-label': '주방 저울' },
+    h('div', { class: 'mb-sc-lcd' },
+      h('div', { class: 'mb-sc-top' }, scPic, scName, scSound),
+      h('div', { class: 'mb-sc-read', 'aria-live': 'off' }, scMinus, h('span', { class: 'mb-sc-val' }, scNum, scUnit, scSpoon), scPlus),
+      h('div', { class: 'mb-sc-bar', 'aria-hidden': 'true' }, scBand, scMark),
+      h('div', { class: 'mb-sc-foot' }, scState, scDrop)));
+
+  /* 손: 집은 재료가 마우스를 따라다닙니다(마우스가 있는 화면에서만). */
+  const hand = h('div', { class: 'mb-hand', 'aria-hidden': 'true' });
+
   const bowlPanel = h('section', { class: 'mb-mid', 'aria-label': '그릇' },
-    h('p', { class: 'mb-kicker' }, '오늘의 한 그릇'), menuName, bowl3d, bowlNote,
+    h('p', { class: 'mb-kicker' }, '오늘의 한 그릇'), menuName, sign, bowl3d, scale, bowlNote,
     h('p', { class: 'mb-credit' }, '재료 그림: ', h('a', { href: 'https://github.com/jdecked/twemoji', target: '_blank', rel: 'noopener' }, 'Twemoji'), ' (CC-BY 4.0)'));
 
   /* ---------------- 오른쪽: 양 조절과 원가 ---------------- */
@@ -186,13 +275,13 @@ export async function render(box) {
   const stepNames = ['메뉴 고르기', '그릇 채우기', '양·가격 맞추기', '저장'];
   const steps = stepNames.map((t, i) => h('li', { class: 'mb-stp' }, h('span', { class: 'mb-stp-n' }, String(i + 1)), h('span', null, t)));
   const stepper = h('ol', { class: 'mb-stepper', 'aria-label': '진행 단계' }, steps);
-  box.append(h('div', { class: 'mb-stage' },
+  const stage = h('div', { class: 'mb-stage' },
     h('div', { class: 'mb-top' },
       h('a', { class: 'btn ghost sm', href: '#/menus' }, icon('back', 18), '메뉴 목록'),
       h('h1', { class: 'mb-title' }, 'Build your ', h('em', null, 'bowl.'), h('span', { class: 'mb-title-ko' }, '그릇 채우기로 메뉴 만들기'))),
     stepper,
-    h('div', { class: 'mb-grid' }, findPanel, bowlPanel, adjustPanel)),
-    sticky);
+    h('div', { class: 'mb-grid' }, findPanel, bowlPanel, adjustPanel), hand);
+  box.append(stage, sticky);
   const setStep = (n) => steps.forEach((el, i) => { el.classList.toggle('done', i < n); el.classList.toggle('now', i === n); });
 
   /* ---------------- 재료 한 줄 ---------------- */
@@ -226,6 +315,7 @@ export async function render(box) {
   }
 
   function removeLine(key) {
+    if (held === key) putDown();
     const chip = bowl.querySelector(`[data-key="${key}"]`);
     const done = () => { lines = lines.filter((l) => l.key !== key); paintAll(); };
     if (chip && !REDUCED) { chip.classList.add('out'); setTimeout(done, 180); } else done();
@@ -276,10 +366,10 @@ export async function render(box) {
       const fx = narrow ? 0 : fromX - px;
       const fy = narrow ? -260 : fromY - py;
       const tok = h('div', {
-        class: `mb-tok${ingOf(ln) ? '' : ' unlinked'}${ln.fresh ? ' fly' : ''}${i < 3 ? ' big' : ''}`, role: 'listitem', 'data-key': ln.key,
+        class: `mb-tok${ingOf(ln) ? '' : ' unlinked'}${ln.fresh ? ' fly' : ''}${i < 3 ? ' big' : ''}${held === ln.key ? ' held' : ''}`, role: 'listitem', 'data-key': ln.key,
         style: { left: `${x}%`, top: `${y}%`, '--z': String(size), '--c1': c1, '--c2': c2, '--fx': `${fx}px`, '--fy': `${fy}px`, '--d': `${(ln.fresh ? fresh++ : 0) * 90}ms`, 'z-index': String(100 - i) },
       },
-      h('button', { class: 'mb-blob', type: 'button', onclick: () => focusRow(ln.key), 'aria-label': `${ln.name} ${n3(ln.qty)}${ln.unit}, 양 조절로 가기` },
+      h('button', { class: 'mb-blob', type: 'button', onclick: (e) => { if (held !== ln.key && (held == null || e.detail === 0)) pickUp(ln.key); }, 'aria-label': `${ln.name} ${n3(ln.qty)}${ln.unit}, 집어서 붓기`, 'aria-pressed': String(held === ln.key) },
         picOf(ln.name) ? h('img', { src: picOf(ln.name), alt: '', loading: 'lazy', draggable: false }) : null),
       h('span', { class: 'mb-tag' }, h('b', null, ln.name), ' ', h('span', { class: 'mb-chip-q' }, `${n3(ln.qty)}${ln.unit}`),
         h('button', { class: 'mb-chip-x', type: 'button', 'aria-label': `${ln.name} 빼기`, onclick: () => removeLine(ln.key) }, '×')));
@@ -291,13 +381,16 @@ export async function render(box) {
       .filter(Boolean).join(' · ');
   }
 
-  function focusRow(key) {
-    const row = rows.querySelector(`[data-key="${key}"]`);
-    if (!row) return;
-    row.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' });
+  function flashRow(row) {
     row.classList.remove('flash');
     void row.offsetWidth;
     row.classList.add('flash');
+  }
+  function focusRow(key) {
+    const row = rowMap.get(key);
+    if (!row) return;
+    row.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' });
+    flashRow(row);
     row.querySelector('input[type=range]')?.focus({ preventScroll: true });
   }
 
@@ -328,20 +421,23 @@ export async function render(box) {
       if (from !== 'num') num.value = n3(v);
       if (from !== 'slider') slider.value = String(Math.min(v, max));
       band();
-      paintChipQty(ln);
-      paintReceipt();
+      afterQty(ln);
     };
     slider.addEventListener('input', () => set(Number(slider.value), 'slider'));
     num.addEventListener('input', () => { const v = parseNum(num.value); if (v > 0) set(v, 'num'); });
     link.addEventListener('change', () => { ln.ingId = link.value === 'new' ? null : Number(link.value); band(); paintBowl(); paintReceipt(); });
     const row = h('div', { class: 'mb-row', 'data-key': ln.key },
-      h('div', { class: 'mb-row-h' }, h('b', null, ln.name), tag, cost,
+      h('div', { class: 'mb-row-h' },
+        h('button', { class: 'mb-pick', type: 'button', onclick: () => (held === ln.key ? putDown() : pickUp(ln.key, true)), title: '집어서 그릇에 붓기' }, ln.name),
+        tag, cost,
         h('button', { class: 'mb-chip-x', type: 'button', 'aria-label': `${ln.name} 빼기`, onclick: () => removeLine(ln.key) }, '×')),
       h('div', { class: 'mb-row-ctl' }, slider, h('span', { class: 'mb-num' }, num, h('span', { class: 'xs muted' }, ln.unit))),
       link,
       ln.note ? h('p', { class: 'xs muted' }, ln.note) : null);
     row.sync = () => { slider.value = String(Math.min(ln.qty, max)); num.value = n3(ln.qty); band(); };
     band();
+    row.classList.toggle('held', held === ln.key);
+    rowMap.set(ln.key, row);
     return row;
   }
 
@@ -352,6 +448,7 @@ export async function render(box) {
 
   function paintRows() {
     if (!lines.length) { fill(rows, h('p', { class: 'small muted' }, '재료가 담기면 여기서 양을 맞춰요. 회색 띠는 보통 쓰는 양의 범위예요.')); return; }
+    rowMap.clear();
     fill(rows, lines.map(rowFor));
   }
 
@@ -381,13 +478,302 @@ export async function render(box) {
     save.textContent = lines.length ? `재료 ${lines.length}개로 메뉴 저장` : '재료를 담아 주세요';
     save.disabled = !lines.length || !canWrite;
     sticky.hidden = !lines.length;
-    stickyText.textContent = `1인분 ${priced.length ? `${n0(t.cost)}원` : '–'}${t.ratio != null ? ` · 원가율 ${n1(t.ratio)}%` : ''}`;
+    const hl = held != null ? lines.find((l) => l.key === held) : null; // 휴대폰에서 부을 때 저울이 화면 밖이어도 무게가 보이게
+    sticky.classList.toggle('held', !!hl);
+    stickyText.textContent = `${hl ? `${hl.name} ${n3(hl.qty)}${hl.unit} · ` : ''}1인분 ${priced.length ? `${n0(t.cost)}원` : '–'}${t.ratio != null ? ` · 원가율 ${n1(t.ratio)}%` : ''}`;
+  }
+
+  /* ---------------- 집어서 붓기 ----------------
+     재료를 눌러 손에 들고, 그릇을 꾹 누르고 있으면 계속 부어집니다. 오래 누를수록 빨리 담기고(1배 → 2배 → 3.5배),
+     손을 떼면 멈춥니다. 키보드로는 그릇에 초점을 두고 스페이스/엔터를 누르고 있으면 됩니다. */
+  const lineOf = (key) => lines.find((l) => l.key === key);
+  const tspOf = (ln) => { const sp = spoonOf(ln); return sp ? sp / 3 : null; };
+  const fineStep = (ln) => tspOf(ln) ?? (ln.kind === 'ea' ? 0.5 : ln.base >= 100 ? 5 : ln.base >= 20 ? 1 : 0.5);
+  const pourGrain = (ln) => (spoonOf(ln) ? 0.1 : ln.kind === 'ea' ? 0.5 : ln.base >= 20 ? 1 : 0.5);
+  const capOf = (ln) => Math.max(ln.high * 4, DEFAULT_QTY[ln.kind] * 4);
+  const where = (ln) => (ln.qty < ln.low * 0.999 ? 'low' : ln.qty > ln.high * 1.001 ? 'high' : 'ok');
+
+  let rcFrame = 0;
+  const queueReceipt = () => { if (!rcFrame) rcFrame = requestAnimationFrame(() => { rcFrame = 0; paintReceipt(); }); };
+
+  /* 양이 바뀔 때마다: 그릇 속 크기, 이름표 숫자, 저울, 영수증만 고칩니다(전체를 다시 그리지 않음). */
+  function afterQty(ln) {
+    paintChipQty(ln);
+    resizeTokens();
+    if (held === ln.key) paintScale();
+    queueReceipt();
+  }
+  function setQty(ln, v) {
+    ln.qty = Math.max(0, Math.min(capOf(ln), v));
+    ln.touched = true;
+    rowMap.get(ln.key)?.sync();
+    afterQty(ln);
+  }
+  function resizeTokens() {
+    const w = (l) => (l.kind === 'ea' ? 60 * l.qty : l.qty);
+    const total = lines.reduce((s2, l) => s2 + w(l), 0) || 1;
+    for (const ln of lines) {
+      const tok = bowl.querySelector(`[data-key="${ln.key}"]`);
+      if (tok) tok.style.setProperty('--z', String(Math.round(Math.max(40, Math.min(84, 34 + (w(ln) / total) * 150)))));
+    }
+  }
+
+  function paintSign() {
+    const ln = held != null ? lineOf(held) : null;
+    const text = !lines.length ? '메뉴를 고르면 재료가 그릇에 담겨요'
+      : ln ? (spoonOf(ln) ? `${ln.name} 숟가락 들었어요 · 그릇을 누를 때마다 1작은술` : `${ln.name} 집었어요 · 그릇을 꾹 누르면 부어져요`)
+        : '재료 그림을 눌러 손에 집어 보세요';
+    if (signText.textContent === text) return;
+    signText.textContent = text;
+    sign.classList.toggle('on', !!ln);
+    if (!REDUCED) { sign.classList.remove('flip'); void sign.offsetWidth; sign.classList.add('flip'); }
+  }
+
+  let lastWhere = 'ok';
+  function paintScale() {
+    paintSign();
+    const ln = held != null ? lineOf(held) : null;
+    scale.classList.toggle('on', !!ln);
+    scale.hidden = !lines.length;
+    bowl3d.classList.toggle('holding', !!ln);
+    bowl3d.tabIndex = ln ? 0 : -1;
+    bowl3d.setAttribute('aria-label', ln ? `그릇. 스페이스를 누르고 있으면 ${ln.name}${josa(ln.name, '이', '가')} 부어져요` : '그릇');
+    for (const [k, row] of rowMap) row.classList.toggle('held', k === held);
+    bowl.querySelectorAll('.mb-tok').forEach((t) => {
+      const on = Number(t.dataset.key) === held;
+      t.classList.toggle('held', on);
+      t.querySelector('.mb-blob')?.setAttribute('aria-pressed', String(on));
+    });
+    if (!ln) {
+      scName.textContent = '재료를 집으면 무게가 보여요';
+      scNum.textContent = '0'; scNum.dataset.v = '0'; scUnit.textContent = 'g';
+      scState.textContent = ''; scSpoon.textContent = ''; scPic.replaceChildren(); scale.classList.remove('spoon'); delete scale.dataset.key;
+      scMinus.disabled = scPlus.disabled = true; scDrop.hidden = true;
+      scale.dataset.where = 'ok';
+      scBand.style.cssText = ''; scMark.style.left = '0%';
+      lastWhere = 'ok';
+      return;
+    }
+    if (scale.dataset.key !== String(ln.key)) {
+      scale.dataset.key = String(ln.key);
+      const pic = spoonOf(ln) ? '/static/img/ing/1f944.svg' : picOf(ln.name);
+      scPic.replaceChildren(pic ? h('img', { src: pic, alt: '' }) : h('i', { style: { background: toneOf(ln.name)[0] } }));
+      scName.textContent = ln.name;
+      lastWhere = where(ln);
+    }
+    scMinus.disabled = scPlus.disabled = false; scDrop.hidden = false;
+    const sp = spoonOf(ln);
+    scale.classList.toggle('spoon', !!sp);
+    scSpoon.textContent = sp ? `약 ${spoonText(ln.qty / sp)}` : ln.batch ? `약 한 통의 1/${n0(Math.round(ln.batch.total / Math.max(ln.qty, 0.001)))}` : '';
+    scMinus.setAttribute('aria-label', sp ? '1작은술 덜기' : '조금 덜기');
+    scPlus.setAttribute('aria-label', sp ? '1작은술 더 넣기' : '조금 더 담기');
+    scUnit.textContent = ln.unit;
+    const g = pourGrain(ln);
+    rollTo(scNum, ln.qty, (v) => n3(Math.round(v / g) * g));
+    const top = Math.max(ln.high * 1.6, ln.qty * 1.1, 1);
+    scBand.style.left = `${(ln.low / top) * 100}%`;
+    scBand.style.width = `${((ln.high - ln.low) / top) * 100}%`;
+    scMark.style.left = `${Math.min(100, (ln.qty / top) * 100)}%`;
+    const wv = where(ln);
+    scale.dataset.where = wv;
+    scState.textContent = wv === 'ok' ? `보통 양이에요 (${n3(ln.low)}~${n3(ln.high)}${ln.unit})`
+      : wv === 'high' ? `보통보다 많아요 · 보통 ${n3(ln.low)}~${n3(ln.high)}${ln.unit}`
+        : `보통보다 적어요 · 보통 ${n3(ln.low)}~${n3(ln.high)}${ln.unit}`;
+    if (wv !== lastWhere) {
+      if (wv === 'high') { sfx('warn'); if (!REDUCED) { scale.classList.remove('wobble'); void scale.offsetWidth; scale.classList.add('wobble'); } }
+      lastWhere = wv;
+    }
+  }
+
+  function pickUp(key, fromRow = false) {
+    queueReceipt();
+    const ln = lineOf(key);
+    if (!ln) return;
+    held = key;
+    const pic = spoonOf(ln) ? '/static/img/ing/1f944.svg' : picOf(ln.name);
+    hand.classList.toggle('spoon', !!spoonOf(ln));
+    hand.replaceChildren(pic ? h('img', { src: pic, alt: '' }) : h('i', { style: { background: toneOf(ln.name)[0] } }));
+    hand.classList.remove('pour');
+    sfx('pick');
+    paintScale();
+    const row = rowMap.get(key);
+    if (row) {
+      flashRow(row);
+      // 넓은 화면에서는 오른쪽 목록 안에서만 그 줄이 보이게, 휴대폰에서는 화면을 움직이지 않음
+      if (!window.matchMedia('(max-width: 899px)').matches) {
+        const r = row.getBoundingClientRect(); const b = rows.getBoundingClientRect();
+        if (r.top < b.top || r.bottom > b.bottom) rows.scrollTop += r.top - b.top - (b.height - r.height) / 2;
+      }
+    }
+    if (fromRow && window.matchMedia('(max-width: 899px)').matches) bowl3d.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' });
+  }
+  function putDown() {
+    stopPour();
+    held = null;
+    queueReceipt();
+    hand.classList.remove('show', 'pour');
+    paintScale();
+  }
+
+  /* 마우스가 있으면 손이 따라다님 */
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+  let handX = 0; let handY = 0;
+  const placeHand = () => { hand.style.transform = `translate(${handX}px, ${handY}px)`; };
+  stage.addEventListener('pointermove', (e) => {
+    if (held == null || e.pointerType !== 'mouse' || !finePointer.matches) return;
+    const r = stage.getBoundingClientRect();
+    handX = e.clientX - r.left; handY = e.clientY - r.top;
+    placeHand();
+    hand.classList.add('show');
+  });
+  stage.addEventListener('pointerleave', () => hand.classList.remove('show'));
+
+  /* 붓기 */
+  let pour = null; // { ln, t0, last, acc, px, py, nextDrop, raf }
+  function startPour(px, py) {
+    const ln = held != null ? lineOf(held) : null;
+    if (!ln || pour) return;
+    const now = performance.now();
+    pour = { ln, t0: now, last: now, acc: ln.qty, px, py, nextDrop: 0, nextTick: 0, raf: 0 };
+    bowl3d.classList.add('pouring');
+    hand.classList.add('pour');
+    pour.raf = requestAnimationFrame(pourFrame);
+  }
+  function pourFrame(now) {
+    if (!pour) return;
+    const { ln } = pour;
+    const secs = (now - pour.t0) / 1000;
+    const tsp = tspOf(ln);
+    if (tsp) { // 양념: 한 숟갈씩
+      if (now >= pour.nextDrop) {
+        setQty(ln, Math.round((ln.qty + tsp) * 10) / 10);
+        for (let i = 0; i < 6; i++) drop(ln, pour.px + (Math.random() - 0.5) * 18, pour.py, true);
+        sfx('tick', 0.6);
+        pour.nextDrop = now + (secs < 1.2 ? 480 : 300);
+      }
+      pour.raf = requestAnimationFrame(pourFrame);
+      return;
+    }
+    const speed = secs < 0.8 ? 1 : secs < 2 ? 2 : 3.5;
+    const perSec = ln.kind === 'ea' ? 1 : Math.max(ln.base * 0.2, 2);
+    pour.acc = Math.min(capOf(ln), pour.acc + perSec * speed * ((now - pour.last) / 1000));
+    pour.last = now;
+    const g = pourGrain(ln);
+    const v = Math.round(pour.acc / g) * g;
+    if (v !== ln.qty) setQty(ln, v);
+    if (now >= pour.nextDrop) { drop(ln, pour.px, pour.py); pour.nextDrop = now + (speed > 2 ? 60 : speed > 1 ? 90 : 130); }
+    if (now >= pour.nextTick) { sfx('tick', Math.min(1, secs / 2.5)); pour.nextTick = now + (speed > 2 ? 70 : 110); }
+    pour.raf = requestAnimationFrame(pourFrame);
+  }
+  function stopPour() {
+    if (!pour) return;
+    cancelAnimationFrame(pour.raf);
+    const { ln, swap } = pour;
+    const quick = performance.now() - pour.t0 < 250;
+    const was = pour;
+    pour = null;
+    if (swap != null && quick) {
+      ln.qty = was.from; ln.touched = was.touched; queueReceipt();
+      rowMap.get(ln.key)?.sync(); paintChipQty(ln); resizeTokens();
+      bowl3d.classList.remove('pouring'); hand.classList.remove('pour');
+      pickUp(swap);
+      return;
+    }
+    bowl3d.classList.remove('pouring');
+    hand.classList.remove('pour');
+    const tok = bowl.querySelector(`[data-key="${ln.key}"]`);
+    if (tok && !REDUCED) { tok.classList.remove('gulp'); void tok.offsetWidth; tok.classList.add('gulp'); }
+    paintReceipt();
+  }
+  /* 떨어지는 알갱이: 손 위치에서 그릇으로 */
+  function drop(ln, px, py, fine = false) {
+    if (REDUCED) return;
+    const pic = fine ? null : picOf(ln.name);
+    const kind = fine ? (LIQUID.test(ln.name) || ln.kind === 'ml' ? ' drip' : ' dust') : '';
+    const d = h('span', { class: `mb-drop${kind}`, 'aria-hidden': 'true', style: { left: `${px}px`, top: `${py}px`, '--dx': `${(Math.random() - 0.5) * 50}px`, '--rot': `${(Math.random() - 0.5) * 300}deg`, '--s': String(0.5 + Math.random() * 0.4) } },
+      pic ? h('img', { src: pic, alt: '' }) : h('i', { style: { background: toneOf(ln.name)[0] } }));
+    d.addEventListener('animationend', () => d.remove());
+    bowl3d.append(d);
+  }
+
+  bowl3d.addEventListener('pointerdown', (e) => {
+    if (held == null || e.button > 0) return;
+    if (e.target.closest?.('.mb-chip-x')) return;
+    e.preventDefault();
+    try { bowl3d.setPointerCapture(e.pointerId); } catch { /* 일부 브라우저 */ }
+    const r = bowl3d.getBoundingClientRect();
+    const px = e.clientX - r.left; const py = e.clientY - r.top;
+    startPour(px, py);
+    // 다른 재료 위를 '톡' 누르면(짧게) 그 재료로 바꿔 들고, 꾹 누르면 들고 있던 재료를 붓습니다.
+    const other = e.target.closest?.('.mb-tok');
+    if (pour && other && Number(other.dataset.key) !== held) { pour.swap = Number(other.dataset.key); pour.from = pour.ln.qty; pour.touched = pour.ln.touched; }
+  });
+  bowl3d.addEventListener('pointermove', (e) => {
+    if (!pour) return;
+    const r = bowl3d.getBoundingClientRect();
+    pour.px = e.clientX - r.left; pour.py = e.clientY - r.top;
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) bowl3d.addEventListener(ev, stopPour);
+  bowl3d.addEventListener('contextmenu', (e) => { if (held != null) e.preventDefault(); });
+  bowl3d.addEventListener('keydown', (e) => {
+    if (held == null || (e.key !== ' ' && e.key !== 'Enter') || e.target !== bowl3d) return;
+    e.preventDefault();
+    if (!pour) startPour(bowl3d.clientWidth / 2, bowl3d.clientHeight * 0.3);
+  });
+  bowl3d.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') stopPour(); });
+  bowl3d.addEventListener('blur', stopPour);
+  stage.addEventListener('keydown', (e) => { if (e.key === 'Escape' && held != null) putDown(); });
+
+  /* 저울의 −/+ : 한 번 누르면 한 칸, 누르고 있으면 계속 */
+  function holdRepeat(btn, dir) {
+    let t = 0;
+    const once = () => { const ln = lineOf(held); if (ln) setQty(ln, Math.round((ln.qty + dir * fineStep(ln)) * 10) / 10); };
+    const stop = () => { clearTimeout(t); t = 0; };
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.button > 0) return;
+      once();
+      const loop = (ms) => { t = setTimeout(() => { once(); loop(70); }, ms); };
+      loop(380);
+    });
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, stop);
+    btn.addEventListener('click', (e) => { if (e.detail === 0) once(); }); // 키보드
+  }
+  holdRepeat(scMinus, -1);
+  holdRepeat(scPlus, 1);
+  scDrop.addEventListener('click', putDown);
+
+  /* 소리: 기본은 꺼짐. 켜면 집을 때 '톡', 부을 때 '또르르', 많이 담으면 낮은 '부웅'. */
+  let soundOn = false;
+  try { soundOn = localStorage.getItem('mb-sound') === '1'; } catch { /* 저장소를 못 쓰는 창 */ }
+  let actx = null;
+  const paintSound = () => { scSound.setAttribute('aria-pressed', String(soundOn)); scSound.textContent = soundOn ? '소리 켬' : '소리 끔'; };
+  scSound.addEventListener('click', () => {
+    soundOn = !soundOn;
+    try { localStorage.setItem('mb-sound', soundOn ? '1' : '0'); } catch { /* 무시 */ }
+    paintSound();
+    if (soundOn) sfx('pick');
+  });
+  paintSound();
+  function sfx(kind, k = 0) {
+    if (!soundOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const t = actx.currentTime;
+      const o = actx.createOscillator(); const gn = actx.createGain();
+      o.connect(gn); gn.connect(actx.destination);
+      if (kind === 'pick') { o.type = 'sine'; o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(880, t + 0.08); gn.gain.setValueAtTime(0.08, t); gn.gain.exponentialRampToValueAtTime(0.001, t + 0.12); o.start(t); o.stop(t + 0.13); }
+      else if (kind === 'tick') { o.type = 'triangle'; o.frequency.setValueAtTime(320 + k * 420 + Math.random() * 40, t); gn.gain.setValueAtTime(0.045, t); gn.gain.exponentialRampToValueAtTime(0.001, t + 0.05); o.start(t); o.stop(t + 0.06); }
+      else { o.type = 'sawtooth'; o.frequency.setValueAtTime(140, t); o.frequency.linearRampToValueAtTime(110, t + 0.25); gn.gain.setValueAtTime(0.05, t); gn.gain.exponentialRampToValueAtTime(0.001, t + 0.28); o.start(t); o.stop(t + 0.3); }
+    } catch { /* 소리를 못 내는 환경 */ }
   }
 
   function paintAll() {
+    if (held != null && !lines.some((l) => l.key === held)) held = null;
     paintBowl();
     paintRows();
     paintReceipt();
+    paintScale();
   }
   price.addEventListener('input', paintReceipt);
 

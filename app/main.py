@@ -180,7 +180,7 @@ GUIDE_DIR = STATIC_DIR / "guide"
 GUIDES = {
     "cost-calculator": "2026-11-27",
     "restaurant-cost": "2026-11-27",
-    "menu-cost-rate": "2026-11-27",
+    "menu-cost-rate": "2026-11-26",
     "receipt-management": "2026-11-27",
 }
 HOME_UPDATED = "2026-11-27"

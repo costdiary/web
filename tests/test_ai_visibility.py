@@ -75,7 +75,7 @@ def test_keyword_guides_are_listed_linked_and_crawlable():
     pages = {
         "cost-calculator": "음식 원가계산기",
         "restaurant-cost": "음식점 원가 계산 방법",
-        "receipt-management": "영수증·거래명세서 관리",
+        "receipt-management": "식당 영수증 관리 방법",
     }
     home = c.get("/").text
     llms = c.get("/llms.txt").text
@@ -94,3 +94,10 @@ def test_keyword_guides_are_listed_linked_and_crawlable():
     assert "3,680원" in calc and "40.9%" in calc and "/static/js/cost-calc.js" in calc
     assert c.get("/static/js/cost-calc.js").status_code == 200
     assert c.get("/static/guide/guide.css").status_code == 200
+
+
+def test_share_images_exist():
+    # og:image·로고가 실제로 있어야 카카오톡·검색 미리보기와 구조화 데이터가 깨지지 않는다
+    for path in ("/static/og-image.png", "/static/brand/logo.png"):
+        r = c.get(path)
+        assert r.status_code == 200 and r.headers["content-type"] == "image/png", path

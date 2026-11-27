@@ -1,7 +1,7 @@
 /* 사진으로 메뉴 만들기: 완성된 요리 사진 → 재료·양 추정 → 사장님 확인 → 메뉴 초안.
    사진만으로는 정확한 양을 알 수 없으므로, 모든 숫자에 '추정' 표시와 범위를 붙이고 사장님이 고치기 쉽게 보여 줍니다. */
 import {
-  h, api, app, field, numInput, selectOf, parseNum, n0, n1, n3, busy, toast, errMsg, icon, refreshMe, fill, openDialog,
+  h, api, app, field, numInput, comboSelect, parseNum, n0, n1, n3, busy, toast, errMsg, icon, refreshMe, fill, openDialog,
 } from './core.js';
 import { emptyBlock } from './ui.js';
 import { menuTotals } from './calc.js';
@@ -169,9 +169,9 @@ export async function render(box) {
     const sameKind = ings.filter((i) => i.kind === line.kind);
     const matched = line.match ? ingById.get(line.match.id) : null;
     const chk = h('input', { type: 'checkbox', checked: true, 'aria-label': `${line.name} 넣기` });
-    const link = selectOf(
+    const link = comboSelect(
       [['new', '새 식자재로 추가'], ...sameKind.map((i) => [String(i.id), i.unit_price == null ? `${i.name} (단가 없음)` : i.name])],
-      matched ? String(matched.id) : 'new', { 'aria-label': '연결할 식자재' });
+      matched ? String(matched.id) : 'new', { placeholder: '식자재 이름으로 찾기', 'aria-label': '연결할 식자재' });
     const newName = h('input', { class: 'input', type: 'text', maxLength: 60, value: line.name.slice(0, 60), 'aria-label': '새 식자재 이름' });
     const qty = numInput({ value: n3(line.qty), 'aria-label': `${line.name} 사용량(${line.unit})` });
     const rangeText = h('span', { class: 'xs muted' });

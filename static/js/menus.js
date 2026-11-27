@@ -3,7 +3,7 @@ import {
   h, api, app, field, numInput, selectOf, parseNum, n0, n1, n3, nT, confirmDialog, busy, toast, errMsg,
   UNIT, UI_UNITS, ALL_UNITS, icon, go, refreshRoute, fill,
 } from './core.js';
-import { marginBar, stamp, num, emptyBlock, stmt, sgn } from './ui.js';
+import { marginBar, stamp, num, emptyBlock, stmt, sgn, localSuggest } from './ui.js';
 import { menuTotals, channelResult, flatChannel, effUnitCost } from './calc.js';
 
 /* ------------------------------------------------------------ 목록 */
@@ -97,7 +97,7 @@ export async function renderEditor(box, id) {
   const { target_cost_ratio: target, vat_mode: vat } = app.me.settings;
   const canWrite = app.me.plan.writable;
 
-  const datalist = h('datalist', { id: 'ing-options' }, ings.map((i) => h('option', { value: i.name })));
+  const ingNames = ings.map((i) => i.name);
   const err = h('div', { class: 'form-err', role: 'alert', hidden: true });
   const name = h('input', { class: 'input', type: 'text', maxLength: 60, autocomplete: 'off', value: menu?.name ?? '', placeholder: '예: 제육볶음' });
   const price = numInput({ value: menu ? n3(menu.price) : '', placeholder: '예: 9,500' });
@@ -140,7 +140,7 @@ export async function renderEditor(box, id) {
   function addRow(pre = {}) {
     const r = {
       est: !!pre.estimated, low: pre.qty_low ?? null, high: pre.qty_high ?? null,
-      name: h('input', { class: 'input', type: 'text', list: 'ing-options', autocomplete: 'off', placeholder: '재료 이름', 'aria-label': '재료 이름', value: pre.name ?? '' }),
+      name: h('input', { class: 'input', type: 'text', autocomplete: 'off', placeholder: '재료 이름', 'aria-label': '재료 이름', value: pre.name ?? '' }),
       qty: numInput({ placeholder: '양', 'aria-label': '사용량', value: pre.qty != null ? n3(pre.qty) : '' }),
       unit: selectOf(ALL_UNITS, 'g', { 'aria-label': '단위' }),
       cost: h('span', { class: 'm-cost muted' }, '–'),
@@ -148,10 +148,11 @@ export async function renderEditor(box, id) {
       err: h('div', { class: 'err', role: 'alert' }),
     };
     const del = h('button', { class: 'icon-btn m-del', type: 'button', 'aria-label': '이 재료 빼기', onclick: () => { rows.splice(rows.indexOf(r), 1); r.el.remove(); recalc(); } }, icon('trash', 20));
-    r.name.classList.add('m-name');
+    const nameBox = localSuggest(r.name, ingNames); // 내 식자재 이름 중에서 글자로 찾기
+    nameBox.classList.add('m-name');
     r.qty.classList.add('m-qty');
     r.unit.classList.add('m-unit');
-    r.el = h('div', { class: 'mrow' }, r.name, r.qty, r.unit, r.cost, del, r.estLine, r.err);
+    r.el = h('div', { class: 'mrow' }, nameBox, r.qty, r.unit, r.cost, del, r.estLine, r.err);
     const ing0 = byName.get(r.name.value.trim());
     setUnits(r, ing0?.kind);
     if (pre.unit && [...r.unit.options].some((o) => o.value === pre.unit)) r.unit.value = pre.unit;
@@ -414,7 +415,7 @@ export async function renderEditor(box, id) {
     h('div', { class: 'page-h' },
       h('a', { class: 'btn ghost sm', href: '#/menus' }, icon('back', 18), '메뉴 목록'),
       h('h1', { style: 'font-size:1.125rem' }, menu ? '메뉴 수정' : '새 메뉴')),
-    datalist, form);
+    form);
   recalc();
   if (!menu) name.focus();
 }

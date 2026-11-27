@@ -1,6 +1,6 @@
 /* #/ads, #/ads/new, #/ads/:id: 떨이 광고 — 작성, 결제 신청, 노출 멈춤/재개, 예상 도달 */
 import {
-  h, api, field, numInput, selectOf, parseNum, n0, openDialog, busy, toast, errMsg, icon, fill,
+  h, api, field, numInput, selectOf, comboSelect, parseNum, n0, openDialog, busy, toast, errMsg, icon, fill,
 } from '../core.js';
 import { emptyBlock } from '../ui.js';
 import { REGIONS, REGION_LABEL, loadCatalog, labeler, day, left } from './kit.js';
@@ -39,7 +39,7 @@ export async function render(box) {
 
 async function adForm(box, existing, perDay) {
   const catalog = await loadCatalog();
-  const itemSel = selectOf([['', '표준 품목 선택'], ...catalog.items.map((i) => [String(i.id), i.name])], existing ? String(existing.item_id) : '');
+  const itemSel = comboSelect(catalog.items.map((i) => [String(i.id), i.name]), existing ? String(existing.item_id) : '', { placeholder: '표준 품목 검색 또는 선택' });
   const originSel = selectOf(catalog.origins.map((o) => [o.code, o.label]), existing?.origin || '');
   const gradeSel = h('select', { class: 'select' });
   const title = h('input', { class: 'input', type: 'text', maxLength: 40, value: existing?.title || '', placeholder: '예: 대파 재고 떨이 (3일 한정)' });

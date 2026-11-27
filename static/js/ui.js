@@ -1,5 +1,5 @@
 /* 여러 화면에서 쓰는 표시 부품: 도장, 가격 변동 표시, 마진 막대 */
-import { h, fill, api, n0, n1, nT } from './core.js';
+import { h, api, n0, n1, nT, attachSuggest, searchRank } from './core.js';
 
 export const STATUS_LABEL = { good: '양호', warn: '주의', bad: '위험', unknown: '미정' };
 
@@ -83,48 +83,17 @@ export function stmt(rows, label = '계산 내역') {
     h('div', { class: `stmt-r ${cls}`.trim() }, h('dt', null, k), h('dd', null, v))));
 }
 
-/* 분류·등급·부위 자동완성 입력. 포커스·타이핑마다 DB에서 후보를 받아 아래에 보여 주고,
-   목록에 없는 값을 직접 입력해도 그대로 둔다. field()에 넘기면 라벨은 .control(입력칸)에 연결된다.
-   category: 지금 분류 값을 돌려주는 함수(등급·부위 후보의 정렬 가산점용). */
-let termUid = 0;
+/* 분류·등급·부위 자동완성 입력. 빈칸으로 누르면 지금 분류에 맞는 후보 몇 개만 보여 주고,
+   글자를 치면 DB에서 맞는 후보만 찾아 보여 준다(초성 검색 됨). 목록에 없는 값을 직접 입력해도 그대로 둔다.
+   field()에 넘기면 라벨은 .control(입력칸)에 연결된다.
+   category: 지금 분류 값을 돌려주는 함수(빈칸일 때는 그 분류 후보만, 검색할 때는 그 분류를 먼저). */
 export function termInput({ kind, category = () => '', value = '', maxLength, placeholder }) {
-  const listId = `term-${++termUid}`;
-  const input = h('input', { class: 'input', type: 'text', maxLength, placeholder, value, autocomplete: 'off',
-    role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': listId });
-  const list = h('ul', { class: 'ti-list', id: listId, role: 'listbox', hidden: true });
-  const wrap = h('div', { class: 'ti' }, input, list);
-  wrap.control = input;
-  let seq = 0;
-  let timer;
-  let cur = -1;
-  const mark = (i) => {
-    cur = i;
-    [...list.children].forEach((li, j) => li.setAttribute('aria-selected', String(j === i)));
-    if (i >= 0) input.setAttribute('aria-activedescendant', list.children[i].id); else input.removeAttribute('aria-activedescendant');
-  };
-  const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); mark(-1); };
-  const pick = (t) => { input.value = t; input.dispatchEvent(new Event('input', { bubbles: true })); close(); };
-  async function load() {
-    const my = ++seq; // 늦게 온 옛 응답은 버린다
-    let terms;
-    try {
-      ({ terms } = await api(`/api/market/terms?kind=${kind}&q=${encodeURIComponent(input.value.trim())}&category=${encodeURIComponent(category())}`));
-    } catch { return; } // 후보를 못 받아도 직접 입력은 그대로 된다
-    if (my !== seq || document.activeElement !== input) return;
-    fill(list, terms.map((t, i) => h('li', { id: `${listId}-${i}`, role: 'option', 'aria-selected': 'false',
-      onmousedown: (e) => { e.preventDefault(); pick(t); } }, t)));
-    list.hidden = !terms.length;
-    input.setAttribute('aria-expanded', String(terms.length > 0));
-    mark(-1);
-  }
-  input.addEventListener('focus', load);
-  input.addEventListener('input', (e) => { if (!e.isTrusted) return; /* pick()이 보낸 이벤트는 목록을 다시 열지 않는다 */ clearTimeout(timer); timer = setTimeout(load, 150); });
-  input.addEventListener('blur', () => { seq++; clearTimeout(timer); close(); });
-  input.addEventListener('keydown', (e) => {
-    const n = list.hidden ? 0 : list.children.length;
-    if (e.key === 'Escape' && n) { e.stopPropagation(); close(); } // 대화상자까지 닫히지 않게
-    else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) { e.preventDefault(); mark((cur + 1 + (e.key === 'ArrowDown' ? 1 : n)) % (n + 1) - 1); }
-    else if (e.key === 'Enter' && cur >= 0) { e.preventDefault(); pick(list.children[cur].textContent); }
+  const input = h('input', { class: 'input', type: 'text', maxLength, placeholder, value });
+  return attachSuggest(input, {
+    delay: 150,
+    source: async (q) => (await api(`/api/market/terms?kind=${kind}&q=${encodeURIComponent(q)}&category=${encodeURIComponent(category())}`)).terms,
   });
-  return wrap;
 }
+
+/* 내 식자재 이름처럼 이미 받아 둔 목록에서 찾는 자유 입력 후보(예전 <datalist> 대신). */
+export const localSuggest = (input, names) => attachSuggest(input, { source: (q) => searchRank(names, q).slice(0, 40) });

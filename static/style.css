@@ -2410,3 +2410,15 @@ input.mb-sc-num { width: 4.2em; padding: 0; min-height: 0; border: 0; background
 input.mb-sc-num:focus { outline: 1px dashed currentColor; outline-offset: 2px; }
 input.mb-sc-num:disabled { opacity: 1; -webkit-text-fill-color: currentColor; }
 .mb-row .mb-pick .tag { flex: none; white-space: nowrap; }
+
+/* 조각 흩뿌리기: 피자 토핑처럼 재료 조각이 그릇 위에 흩어져 있고, 넣을 때마다 하나씩 떨어짐 */
+.mb-scatter { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; pointer-events: none; }
+.mb-pc { position: absolute; width: 9%; aspect-ratio: 1; transform: translate(-50%, -50%) rotate(var(--r)) scale(var(--s)); filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.45)); }
+.mb-pc img, .mb-pc i { display: block; width: 100%; height: 100%; border-radius: 30%; }
+.mb-pc.land { animation: mbLand .38s cubic-bezier(.3, 1.5, .5, 1) both; }
+@keyframes mbLand { 0% { transform: translate(-50%, -160%) rotate(var(--r)) scale(calc(var(--s) * 1.3)); opacity: 0; } 60% { opacity: 1; } 100% { transform: translate(-50%, -50%) rotate(var(--r)) scale(var(--s)); } }
+/* 집는 손잡이(대표 조각)는 동그란 접시 대신 재료 그림만 크게 */
+.mb-stage .mb-blob { background: none; box-shadow: none; padding: 4%; }
+.mb-stage .mb-blob img { filter: drop-shadow(0 6px 5px rgba(0, 0, 0, 0.5)); }
+.mb-stage .mb-tok.unlinked .mb-blob { outline-color: rgba(255, 255, 255, 0.55); }
+@media (prefers-reduced-motion: reduce) { .mb-pc.land { animation: none; } }

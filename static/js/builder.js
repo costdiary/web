@@ -214,6 +214,7 @@ export async function render(box) {
   /* ---------------- 가운데: 그릇 ---------------- */
   const menuName = h('input', { class: 'input mb-name', type: 'text', maxLength: 60, autocomplete: 'off', placeholder: '메뉴 이름', 'aria-label': '메뉴 이름' });
   const bowl = h('div', { class: 'mb-soup', role: 'list', 'aria-label': '그릇에 담긴 재료' });
+  const scatter = h('div', { class: 'mb-scatter', 'aria-hidden': 'true' }); // 재료 조각들(넣은 횟수만큼 흩뿌려짐)
   const bowl3d = h('div', { class: 'mb-bowl3d' },
     h('div', { class: 'mb-light', 'aria-hidden': 'true' }),
     h('div', { class: 'mb-steam', 'aria-hidden': 'true' }, h('i'), h('i'), h('i')),
@@ -332,7 +333,7 @@ export async function render(box) {
 
   function removeLine(key) {
     if (held === key) putDown();
-    const chip = bowl.querySelector(`[data-key="${key}"]`);
+    const chip = bowl.querySelector(`.mb-tok[data-key="${key}"]`);
     const done = () => { lines = lines.filter((l) => l.key !== key); paintAll(); };
     if (chip && !REDUCED) { chip.classList.add('out'); setTimeout(done, 180); } else done();
   }
@@ -358,6 +359,7 @@ export async function render(box) {
     bowl3d.style.setProperty('--soup', soupOf(picked?.name || menuName.value));
     bowl3d.classList.toggle('full', lines.length > 0);
     if (!lines.length) {
+      scatter.replaceChildren();
       fill(bowl, h('p', { class: 'mb-empty' }, '메뉴를 고르면', h('br'), '재료가 여기로 날아와요'));
       bowlNote.textContent = '';
       return;
@@ -371,7 +373,7 @@ export async function render(box) {
     const fromX = from.left + from.width / 2;
     const fromY = from.top + Math.min(from.height / 2, 200);
     let fresh = 0;
-    fill(bowl, order.map((ln, i) => {
+    fill(bowl, scatter, ...order.map((ln, i) => {
       const share = w(ln) / total;
       const size = Math.round(Math.max(40, Math.min(84, 34 + share * 150)));
       const [x, y] = pos[i];
@@ -392,9 +394,39 @@ export async function render(box) {
       ln.fresh = false;
       return tok;
     }));
+    paintPieces();
     const unl = lines.filter((l) => !ingOf(l)).length;
     bowlNote.textContent = [picked ? `${picked.source} · ${picked.serving_note}` : '', unl ? `점선 재료 ${unl}개는 내 식자재와 아직 연결되지 않았어요` : '']
       .filter(Boolean).join(' · ');
+  }
+
+  /* 조각 흩뿌리기: 건더기는 한 집게(또는 한 개)마다 조각 하나가 그릇 위 아무 데나 떨어집니다.
+     자리는 재료마다 같은 씨앗으로 정해서 다시 그려도 제자리에 있습니다. 액체·양념은 조각 대신 국물 색으로만. */
+  const seeded = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  function pieceCount(ln) {
+    const m = modeOf(ln);
+    if (m.kind === 'grab') return Math.max(1, Math.min(14, Math.round(ln.qty / m.step)));
+    if (m.kind === 'piece') return Math.max(1, Math.min(8, Math.ceil(ln.qty)));
+    return 0;
+  }
+  function paintPieces(only) {
+    const todo = only ? [only] : lines;
+    if (!only) for (const el of [...scatter.children]) if (!lines.some((l) => String(l.key) === el.dataset.key)) el.remove();
+    for (const ln of todo) {
+      const have = [...scatter.querySelectorAll(`[data-key="${ln.key}"]`)];
+      const want = pieceCount(ln);
+      for (const el of have.slice(want)) el.remove();
+      const pic = picOf(ln.name);
+      const rnd = seeded(ln.key * 7919);
+      for (let i = 0; i < want; i++) {
+        const r = Math.sqrt(rnd()) * 40; const a = rnd() * Math.PI * 2; const rot = rnd() * 360; const sz = 0.75 + rnd() * 0.5;
+        if (i < have.length) continue;
+        const el = h('span', { class: `mb-pc${only && !REDUCED ? ' land' : ''}`, 'data-key': ln.key,
+          style: { left: `${50 + r * Math.cos(a)}%`, top: `${50 + r * Math.sin(a)}%`, '--r': `${rot}deg`, '--s': String(sz) } },
+        pic ? h('img', { src: pic, alt: '', draggable: false }) : h('i', { style: { background: toneOf(ln.name)[0] } }));
+        scatter.append(el);
+      }
+    }
   }
 
   function flashRow(row) {
@@ -434,7 +466,7 @@ export async function render(box) {
   }
 
   function paintChipQty(ln) {
-    const q = bowl.querySelector(`[data-key="${ln.key}"] .mb-chip-q`);
+    const q = bowl.querySelector(`.mb-tok[data-key="${ln.key}"] .mb-chip-q`);
     if (q) q.textContent = `${n3(ln.qty)}${ln.unit}`;
   }
 
@@ -493,6 +525,7 @@ export async function render(box) {
   /* 양이 바뀔 때마다: 그릇 속 크기, 이름표 숫자, 저울, 영수증만 고칩니다(전체를 다시 그리지 않음). */
   function afterQty(ln) {
     paintChipQty(ln);
+    paintPieces(ln);
     resizeTokens();
     if (held === ln.key) paintScale();
     queueReceipt();
@@ -507,7 +540,7 @@ export async function render(box) {
     const w = (l) => (l.kind === 'ea' ? 60 * l.qty : l.qty);
     const total = lines.reduce((s2, l) => s2 + w(l), 0) || 1;
     for (const ln of lines) {
-      const tok = bowl.querySelector(`[data-key="${ln.key}"]`);
+      const tok = bowl.querySelector(`.mb-tok[data-key="${ln.key}"]`);
       if (tok) tok.style.setProperty('--z', String(Math.round(Math.max(40, Math.min(84, 34 + (w(ln) / total) * 150)))));
     }
   }
@@ -698,7 +731,7 @@ export async function render(box) {
     }
     bowl3d.classList.remove('pouring');
     hand.classList.remove('pour');
-    const tok = bowl.querySelector(`[data-key="${ln.key}"]`);
+    const tok = bowl.querySelector(`.mb-tok[data-key="${ln.key}"]`);
     if (tok && !REDUCED) { tok.classList.remove('gulp'); void tok.offsetWidth; tok.classList.add('gulp'); }
     paintReceipt();
   }

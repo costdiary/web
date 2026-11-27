@@ -11,17 +11,20 @@ const UNIT_OF = { g: 'g', ml: 'ml', ea: '개' };
 const DEFAULT_QTY = { g: 50, ml: 15, ea: 1 };
 
 /* 숫자가 휙 바뀌지 않고 짧게 굴러가듯 바뀌게(0.25초). 움직임 줄이기 설정이면 바로 바꿉니다. */
+function put(el, text) {
+  if (el.tagName === 'INPUT') { if (document.activeElement !== el) el.value = text; } else el.textContent = text;
+}
 function rollTo(el, to, fmt) {
   const from = Number(el.dataset.v);
   el.dataset.v = String(to);
-  if (to == null || Number.isNaN(to)) { el.textContent = '–'; return; }
-  if (REDUCED || !Number.isFinite(from) || from === to) { el.textContent = fmt(to); return; }
+  if (to == null || Number.isNaN(to)) { put(el, '–'); return; }
+  if (REDUCED || !Number.isFinite(from) || from === to) { put(el, fmt(to)); return; }
   const t0 = performance.now();
   const step = (t) => {
     if (el.dataset.v !== String(to)) return; // 그새 다른 값이 들어왔으면 멈춤
     const k = Math.min(1, (t - t0) / 250);
     const e = 1 - (1 - k) ** 3;
-    el.textContent = fmt(from + (to - from) * e);
+    put(el, fmt(from + (to - from) * e));
     if (k < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -107,7 +110,6 @@ const spoonText = (tbsp) => {
   const T = Math.floor(tsp / 3); const t = tsp % 3;
   return [T ? `${T}큰술` : '', t ? `${t}작은술` : ''].filter(Boolean).join(' ');
 };
-const niceStep = (max) => (max > 400 ? 5 : max > 60 ? 1 : max > 6 ? 0.5 : 0.1);
 
 export async function render(box) {
   const [ingRes, prepRes] = await Promise.all([api('/api/ingredients'), api('/api/preps').catch(() => ({ items: [] }))]);
@@ -139,7 +141,7 @@ export async function render(box) {
       fill(results, res.items.length ? res.items.map((it) => h('li', null,
         h('button', { class: 'mb-res', type: 'button', 'aria-pressed': String(picked?.id === it.id), onclick: () => loadTemplate(it) },
           h('span', { class: 'mb-res-name' }, it.name),
-          h('span', { class: 'xs muted' }, `${it.source} · 재료 ${it.count}개`))))
+          h('span', { class: 'xs muted' }, it.count ? `${it.source} · 재료 ${it.count}개` : it.source))))
         : h('li', { class: 'small muted mb-none' }, '비슷한 메뉴가 없어요. 아래에서 재료를 하나씩 담아 보세요.'));
     } catch (e) {
       if (my === seq) fill(results, h('li', { class: 'small muted' }, errMsg(e)));
@@ -226,7 +228,7 @@ export async function render(box) {
   /* 주방 저울: 손에 든 재료의 양을 크게 보여 주고, 보통 쓰는 양 범위 안인지 알려 줍니다. */
   const scPic = h('span', { class: 'mb-sc-pic', 'aria-hidden': 'true' });
   const scName = h('span', { class: 'mb-sc-name' });
-  const scNum = h('b', { class: 'mb-sc-num n' });
+  const scNum = numInput({ class: 'mb-sc-num n', 'aria-label': '양을 숫자로 입력' }); // 저울 숫자를 눌러 직접 입력
   const scUnit = h('span', { class: 'mb-sc-unit' });
   const scBand = h('span', { class: 'mb-sc-band' });
   const scMark = h('span', { class: 'mb-sc-mark' });
@@ -316,11 +318,14 @@ export async function render(box) {
       const t = await api(`/api/recipe/template?id=${encodeURIComponent(it.id)}`);
       const prev = picked;
       picked = { id: it.id, name: t.name, source: t.source, serving_note: t.serving_note };
-      lines = t.lines.map((l) => makeLine(l));
+      lines = t.lines.map((l) => makeLine(l, !!l.confirmed));
       if (!menuName.value.trim() || (prev && menuName.value.trim() === prev.name)) menuName.value = t.name;
       if (!category.value.trim() && t.category) category.value = t.category;
       runSearch();
       paintAll();
+      // 가장 많이 들어가는 재료를 바로 집어 저울에 올려 둡니다.
+      const first = [...lines].sort((a, b) => (b.kind === 'ea' ? 60 * b.qty : b.qty) - (a.kind === 'ea' ? 60 * a.qty : a.qty))[0];
+      if (first) pickUp(first.key);
       if (window.matchMedia('(max-width: 899px)').matches) bowlPanel.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
     } catch (e) { toast(errMsg(e), 'err'); }
   }
@@ -397,55 +402,31 @@ export async function render(box) {
     void row.offsetWidth;
     row.classList.add('flash');
   }
-  function focusRow(key) {
-    const row = rowMap.get(key);
-    if (!row) return;
-    row.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' });
-    flashRow(row);
-    row.querySelector('input[type=range]')?.focus({ preventScroll: true });
-  }
 
+  /* 오른쪽 목록: 재료마다 한 줄(이름·양·원가). 양은 그릇 아래 저울 하나에서만 바꿉니다(같은 재료를 두 곳에서 고치지 않도록).
+     줄을 누르면 그 재료를 집고, 집은 줄에서만 '내 식자재 연결'을 고를 수 있어요. */
   function rowFor(ln) {
-    const [lo, hi] = rangeOf(ln);
-    const max = Math.max(hi * 1.8, ln.qty * 1.2, DEFAULT_QTY[ln.kind]);
-    const step = niceStep(max);
-    const slider = h('input', { type: 'range', min: 0, max: String(max), step: String(step), value: String(ln.qty), 'aria-label': `${ln.name} 양(${ln.unit})` });
-    const num = numInput({ value: n3(ln.qty), 'aria-label': `${ln.name} 양 숫자로 입력(${ln.unit})` });
     const tag = h('span', { class: 'tag est' }, '추정');
+    const qty = h('span', { class: 'mb-row-q n' });
     const cost = h('span', { class: 'xs mb-row-cost' });
     const sameKind = ings.filter((i) => i.kind === ln.kind);
     const link = selectOf([['new', '새 식자재로 등록'], ...sameKind.map((i) => [String(i.id), i.unit_price == null ? `${i.name} (단가 없음)` : i.name])],
       ln.ingId ? String(ln.ingId) : 'new', { 'aria-label': `${ln.name}에 연결할 내 식자재`, class: 'select mb-link' });
     const band = () => {
-      const [a, b] = rangeOf(ln);
-      slider.style.setProperty('--lo', `${(a / max) * 100}%`);
-      slider.style.setProperty('--hi', `${(b / max) * 100}%`);
-      slider.classList.toggle('touched', ln.touched);
       tag.hidden = ln.touched;
+      qty.textContent = `${n3(ln.qty)}${ln.unit}`;
       const c = lineCost(ln);
-      cost.textContent = c == null ? (ingOf(ln) ? '단가 없음' : '새 재료 · 단가 없음') : `${n0(c)}원`;
+      cost.textContent = c == null ? (ingOf(ln) ? '단가 없음' : '새 재료') : `${n0(c)}원`;
     };
-    const set = (v, from) => {
-      if (!(v >= 0)) return;
-      ln.qty = v;
-      ln.touched = true;
-      if (from !== 'num') num.value = n3(v);
-      if (from !== 'slider') slider.value = String(Math.min(v, max));
-      band();
-      afterQty(ln);
-    };
-    slider.addEventListener('input', () => set(Number(slider.value), 'slider'));
-    num.addEventListener('input', () => { const v = parseNum(num.value); if (v > 0) set(v, 'num'); });
     link.addEventListener('change', () => { ln.ingId = link.value === 'new' ? null : Number(link.value); band(); paintBowl(); paintReceipt(); });
     const row = h('div', { class: 'mb-row', 'data-key': ln.key },
       h('div', { class: 'mb-row-h' },
-        h('button', { class: 'mb-pick', type: 'button', onclick: () => (held === ln.key ? putDown() : pickUp(ln.key, true)), title: '집어서 그릇에 붓기' }, ln.name),
-        tag, cost,
+        h('button', { class: 'mb-pick', type: 'button', onclick: () => (held === ln.key ? putDown() : pickUp(ln.key, true)), 'aria-label': `${ln.name} 집기` },
+          h('b', null, ln.name), tag),
+        qty, cost,
         h('button', { class: 'mb-chip-x', type: 'button', 'aria-label': `${ln.name} 빼기`, onclick: () => removeLine(ln.key) }, '×')),
-      h('div', { class: 'mb-row-ctl' }, slider, h('span', { class: 'mb-num' }, num, h('span', { class: 'xs muted' }, ln.unit))),
-      link,
-      ln.note ? h('p', { class: 'xs muted' }, ln.note) : null);
-    row.sync = () => { slider.value = String(Math.min(ln.qty, max)); num.value = n3(ln.qty); band(); };
+      h('div', { class: 'mb-row-more' }, h('label', { class: 'xs muted' }, '내 식자재 연결 ', link), ln.note ? h('p', { class: 'xs muted' }, ln.note) : null));
+    row.sync = band;
     band();
     row.classList.toggle('held', held === ln.key);
     rowMap.set(ln.key, row);
@@ -575,7 +556,7 @@ export async function render(box) {
     });
     if (!ln) {
       scName.textContent = '재료를 집으면 무게가 보여요';
-      scNum.textContent = '0'; scNum.dataset.v = '0'; scUnit.textContent = 'g';
+      scNum.value = '0'; scNum.dataset.v = '0'; scNum.disabled = true; scUnit.textContent = 'g';
       scState.textContent = ''; scSpoon.textContent = ''; scPic.replaceChildren(); scale.classList.remove('spoon'); delete scale.dataset.key;
       scMinus.disabled = scPlus.disabled = true; scDrop.hidden = true;
       scale.dataset.where = 'ok';
@@ -591,7 +572,7 @@ export async function render(box) {
       scNum.dataset.v = 'x'; // 다른 재료로 바꿔 들면 숫자를 굴리지 않고 바로 보여 줌
       lastWhere = where(ln);
     }
-    scMinus.disabled = scPlus.disabled = false; scDrop.hidden = false;
+    scMinus.disabled = scPlus.disabled = false; scDrop.hidden = false; scNum.disabled = false;
     const md = modeOf(ln);
     const sp = md.kind === 'spoon';
     scale.classList.toggle('spoon', sp);
@@ -776,6 +757,12 @@ export async function render(box) {
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, stop);
     btn.addEventListener('click', (e) => { if (e.detail === 0) once(); }); // 키보드
   }
+  scNum.addEventListener('input', () => {
+    const ln = held != null ? lineOf(held) : null;
+    const v = parseNum(scNum.value);
+    if (ln && v >= 0) setQty(ln, v);
+  });
+  scNum.addEventListener('focus', () => scNum.select());
   holdRepeat(scMinus, -1);
   holdRepeat(scPlus, 1);
   scDrop.addEventListener('click', putDown);
@@ -819,7 +806,7 @@ export async function render(box) {
   save.addEventListener('click', () => busy(save, async () => {
     if (!menuName.value.trim()) { menuName.focus(); toast('메뉴 이름을 입력해 주세요.', 'err'); return; }
     const bad = lines.find((l) => !(l.qty > 0));
-    if (bad) { focusRow(bad.key); toast(`'${bad.name}'의 양을 넣어 주세요. 안 쓰는 재료는 그릇에서 빼 주세요.`, 'err'); return; }
+    if (bad) { pickUp(bad.key, true); toast(`'${bad.name}'의 양을 넣어 주세요. 안 쓰는 재료는 그릇에서 빼 주세요.`, 'err'); return; }
     const body = {
       name: menuName.value.trim(), price: parseNum(price.value) || 0, category: category.value.trim(),
       lines: lines.map((ln) => {

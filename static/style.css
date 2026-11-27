@@ -2064,7 +2064,7 @@ a.dm-stat:active { transform: scale(0.98); }
 @media (min-width: 900px) {
   .mb-grid { grid-template-columns: 220px minmax(0, 1fr) 300px; }
   .mb-find, .mb-adjust { position: sticky; top: 72px; }
-  .mb-rows { max-height: calc(100vh - 520px); min-height: 150px; overflow-y: auto; padding-right: 4px; scrollbar-gutter: stable; }
+  .mb-rows { max-height: calc(100vh - 560px); min-height: 150px; overflow-y: auto; padding-right: 4px; scrollbar-gutter: stable; }
 }
 .mb-grid .sheet + .sheet { margin-top: 0; }
 .mb-h { display: flex; align-items: center; gap: 8px; font-family: var(--font-head); font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
@@ -2394,3 +2394,19 @@ a.dm-stat:active { transform: scale(0.98); }
 .mb-drop.chunk { width: 30px; height: 30px; margin: -15px 0 0 -15px; animation: mbChunk .45s cubic-bezier(.5, 0, .7, 1.4) forwards; }
 @keyframes mbChunk { 0% { transform: translate(0, 0) scale(.9) rotate(0); opacity: 1; } 75% { opacity: 1; } 100% { transform: translate(var(--dx), 48px) scale(.55) rotate(calc(var(--rot) / 4)); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .mb-hand.dip img, .mb-hand.dip i { animation: none; } }
+
+/* 오른쪽 목록은 한 줄씩만(양은 저울에서). 집은 줄만 펼쳐서 식자재 연결을 보여 줌 */
+.mb-row { padding: 6px 6px; }
+.mb-row .mb-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; min-height: 36px; text-decoration: none; cursor: pointer; }
+.mb-row .mb-pick b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mb-row-q { font-weight: 700; white-space: nowrap; margin-left: auto; padding-left: 6px; }
+.mb-row .mb-row-cost { margin-left: 0; min-width: 52px; text-align: right; }
+.mb-row-more { display: none; padding: 4px 0 2px; }
+.mb-row.held .mb-row-more { display: block; }
+.mb-row-more label { display: grid; gap: 4px; }
+.mb-row:not(.held):hover { background: rgba(255, 255, 255, 0.04); }
+/* 저울 숫자는 눌러서 직접 입력할 수 있는 칸 */
+input.mb-sc-num { width: 4.2em; padding: 0; min-height: 0; border: 0; background: transparent; color: inherit; text-align: right; box-shadow: none; }
+input.mb-sc-num:focus { outline: 1px dashed currentColor; outline-offset: 2px; }
+input.mb-sc-num:disabled { opacity: 1; -webkit-text-fill-color: currentColor; }
+.mb-row .mb-pick .tag { flex: none; white-space: nowrap; }

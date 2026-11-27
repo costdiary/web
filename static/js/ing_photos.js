@@ -1,0 +1,2 @@
+/* static/img/ing/photo/ 에 있는 손질된 재료 사진 목록(scripts 없이 사진을 넣을 때 여기에 이름을 더합니다). 출처: static/img/ing/photo/CREDITS.txt */
+export const PHOTO_SLUGS = ["beef", "cabbage", "carrot", "cheese", "chicken", "chili", "chives", "cucumber", "dangmyeon", "danmuji", "doenjang", "egg", "fishcake", "garlic", "gochugaru", "gochujang", "ham", "kimchi", "mushroom", "napa", "onion", "perilla", "pork", "porkbelly", "rice", "scallion", "sesame", "shrimp", "sprouts", "squid", "tomato", "tteok", "zucchini"];

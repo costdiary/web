@@ -5,6 +5,7 @@ import {
   h, api, app, numInput, selectOf, parseNum, n0, n1, n3, busy, toast, errMsg, icon, fill,
 } from './core.js';
 import { menuTotals, effUnitCost } from './calc.js';
+import { PHOTO_SLUGS } from './ing_photos.js';
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const UNIT_OF = { g: 'g', ml: 'ml', ea: '개' };
@@ -64,7 +65,26 @@ const PICS = [
   [/빵가루/, '1f35e'], [/가루|전분/, '1f33e'], [/설탕|소금|겨자/, '1f9c2'], [/캔/, '1f96b'],
   [/올리브/, '1fad2'], [/기름|유$/, '1fad7'], [/육수|국물/, '1f963'],
 ];
-const picOf = (name) => { const hit = PICS.find(([re]) => re.test(name)); return hit ? `/static/img/ing/${hit[1]}.svg` : null; };
+/* 손질된 재료 사진(위키미디어 공용, 상업적 이용 가능한 자유 이용 사진만 · 배경 지움 · static/img/ing/photo/CREDITS.txt).
+   사진이 있는 재료는 사진을, 없으면 위 그림을 씁니다. */
+const PHOTOS = [
+  [/달걀|계란/, 'egg'], [/김치/, 'kimchi'], [/고춧가루/, 'gochugaru'], [/청양|풋고추|홍고추|고추$|고추 /, 'chili'],
+  [/고추장/, 'gochujang'], [/된장|쌈장/, 'doenjang'], [/간장/, 'soysauce'], [/삼겹/, 'porkbelly'],
+  [/닭/, 'chicken'], [/소고기|양지|등심|불고기|차돌|우삼겹/, 'beef'], [/돼지|앞다리|목살|뒷다리|제육|고기/, 'pork'],
+  [/햄|스팸/, 'ham'], [/소시지|비엔나/, 'sausage'], [/새우/, 'shrimp'], [/오징어/, 'squid'], [/바지락|조개|홍합/, 'clam'],
+  [/어묵/, 'fishcake'], [/당근/, 'carrot'], [/양파/, 'onion'], [/마늘/, 'garlic'], [/감자/, 'potato'],
+  [/콩나물|숙주/, 'sprouts'], [/팽이/, 'enoki'], [/버섯/, 'mushroom'], [/애호박|호박/, 'zucchini'], [/오이/, 'cucumber'],
+  [/단무지/, 'danmuji'], [/^무$|^무 |무\(/, 'radish'], [/양배추/, 'cabbage'], [/배추|우거지/, 'napa'], [/깻잎/, 'perilla'],
+  [/시금치/, 'spinach'], [/부추/, 'chives'], [/대파|쪽파|실파|^파$|^파 |송송/, 'scallion'], [/두부/, 'tofu'], [/치즈/, 'cheese'],
+  [/라면/, 'ramen'], [/당면/, 'dangmyeon'], [/떡/, 'tteok'], [/면|국수|사리|우동/, 'noodle'], [/밥|쌀/, 'rice'],
+  [/깨$|통깨|참깨/, 'sesame'], [/토마토/, 'tomato'],
+];
+const HAVE_PHOTO = new Set(PHOTO_SLUGS);
+const picOf = (name) => {
+  const ph = PHOTOS.find(([re]) => re.test(name));
+  if (ph && HAVE_PHOTO.has(ph[1])) return `/static/img/ing/photo/${ph[1]}.webp`;
+  const hit = PICS.find(([re]) => re.test(name)); return hit ? `/static/img/ing/${hit[1]}.svg` : null;
+};
 const toneOf = (name) => (TONES.find(([re]) => re.test(name)) || [null, '#c9a27a', '#f0d8b8']).slice(1);
 const SOUPS = [
   [/짜장|자장|춘장/, '#3a2213'], [/카레/, '#c8892c'], [/된장|뼈해장|감자탕/, '#8a5a2b'],
@@ -251,7 +271,7 @@ export async function render(box) {
 
   const bowlPanel = h('section', { class: 'mb-mid', 'aria-label': '그릇' },
     h('p', { class: 'mb-kicker' }, '오늘의 한 그릇'), menuName, sign, bowl3d, scale, bowlNote,
-    h('p', { class: 'mb-credit' }, '재료 그림: ', h('a', { href: 'https://github.com/jdecked/twemoji', target: '_blank', rel: 'noopener' }, 'Twemoji'), ' (CC-BY 4.0)'));
+    h('p', { class: 'mb-credit' }, '재료 사진: ', h('a', { href: '/static/img/ing/photo/CREDITS.txt', target: '_blank', rel: 'noopener' }, '위키미디어 공용 (사진별 작성자·이용 조건)'), ' · 그림: ', h('a', { href: 'https://github.com/jdecked/twemoji', target: '_blank', rel: 'noopener' }, 'Twemoji'), ' (CC-BY 4.0)'));
 
   /* ---------------- 오른쪽: 양 조절과 원가 ---------------- */
   const portion = h('div', { class: 'seg mb-portion', role: 'group', 'aria-label': '양 전체 바꾸기' },

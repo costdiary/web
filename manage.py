@@ -6,6 +6,7 @@
   python manage.py set-plan owner@example.com --days 30     # 유료 이용 기간을 오늘부터 30일로 설정(이미 유료면 거기서 연장)
   python manage.py set-trial owner@example.com --days 14    # 체험 기간을 오늘부터 14일로 다시 설정
   python manage.py set-password owner@example.com           # 비밀번호를 잊은 사장님께 임시 비밀번호 발급
+  python manage.py verify-email owner@example.com          # 본인 주소임을 직접 확인한 계정을 '이메일 확인됨'으로 표시
   python manage.py leads --csv leads.csv
   python manage.py backup
 """
@@ -71,6 +72,15 @@ def cmd_set_password(db, args):
     db.execute("DELETE FROM sessions WHERE user_id = ?", (u["id"],))
     print(f"{u['email']}: 임시 비밀번호  {temp}")
     print("  본인 확인 후 사장님께 전달하고, 로그인한 뒤 설정에서 바꾸도록 안내하세요. 기존 로그인은 모두 해제했습니다.")
+
+
+def cmd_verify_email(db, args):
+    u = _find_user(db, args.email)
+    if u["email_verified_at"]:
+        print(f"{u['email']}: 이미 이메일이 확인된 계정입니다({u['email_verified_at'][:10]}).")
+        return
+    db.execute("UPDATE users SET email_verified_at = ? WHERE id = ?", (now_iso(), u["id"]))
+    print(f"{u['email']}: 이메일 확인됨으로 표시했습니다. (메일 발송 설정 전에 운영자 계정을 쓸 때만 쓰세요)")
 
 
 def cmd_leads(db, args):
@@ -236,6 +246,9 @@ def main() -> None:
     sw = sub.add_parser("set-password", help="비밀번호를 잊은 사용자에게 임시 비밀번호 발급")
     sw.add_argument("email")
     sw.set_defaults(fn=cmd_set_password)
+    sv = sub.add_parser("verify-email", help="계정 주인이 맞는지 직접 확인한 뒤 이메일 확인됨으로 표시")
+    sv.add_argument("email")
+    sv.set_defaults(fn=cmd_verify_email)
     sl = sub.add_parser("leads", help="도입 문의 보기/내보내기")
     sl.add_argument("--csv", help="CSV 파일로 저장")
     sl.set_defaults(fn=cmd_leads)

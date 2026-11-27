@@ -44,9 +44,11 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 def public_config() -> dict:
     """로그인 전에도 화면에 보여줘도 되는 설정값. 원가노트는 무료이므로 체험·요금 안내는 없습니다."""
-    from . import identity, oauth  # 지연 import: oauth.py가 config를 쓰므로 모듈 맨 위에서 돌면 순환 참조가 됩니다.
+    from . import email_verify, identity, oauth  # 지연 import: oauth.py가 config를 쓰므로 모듈 맨 위에서 돌면 순환 참조가 됩니다.
     return {
         "signup_code_required": bool(env_str("SIGNUP_CODE")),
+        # 이메일 가입 때 메일로 받은 인증번호 6자리를 넣어야 하는지(email_verify.py).
+        "email_verify_required": email_verify.required(),
         "contact_email": env_str("CONTACT_EMAIL"),
         "business_name": env_str("BUSINESS_NAME"),
         "biz_reg_no": env_str("BIZ_REG_NO"),

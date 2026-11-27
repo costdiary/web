@@ -79,6 +79,17 @@ CREATE TABLE IF NOT EXISTS password_resets (
   created_at TEXT NOT NULL
 );
 
+-- 이메일 인증번호(20). 주소·용도마다 하나만 두고(새로 받으면 덮어씀), 10분 뒤 만료, 다섯 번 틀리면 무효.
+CREATE TABLE IF NOT EXISTS email_codes (
+  email TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  code_hash TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (email, purpose)
+);
+
 CREATE TABLE IF NOT EXISTS ingredients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -767,7 +778,9 @@ def connect() -> sqlite3.Connection:
 # 19: 휴대폰 본인인증 — identity_verifications는 새 표(SCHEMA). users에 인증 결과 칸
 #     (verified_name/phone/birth, ci_hash, identity_verified_at, identity_required)을 ALTER로 더하고,
 #     한 사람 한 계정을 지키려고 ci_hash에 부분 UNIQUE 색인을 건다(기존 계정은 모두 NULL이라 충돌 없음).
-SCHEMA_VERSION = 19
+# 20: 이메일 인증 — users.email_verified_at, email_codes 표. 기존 계정 중 소셜 로그인으로 들어와
+#     제공자가 확인해 준 진짜 이메일이 있는 계정은 확인된 것으로 채운다(이메일 가입 계정은 비워 둔다).
+SCHEMA_VERSION = 20
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -888,6 +901,14 @@ def migrate(conn: sqlite3.Connection) -> None:
                 if col not in have:
                     conn.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
             conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ci ON users(ci_hash) WHERE ci_hash IS NOT NULL")
+        if conn.execute("PRAGMA user_version").fetchone()[0] < 20:
+            if "email_verified_at" not in _columns(conn, "users"):
+                conn.execute("ALTER TABLE users ADD COLUMN email_verified_at TEXT")
+            conn.execute(
+                "UPDATE users SET email_verified_at = created_at WHERE email_verified_at IS NULL "
+                "AND email NOT LIKE '%@oauth.wongaenote.local' "
+                "AND id IN (SELECT user_id FROM oauth_accounts)"
+            )
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.execute("COMMIT")
     except BaseException:

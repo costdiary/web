@@ -20,7 +20,7 @@ import * as preps from './preps.js';
 import * as orders from './orders.js';
 import * as donate from './donate.js';
 import * as admin from './admin.js';
-import { setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled, DONATE_ENABLED, setDonateEnabled } from './core.js';
+import { MARKET_ENABLED, setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled, DONATE_ENABLED, setDonateEnabled } from './core.js';
 import { openResetPassword, openSignup } from './auth.js';
 import { consumeIdentityReturn, identityBox } from './identity.js';
 
@@ -69,11 +69,12 @@ function getRoutes() {
     { re: /^#\/delivery\/?$/, tab: '#/more', nav: '#/delivery', title: '배달앱 수수료', run: (box) => channels.render(box) },
     ...(ORDERS_ENABLED ? [{ re: /^#\/orders\/?$/, tab: '#/more', nav: '#/orders', title: '주문건 연동', run: (box) => orders.render(box) }] : []),
     // 예전 도매 주소(#/market…)로 들어오면 도매마켓이 따로 열린다는 안내만 보여 준다.
-    { re: /^#\/market(?:\/.*)?$/, tab: '#/more', nav: '#/settings', title: '도매마켓', run: (box) => box.append(h('section', { class: 'sheet' }, emptyBlock({
+    // 도매마켓 서비스 전(MARKET_ENABLED 꺼짐, 기본값)에는 이 안내도 숨기고 홈으로 보낸다.
+    ...(MARKET_ENABLED ? [{ re: /^#\/market(?:\/.*)?$/, tab: '#/more', nav: '#/settings', title: '도매마켓', run: (box) => box.append(h('section', { class: 'sheet' }, emptyBlock({
       title: '도매마켓은 따로 열려요',
       text: '도매마켓은 원가다이어리와 다른 서비스예요. 받은 단가 제안·떨이·연결 요청은 도매마켓에서 원가다이어리 계정으로 로그인해 볼 수 있어요.',
       actions: [h('a', { class: 'btn', href: app.pub.market_url || '/partner' }, '도매마켓 열기'), h('a', { class: 'btn ghost', href: '#/settings' }, '설정으로')],
-    }))) },
+    }))) }] : []),
     // 결제위젯이 성공·실패 후 "#/donate?paymentKey=...&orderId=..." 형태로 돌려보내므로 쿼리스트링도 받아 준다.
     ...(DONATE_ENABLED ? [{ re: /^#\/donate(?:\/|\?.*)?$/, tab: '#/more', nav: '#/donate', title: '후원하기', run: (box) => donate.render(box) }] : []),
     // 사이드바에는 안 보이고, 운영자가 주소를 직접 쳐서 들어가는 화면(권한은 서버가 막음).

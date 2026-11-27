@@ -2140,3 +2140,30 @@ a.dm-stat:active { transform: scale(0.98); }
 .email-code[hidden] { display: none; }
 .email-verify { display: grid; gap: 8px; justify-items: start; margin-top: 6px; }
 .email-ok { margin-left: 8px; font-size: 0.8125rem; font-weight: 700; color: var(--green); }
+
+/* 내 매출 한 달 달력: 칸마다 그 날 매출, 하루 목표를 넘은 날은 초록·못 미친 날은 앰버. */
+.cal { margin: 4px 0 14px; }
+.cal-head, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-head { margin-bottom: 4px; font-size: 0.75rem; color: var(--ink-2); text-align: center; }
+.cal-head .sun, .cal-cell.sun .cal-d { color: var(--red); }
+.cal-cell { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; min-height: 54px; padding: 5px 4px 6px; border: 1px solid var(--rule); border-radius: var(--r-sm); background: var(--sheet); color: var(--ink); text-align: left; overflow: hidden; }
+.cal-cell.blank { border-color: transparent; background: transparent; }
+.cal-cell:not(:disabled):hover { border-color: var(--rule-2); box-shadow: var(--shadow-1); }
+.cal-cell:disabled { cursor: default; }
+.cal-cell.future { background: transparent; color: var(--ink-3); border-style: dashed; }
+.cal-cell.hit { background: var(--green-soft); border-color: transparent; }
+.cal-cell.hit .cal-amt { color: var(--green); }
+.cal-cell.miss { background: var(--amber-soft); border-color: transparent; }
+.cal-cell.miss .cal-amt { color: var(--amber); }
+.cal-cell.has { background: var(--blue-soft); border-color: transparent; }
+.cal-cell.today { outline: 2px solid var(--btn); outline-offset: -2px; }
+.cal-d { font-size: 0.75rem; line-height: 1; }
+.cal-amt { align-self: stretch; font-size: 0.75rem; letter-spacing: -0.03em; line-height: 1.1; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-np { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--btn); }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; }
+.cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.cal-sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.cal-sw.hit { background: var(--green-soft); box-shadow: inset 0 0 0 1px var(--green); }
+.cal-sw.miss { background: var(--amber-soft); box-shadow: inset 0 0 0 1px var(--amber); }
+.cal-sw.np { border-radius: 50%; width: 6px; height: 6px; background: var(--btn); }
+@media (max-width: 380px) { .cal-cell { min-height: 46px; padding: 4px 2px 5px; } .cal-amt { font-size: 0.6875rem; } }

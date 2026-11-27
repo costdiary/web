@@ -580,6 +580,24 @@ CREATE TABLE IF NOT EXISTS leads (
   created_at TEXT NOT NULL
 );
 
+-- 개선사항 요청(예전 '도입 문의'를 대신함). 랜딩(로그인 전)과 앱(로그인 후) 양쪽에서 받는다.
+-- 로그인한 사장님이 보내면 user_id가 붙고, 계정을 지워도 요청 내용은 남긴다(user_id만 비움).
+-- 운영자 화면(#/admin/feedback)에서 상태를 new → seen → done 으로 바꾸며 처리한다.
+-- 새 표라 SCHEMA의 CREATE TABLE IF NOT EXISTS로 기존 DB에도 바로 생긴다. leads 표는 옛 문의 보관용으로 둔다.
+CREATE TABLE IF NOT EXISTS feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  category TEXT NOT NULL DEFAULT 'idea',
+  message TEXT NOT NULL,
+  contact TEXT NOT NULL DEFAULT '',
+  page TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'seen', 'done')),
+  admin_note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status, id);
+
 -- [v12] 프렙 레시피(미리 끓여 두는 육수·소스 등)를 g/ml당 원가로 관리. 프렙 결과물은 전용 식자재 한 줄
 -- (ingredients.from_prep_id, migrate()에서 ALTER로 추가)로 자동 관리되어, 메뉴 원가 계산(costing.py)이
 -- 그대로 재사용된다. prep_items의 재료는 다른 프렙 결과물이 아닌 '원재료'만 허용한다(1단계만, 순환 방지).

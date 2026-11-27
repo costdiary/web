@@ -3,10 +3,11 @@
    → 시작 순서 → 하는 일·안 하는 일 → 가격 → 자주 묻는 질문 → 마지막 권유.
    데모 숫자는 체험용 예시 가게(app/seed.py)와 같은 값이고, 계산식은 app/costing.py·app/labor.py를 줄여 옮긴 것.
    실제 시세나 실제 정산 금액이 아니므로 화면에도 '예시'라고 적는다. 스타일은 static/landing.css(.lp 아래). */
-import { h, api, app, field, busy, errMsg, n0, n1, roundUp100, selectOf, icon, DONATE_ENABLED } from './core.js';
+import { h, app, n0, n1, roundUp100, icon, DONATE_ENABLED } from './core.js';
 import { openSignup, openLogin } from './auth.js';
 import { openDataNotice, openTerms } from './legal.js';
 import { openCookieSettings } from './analytics.js';
+import { feedbackForm } from './feedback.js';
 
 export { openDataNotice, openTerms };
 
@@ -465,31 +466,6 @@ function faqList() {
   return h('div', { class: 'lp-faq' }, items, more);
 }
 
-/* ─── 도입 문의 ─── */
-function leadForm() {
-  const name = h('input', { class: 'input', type: 'text', name: 'name', maxLength: 60, autocomplete: 'name' });
-  const contact = h('input', { class: 'input', type: 'text', maxLength: 120, name: 'contact', placeholder: '예: 010-1234-5678 또는 me@example.com', autocomplete: 'off', spellcheck: false });
-  const biz = selectOf(['한식', '분식', '고깃집', '주점', '카페·베이커리', '기타'], '한식');
-  const msg = h('textarea', { class: 'textarea', maxLength: 1000, placeholder: '메뉴 수, 쓰고 계신 방식(수기·엑셀 등)을 적어 주시면 답변이 빨라요.' });
-  const err = h('div', { class: 'form-err', role: 'alert', hidden: true });
-  const btn = h('button', { class: 'lp-btn is-primary', type: 'submit' }, '문의 보내기');
-  const form = h('form', { class: 'lp-form', novalidate: true }, err,
-    h('div', { class: 'two' }, field('이름', name), field('연락처', contact)),
-    field('업종', biz), field('문의 내용 (선택)', msg), btn);
-  form.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    err.hidden = true;
-    if (contact.value.trim().length < 3) { err.textContent = '답변받을 연락처를 입력해 주세요.'; err.hidden = false; return; }
-    await busy(btn, async () => {
-      try {
-        await api('/api/leads', { method: 'POST', body: { name: name.value, contact: contact.value, biz_type: biz.value, message: msg.value } });
-      } catch (e) { err.textContent = errMsg(e); err.hidden = false; return; }
-      form.replaceChildren(h('p', { role: 'status' }, '문의를 접수했어요. 남겨 주신 연락처로 답변드릴게요.'));
-    });
-  });
-  return form;
-}
-
 /* 로고: 밝은 화면용(짙은 갈색 글씨)과 어두운 화면용(크림색 글씨)을 함께 두고 CSS로 하나만 보인다 */
 function logo() {
   return [
@@ -618,10 +594,10 @@ export function renderLanding(root, onAuth) {
         h('div', { class: 'lp-wrap lp-faq-wrap' },
           h('div', { class: 'lp-sec-h is-left rv' },
             h('h2', { id: 'lp-faq-t' }, '자주 묻는 질문'),
-            h('p', null, '더 궁금한 점은 아래 문의로 남겨 주세요.')),
+            h('p', null, '바라는 점이나 불편한 점은 맨 아래 개선사항 요청으로 남겨 주세요.')),
           h('div', { class: 'rv' }, faqList()))),
 
-      /* 마지막 권유 + 문의 */
+      /* 마지막 권유 + 개선사항 요청 */
       h('section', { class: 'lp-sec lp-final', 'aria-labelledby': 'lp-final-t' },
         h('div', { class: 'lp-wrap' },
           h('div', { class: 'lp-final-in rv' },
@@ -629,8 +605,8 @@ export function renderLanding(root, onAuth) {
             h('p', null, socialLine(pub)),
             h('div', { class: 'lp-cta-row is-center' }, cta('무료로 시작하기', 'is-accent is-lg'))),
           h('details', { class: 'lp-lead-box rv' },
-            h('summary', null, h('span', null, h('b', null, '도입 문의'), ' 우리 가게에 맞는지 먼저 물어보셔도 돼요'), h('span', { class: 'lp-faq-ic', 'aria-hidden': 'true' })),
-            leadForm())))),
+            h('summary', null, h('span', null, h('b', null, '개선사항 요청'), ' 있었으면 하는 기능, 불편한 점을 알려 주세요'), h('span', { class: 'lp-faq-ic', 'aria-hidden': 'true' })),
+            feedbackForm({ btnClass: 'lp-btn is-primary', formClass: 'lp-form', page: 'landing' }))))),
 
     h('footer', { class: 'lp-foot' },
       h('div', { class: 'lp-wrap lp-foot-in' },

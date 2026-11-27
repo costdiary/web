@@ -21,6 +21,7 @@ export function sections() {
     ] },
     { title: '더 보기', items: [
       ['#/notifications', '알림', 'bell', '단가 변동, 배달 적자, 단가 확인할 때를 한곳에서.'],
+      ['#/feedback', '개선사항 요청', 'chat', '있었으면 하는 기능, 불편한 점을 운영자에게 알려 주세요.'],
       ['#/import', '가져오기', 'upload', '쓰던 앱·엑셀의 단가표와 레시피를 옮겨 와요.'],
       ...(DONATE_ENABLED ? [['#/donate', '후원하기', 'heart', '원가다이어리는 무료예요. 도움이 됐다면 응원해 주세요.']] : []),
       ['#/settings', '설정', 'sliders', '목표 원가율, 알림, 내 데이터 내려받기, 계정.'],
@@ -28,6 +29,7 @@ export function sections() {
     // 운영자(ADMIN_EMAILS)에게만 보인다. 서버도 운영자가 아니면 막는다.
     ...(app.me?.is_admin ? [{ title: '운영자', items: [
       ['#/admin/stats', '운영 현황', 'trend', '가입자 수와 방문자 수, 어디서 왔는지.'],
+      ['#/admin/feedback', '개선사항 요청', 'chat', '사장님들이 보낸 기능 제안·불편한 점.'],
       ['#/admin/users', '사장님 계정', 'users', '계정 찾기, 쓴 만큼 보기, 임시 비밀번호.'],
       ['#/admin/db', 'DB 보기', 'list', '서버 데이터베이스 표를 읽기 전용으로.'],
       ['#/admin/ocr', 'OCR 인식 로그', 'camera', '사진 자동 인식이 어떻게 읽혔는지.'],

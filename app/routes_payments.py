@@ -13,7 +13,7 @@ import logging
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from . import donations, market, payments
+from . import config, donations, market, payments
 from .db import get_db
 
 log = logging.getLogger("wongaenote.routes_payments")
@@ -23,7 +23,8 @@ router = APIRouter()
 
 async def _handle(request: Request, db, service: str, confirm_fn, fail_fn, accept) -> JSONResponse | dict:
     body = await request.body()
-    payload = payments.get_provider(service).parse_webhook(dict(request.headers), body)
+    provider = payments.get_provider(service)
+    payload = provider.parse_webhook(dict(request.headers), body)
     if payload is None:
         return JSONResponse({"detail": "서명을 확인하지 못했습니다."}, status_code=400)
 
@@ -31,6 +32,17 @@ async def _handle(request: Request, db, service: str, confirm_fn, fail_fn, accep
     # {"eventType": "PAYMENT_STATUS_CHANGED", "data": {"orderId": "...", "paymentKey": "...",
     #  "status": "DONE"|"CANCELED"|..., "totalAmount": 12345}}
     data = payload.get("data") or payload
+    if provider.name == "mock":
+        # 실제 결제사 키가 없을 때는 웹훅을 받지 않는다. 서명도 조회할 곳도 없어서, 누구나 "결제 완료"를
+        # 꾸며 보내 후원·광고를 공짜로 확정할 수 있기 때문이다(테스트에서만 PAYMENTS_MOCK_WEBHOOK=1).
+        if not config.env_bool("PAYMENTS_MOCK_WEBHOOK"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+    else:
+        # 웹훅 본문은 믿지 않고, 토스에 결제 키로 직접 물어본 결과만 쓴다.
+        fetched = provider.lookup(str(data.get("paymentKey") or data.get("payment_key") or ""))
+        if not fetched:
+            return JSONResponse({"detail": "결제를 확인하지 못했습니다."}, status_code=400)
+        data = fetched
     order_id = str(data.get("orderId") or data.get("order_id") or "")
     status = str(data.get("status") or "")
     if not order_id:

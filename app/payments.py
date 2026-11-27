@@ -137,6 +137,23 @@ class TossPaymentsProvider(PaymentProvider):
         except ValueError:
             return None
 
+    def lookup(self, payment_key: str) -> dict | None:
+        """토스에 결제 상태를 직접 물어본다. 웹훅 내용은 누구나 꾸며 보낼 수 있으므로, 웹훅을 받으면
+        이 값(토스가 직접 준 orderId·status·totalAmount)으로만 결제를 확정한다."""
+        if not payment_key:
+            return None
+        try:
+            resp = httpx.get(f"{TOSS_API_BASE}/payments/{payment_key}", auth=(self.secret_key, ""), timeout=10.0)
+        except httpx.HTTPError as e:
+            log.warning("toss 결제 조회 실패: %s", type(e).__name__)
+            return None
+        if resp.status_code != 200:
+            return None
+        try:
+            return resp.json()
+        except ValueError:
+            return None
+
 
 # 원가다이어리(후원)와 도매마켓(떨이 광고)은 서로 다른 서비스라 결제 가맹점 키도 따로 둔다.
 # 원가다이어리: TOSS_*, 도매마켓: MARKET_TOSS_*. 한쪽 키가 비어 있으면 그쪽만 모의 결제로 돈다

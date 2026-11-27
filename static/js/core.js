@@ -133,6 +133,8 @@ export async function api(path, { method = 'GET', body, form, key } = {}) {
     if (res.status === 401 && !path.startsWith('/api/auth/') && !path.startsWith('/api/ws/auth/')) bus.dispatchEvent(new Event('auth-lost'));
     throw new ApiError(res.status, detail);
   }
+  // 저장이 끝난 요청을 알려 준다(analytics.js가 가입·메뉴 등록 같은 행동을 세는 데 씀). 본문은 넘기지 않는다.
+  if (method !== 'GET') bus.dispatchEvent(new CustomEvent('api-ok', { detail: { method, path } }));
   return data;
 }
 

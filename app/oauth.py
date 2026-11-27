@@ -119,16 +119,20 @@ def _profile(provider: str, access_token: str) -> tuple[str, str | None]:
         log.warning("%s profile http %s: %s", provider, resp.status_code, resp.text[:300])
         raise OAuthError("로그인 서버에서 프로필을 받지 못했습니다.")
     data = resp.json()
+    # 이메일은 제공자가 "본인 확인된 주소"라고 알려 줄 때만 쓴다. 확인 안 된 이메일을 믿으면, 남의 이메일을
+    # 적어 만든 소셜 계정으로 그 이메일의 기존 원가다이어리 계정(운영자 계정 포함)에 들어갈 수 있다.
     if provider == "kakao":
         uid = str(data.get("id") or "")
-        email = (data.get("kakao_account") or {}).get("email")
+        acc = data.get("kakao_account") or {}
+        email = acc.get("email") if acc.get("is_email_valid") and acc.get("is_email_verified") else None
     elif provider == "naver":
         acc = data.get("response") or {}
         uid = str(acc.get("id") or "")
-        email = acc.get("email")
+        # 네이버는 확인 여부를 알려 주지 않는다. 네이버 아이디 메일(@naver.com)만 본인 것이 확실하다.
+        email = acc.get("email") if str(acc.get("email") or "").strip().lower().endswith("@naver.com") else None
     elif provider == "google":
         uid = str(data.get("sub") or "")
-        email = data.get("email")
+        email = data.get("email") if data.get("email_verified") in (True, "true") else None
     else:
         raise OAuthError("알 수 없는 로그인 제공자입니다.")
     if not uid:

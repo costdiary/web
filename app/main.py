@@ -7,10 +7,10 @@ from contextlib import asynccontextmanager, closing
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_identity, routes_admin, routes_notifications
+from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_identity, routes_admin, routes_notifications, visits
 from .config import ROOT, load_env_file
 from .db import connect, init_db, transaction
 
@@ -38,9 +38,12 @@ TOSS_CSP = "https://*.tosspayments.com"
 # 이유로 넉넉히 열어 둔 것이라, 실제 키로 인증 창을 띄웠을 때 콘솔에 CSP 차단이 남으면 그 도메인을 더한다.
 PORTONE_CSP = "https://*.portone.io https://*.iamport.co https://*.danalpay.com https://*.danal.co.kr"
 PAY_CSP = f"{TOSS_CSP} {PORTONE_CSP}"
+# 구글 애널리틱스(GA4). 사장님이 쿠키 동의 창에서 "통계"를 허용했을 때만 화면이 이 스크립트를 불러온다(analytics.js).
+GA_SCRIPT_CSP = "https://www.googletagmanager.com"
+GA_CONNECT_CSP = "https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com"
 CSP = (
-    f"default-src 'self'; img-src 'self' data: blob: {PAY_CSP}; style-src 'self' 'unsafe-inline' {PAY_CSP}; "
-    f"script-src 'self' {PAY_CSP}; font-src 'self' {PAY_CSP}; connect-src 'self' {PAY_CSP}; "
+    f"default-src 'self'; img-src 'self' data: blob: {PAY_CSP} {GA_CONNECT_CSP}; style-src 'self' 'unsafe-inline' {PAY_CSP}; "
+    f"script-src 'self' {PAY_CSP} {GA_SCRIPT_CSP}; font-src 'self' {PAY_CSP}; connect-src 'self' {PAY_CSP} {GA_CONNECT_CSP}; "
     f"frame-src {PAY_CSP}; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 )
 
@@ -171,6 +174,34 @@ def robots():
     return PlainTextResponse(security.robots_txt())
 
 
+# ---------------------------------------------------------------- 검색엔진·AI 검색용 공개 문서
+GUIDE_DIR = STATIC_DIR / "guide"
+GUIDES = ("menu-cost-rate",)  # static/guide/<이름>.html. 새 안내 글을 넣으면 여기에도 더한다(사이트맵에 실림).
+
+
+@app.get("/llms.txt", include_in_schema=False)
+def llms_txt():
+    # AI가 원가다이어리를 한눈에 이해하도록 정리한 소개 글(llmstxt.org 형식)
+    return FileResponse(STATIC_DIR / "llms.txt", media_type="text/plain; charset=utf-8", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    base = security.site_url()
+    urls = [f"{base}/"] + [f"{base}/guide/{g}" for g in GUIDES]
+    body = "".join(f"<url><loc>{u}</loc></url>" for u in urls)
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</urlset>'
+    return Response(xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/guide/{slug}", include_in_schema=False)
+def guide(slug: str, request: Request):
+    if slug not in GUIDES:
+        return PlainTextResponse("찾는 글이 없습니다.", status_code=404)
+    visits.record(request)
+    return FileResponse(GUIDE_DIR / f"{slug}.html", headers={"Cache-Control": "public, max-age=600"})
+
+
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "version": __version__}
@@ -193,6 +224,7 @@ def _is_market_host(request: Request) -> bool:
 def index(request: Request):
     if _is_market_host(request):
         return FileResponse(STATIC_DIR / "partner.html", headers={"Cache-Control": "no-cache"})
+    visits.record(request)  # 운영자용 방문자 수(쿠키 없음, 실패해도 화면은 그대로)
     return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 

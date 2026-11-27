@@ -28,6 +28,7 @@ def test_order_id_prefix():
 
 
 def test_webhooks_only_take_their_own_orders(monkeypatch):
+    monkeypatch.setenv("PAYMENTS_MOCK_WEBHOOK", "1")  # 키 없는 모의 결제에서도 웹훅을 받게 해서 주문번호 구분만 본다
     monkeypatch.delenv("TOSS_SECRET_KEY", raising=False)
     monkeypatch.delenv("MARKET_TOSS_SECRET_KEY", raising=False)
     with TestClient(app) as c:

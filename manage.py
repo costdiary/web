@@ -98,6 +98,12 @@ def cmd_stats(db, args):
     ym = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m")
     used = db.execute("SELECT COALESCE(SUM(count),0) FROM ocr_usage WHERE ym = ?", (ym,)).fetchone()[0]
     print(f"이번 달({ym}) 자동 인식 사용 {used}회, 도입 문의 {q('SELECT COUNT(*) FROM leads')}건")
+    from app import visits
+    st = visits.summary(db, 30)
+    v, sg = st["visits"], st["signups"]
+    since = f" (방문 집계 시작 {v['tracking_since']})" if v["tracking_since"] else " (방문 집계는 아직 기록 없음)"
+    print(f"가입 오늘 {sg['today']}명, 최근 7일 {sg['week']}명, 최근 30일 {sg['period']}명")
+    print(f"방문자 오늘 {v['today']}명, 최근 7일 {v['week']}명, 최근 30일 {v['period']}명(조회 {v['period_views']}회){since}")
     print(f"기준 시각 {now}")
 
 

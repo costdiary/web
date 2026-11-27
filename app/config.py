@@ -65,8 +65,8 @@ def public_config() -> dict:
         "app_url": env_str("APP_BASE_URL", "").rstrip("/") or "/",
         "market_url": _market_url(),
         "orders_enabled": env_bool("ORDERS_ENABLED", False),
-        # 후원하기는 기본 켜짐 — 끄고 싶을 때만 환경변수로 끈다.
-        "donation_enabled": env_bool("DONATION_ENABLED", True),
+        # 후원하기는 기본 꺼짐(토스 계약 전). 켜려면 DONATION_ENABLED=1. 꺼져 있으면 메뉴·약관 문구·API 모두 숨긴다.
+        "donation_enabled": env_bool("DONATION_ENABLED", False),
         # 토스페이먼츠 키가 아직 없으면 화면에 "테스트로 처리됩니다" 안내를 보여준다(payments.get_provider()와 같은 기준).
         "donation_real_pg": bool(env_str("TOSS_SECRET_KEY")),
         # 휴대폰 본인인증(identity.py). real=False면 화면이 "테스트 인증" 입력칸을 보여준다.
@@ -74,4 +74,8 @@ def public_config() -> dict:
         "identity_real": identity.real_configured(),
         # 키를 넣은 제공자만 True — 화면은 True인 것만 버튼으로 보여준다.
         "oauth_providers": oauth.configured_providers(),
+        # 구글 애널리틱스(GA4) 측정 ID(G-로 시작). 비어 있으면 화면이 GA를 전혀 불러오지 않는다.
+        "ga4_id": env_str("GA4_MEASUREMENT_ID").strip(),
+        # 광고를 붙이면 1. 쿠키 동의 창에 "광고" 항목이 생긴다(광고 코드 자체는 아직 없음).
+        "ads_enabled": env_bool("ADS_ENABLED", False),
     }

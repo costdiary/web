@@ -1,7 +1,7 @@
 /* 앱 시작: 로그인 확인 → 소개 화면 또는 앱 틀 + 화면 전환 */
 import { h, $, api, app, bus, refreshMe, icon, toast, errMsg, ApiError, openDialog } from './core.js';
 import { skeleton, emptyBlock } from './ui.js';
-import { renderLanding } from './landing.js?v=20';
+import { renderLanding } from './landing.js?v=22';
 import * as dashboard from './dashboard.js';
 import * as ingredients from './ingredients.js';
 import * as menus from './menus.js';
@@ -20,6 +20,7 @@ import * as preps from './preps.js';
 import * as orders from './orders.js';
 import * as donate from './donate.js';
 import * as admin from './admin.js';
+import { initAnalytics, page as gaPage } from './analytics.js';
 import { MARKET_ENABLED, setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled, DONATE_ENABLED, setDonateEnabled } from './core.js';
 import { openResetPassword, openSignup } from './auth.js';
 import { consumeIdentityReturn, identityBox } from './identity.js';
@@ -78,6 +79,11 @@ function getRoutes() {
     // 결제위젯이 성공·실패 후 "#/donate?paymentKey=...&orderId=..." 형태로 돌려보내므로 쿼리스트링도 받아 준다.
     ...(DONATE_ENABLED ? [{ re: /^#\/donate(?:\/|\?.*)?$/, tab: '#/more', nav: '#/donate', title: '후원하기', run: (box) => donate.render(box) }] : []),
     // 사이드바에는 안 보이고, 운영자가 주소를 직접 쳐서 들어가는 화면(권한은 서버가 막음).
+    { re: /^#\/admin\/stats\/?$/, tab: '#/admin/stats', title: '운영 현황', run: (box) => admin.renderStats(box) },
+    { re: /^#\/admin\/users\/?$/, tab: '#/admin/users', title: '사장님 계정', run: (box) => admin.renderUsers(box) },
+    { re: /^#\/admin\/users\/(\d+)\/?$/, tab: '#/admin/users', title: '계정 상세', run: (box, m) => admin.renderUser(box, Number(m[1])) },
+    { re: /^#\/admin\/db\/?$/, tab: '#/admin/db', title: 'DB 보기', run: (box) => admin.renderTables(box) },
+    { re: /^#\/admin\/db\/([a-z_0-9]+)\/?$/, tab: '#/admin/db', title: 'DB 보기', run: (box, m) => admin.renderTable(box, m[1]) },
     { re: /^#\/admin\/ocr\/?$/, tab: '#/admin/ocr', title: 'OCR 인식 로그', run: (box) => admin.renderOcrLogs(box) },
     { re: /^#\/admin\/ocr\/(\d+)\/?$/, tab: '#/admin/ocr', title: 'OCR 인식 로그', run: (box, m) => admin.renderOcrLog(box, Number(m[1])) },
   ];
@@ -126,6 +132,7 @@ async function route() {
   const mine = ++token;
   for (const d of document.querySelectorAll('dialog[open]')) d.close();
   document.title = `${r.title} · 원가다이어리`;
+  gaPage(hash, document.title);
   for (const a of document.querySelectorAll('.tab')) {
     if (a.dataset.tab === r.tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   }
@@ -201,6 +208,7 @@ async function boot() {
   setMarketEnabled(app.pub.market_enabled);
   setOrdersEnabled(app.pub.orders_enabled);
   setDonateEnabled(app.pub.donation_enabled);
+  initAnalytics(app.pub);
   app.me = null;
   if (app.pub.logged_in) {
     try { await refreshMe(); } catch { app.me = null; }
@@ -208,6 +216,7 @@ async function boot() {
   if (!app.me) {
     document.title = '원가다이어리 · 식당 식자재 단가와 메뉴 원가율 관리';
     renderLanding(root, boot);
+    gaPage('/');
     await finishIdentityReturn(ivReturn);
     return;
   }
@@ -226,6 +235,7 @@ function leaveApp(message) {
   if (location.hash) history.replaceState(null, '', location.pathname);
   document.title = '원가다이어리 · 식당 식자재 단가와 메뉴 원가율 관리';
   renderLanding(root, boot);
+  gaPage('/');
   window.scrollTo(0, 0);
   if (message) toast(message, 'err');
 }

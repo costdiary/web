@@ -767,7 +767,9 @@ def connect() -> sqlite3.Connection:
 # 19: 휴대폰 본인인증 — identity_verifications는 새 표(SCHEMA). users에 인증 결과 칸
 #     (verified_name/phone/birth, ci_hash, identity_verified_at, identity_required)을 ALTER로 더하고,
 #     한 사람 한 계정을 지키려고 ci_hash에 부분 UNIQUE 색인을 건다(기존 계정은 모두 NULL이라 충돌 없음).
-SCHEMA_VERSION = 19
+# 20: 도매마켓과 원가다이어리 분리 — 원가다이어리 알림 센터에서 '도매' 분류를 없앴다. 남아 있던
+#     도매 알림(kind가 ws_로 시작)과 '도매' 분류 켜고 끄기 기록을 지운다. 도매 소식은 도매마켓 화면에서 본다.
+SCHEMA_VERSION = 20
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -888,6 +890,9 @@ def migrate(conn: sqlite3.Connection) -> None:
                 if col not in have:
                     conn.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
             conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ci ON users(ci_hash) WHERE ci_hash IS NOT NULL")
+        if conn.execute("PRAGMA user_version").fetchone()[0] < 20:
+            conn.execute("DELETE FROM notifications WHERE substr(kind, 1, 3) = 'ws_'")
+            conn.execute("DELETE FROM notification_prefs WHERE category = 'market'")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.execute("COMMIT")
     except BaseException:

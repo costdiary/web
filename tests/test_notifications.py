@@ -52,7 +52,8 @@ def test_category_off_hides_and_stops():
     assert c.get("/api/notifications?category=cost").json()["items"] == []
 
 
-def test_push_unknown_kind_and_reserved_ws_kinds():
+def test_push_unknown_kind_and_no_market_category():
+    """도매마켓은 원가다이어리와 다른 서비스라, 원가다이어리 알림 센터에는 '도매' 분류·종류가 없다."""
     c = _client()
     from contextlib import closing
 
@@ -60,13 +61,14 @@ def test_push_unknown_kind_and_reserved_ws_kinds():
     me = c.get("/api/me").json()
     with closing(connect()) as db:
         uid = db.execute("SELECT id FROM users WHERE email = ?", (me["email"],)).fetchone()["id"]
-        nid = notifications.push(db, uid, "ws_order", "OO도매 주문이 확정됐어요", "내일 오전 입고", link="#/market", dedupe_key="ord:1")
+        nid = notifications.push(db, uid, "notice", "공지", dedupe_key="n:1")
         assert nid
-        assert notifications.push(db, uid, "ws_order", "중복", dedupe_key="ord:1") is None
-        try:
-            notifications.push(db, uid, "nope", "x")
-            raise AssertionError("unknown kind must fail")
-        except ValueError:
-            pass
-    items = c.get("/api/notifications?category=market").json()["items"]
-    assert [i["title"] for i in items] == ["OO도매 주문이 확정됐어요"]
+        assert notifications.push(db, uid, "notice", "중복", dedupe_key="n:1") is None
+        for kind in ("nope", "ws_offer", "ws_order"):
+            try:
+                notifications.push(db, uid, kind, "x")
+                raise AssertionError(f"unknown kind must fail: {kind}")
+            except ValueError:
+                pass
+    assert "market" not in notifications.CATEGORIES
+    assert not any(k.cat == "market" for k in notifications.KINDS.values())

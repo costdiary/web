@@ -3,12 +3,13 @@
 알림이 생기는 길은 두 가지입니다.
 
 1. 상태를 보고 만드는 알림(collect_*): 단가 상승, 배달 적자, 단가 확인 시기, 어제 매출 미입력, 주간 요약,
-   사진 인식 한도, 도매마켓 제안·떨이처럼 "지금 데이터"만 보면 알 수 있는 것. sync()가 목록을 열 때와
+   사진 인식 한도처럼 "지금 데이터"만 보면 알 수 있는 것. sync()가 목록을 열 때와
    배지 숫자를 셀 때(사용자당 1분에 한 번) 돌면서 dedupe_key로 한 번만 넣습니다. 이미 넣은 알림은
    읽었든 안 읽었든 다시 만들지 않습니다.
-2. 일이 생긴 순간 밀어 넣는 알림(push): 도매업체가 연결 요청에 답했을 때처럼 다른 쪽에서 일어난 사건.
-   나중에 도매 연동(거래처 단가 변동, 주문 접수·확정, 입고, 전자 명세서 도착)을 붙일 때는
-   KINDS에 종류가 이미 있으니 그 코드에서 push(db, user_id, "ws_order", ...)만 부르면 됩니다.
+2. 일이 생긴 순간 밀어 넣는 알림(push): 다른 쪽에서 일어난 사건. KINDS에 종류를 더하고 push()를 부릅니다.
+
+도매마켓 소식(더 싼 제안·떨이·연결 요청 답변)은 여기 넣지 않습니다. 도매마켓은 원가다이어리와 다른
+서비스라서, 사장님도 도매마켓 화면(/partner)의 '사장님' 메뉴에서 봅니다.
 
 종류마다 분류(cat)가 있고, 사장님은 설정에서 분류별로 알림을 끌 수 있습니다(notification_prefs).
 꺼 둔 분류의 알림은 새로 만들지 않고, 이미 있는 것도 목록·배지에서 뺍니다.
@@ -31,7 +32,7 @@ STALE_DAYS = 45
 
 @dataclass(frozen=True)
 class Kind:
-    cat: str  # 분류: cost(원가·단가) / sales(매출·배달) / market(도매) / system(서비스 안내)
+    cat: str  # 분류: cost(원가·단가) / sales(매출·배달) / system(서비스 안내)
     icon: str  # static/js/core.js의 아이콘 이름
     tone: str = ""  # 화면 강조색: up(나쁜 소식) / down(좋은 소식) / ""(보통)
 
@@ -39,7 +40,6 @@ class Kind:
 CATEGORIES = {
     "cost": ("원가·단가", "식자재 단가가 오르거나 내렸을 때, 단가를 확인할 때가 됐을 때, 주간 요약"),
     "sales": ("매출·배달", "배달로 팔면 적자인 메뉴, 어제 매출을 아직 안 넣었을 때"),
-    "market": ("도매", "도매업체의 더 싼 제안·떨이, 연결 요청 답변, 거래처 단가 변동·주문·입고"),
     "system": ("서비스 안내", "사진 인식 한도, 원가다이어리 공지"),
 }
 
@@ -52,15 +52,6 @@ KINDS: dict[str, Kind] = {
     # 매출·배달
     "delivery_loss": Kind("sales", "receipt", "up"),
     "sales_missing": Kind("sales", "trend"),
-    # 도매마켓(지금 있는 기능)
-    "ws_offer": Kind("market", "tag", "down"),
-    "ws_deal": Kind("market", "market"),
-    "ws_conn": Kind("market", "market"),
-    # 도매 연동(예약해 둔 종류). 연동 코드가 생기면 push()로 넣는다.
-    "ws_price_change": Kind("market", "tag"),  # 거래처가 단가를 바꿨을 때
-    "ws_order": Kind("market", "box"),  # 주문 접수·확정·취소
-    "ws_delivery": Kind("market", "box"),  # 입고 예정·완료
-    "ws_invoice": Kind("market", "receipt"),  # 전자 거래명세서 도착(눌러서 바로 반영)
     # 서비스 안내
     "ocr_quota": Kind("system", "camera"),
     "notice": Kind("system", "bell"),
@@ -297,41 +288,6 @@ def collect_ocr(db, user: dict, n: list) -> None:
                       "다음 달 1일에 다시 채워집니다.", link="#/invoice", dedupe_key=f"ocr_quota:{month}:low"))
 
 
-def collect_market(db, user: dict, n: list) -> None:
-    if not config.public_config().get("market_enabled"):
-        return
-    uid = user["id"]
-    for r in db.execute(
-        "SELECT m.id, m.saving_pct, m.created_at, i.name FROM mk_matches m JOIN ingredients i ON i.id = m.ingredient_id "
-        "WHERE m.user_id = ? AND m.status = 'new' ORDER BY m.id DESC LIMIT 20", (uid,)):
-        n.append(push(db, uid, "ws_offer", f"{r['name']}, 지금보다 {r['saving_pct']:.0f}% 싼 제안이 왔어요",
-                      "도매업체가 먼저 보낸 가격이에요. 누가 보냈는지 보고 연결할지 정하세요.", link="#/market/offers",
-                      dedupe_key=f"ws_offer:{r['id']}", created_at=r["created_at"]))
-    for r in db.execute(
-        "SELECT a.id, a.title, d.created_at FROM ws_ad_deliveries d JOIN ws_ads a ON a.id = d.ad_id "
-        "WHERE d.user_id = ? AND d.status = 'new' ORDER BY d.created_at DESC LIMIT 20", (uid,)):
-        n.append(push(db, uid, "ws_deal", f"떨이 알림: {r['title']}", "우리 동네 도매업체가 재고를 싸게 내놓았어요.",
-                      link="#/market", dedupe_key=f"ws_deal:{r['id']}", created_at=r["created_at"]))
-    # 이미 확인한 제안·떨이의 알림은 읽음으로 맞춰 둔다(도매마켓 화면에서 본 것)
-    db.execute(
-        "UPDATE notifications SET read_at = ? WHERE user_id = ? AND kind = 'ws_offer' AND read_at IS NULL AND "
-        "CAST(substr(dedupe_key, 10) AS INTEGER) IN (SELECT id FROM mk_matches WHERE user_id = ? AND status != 'new')",
-        (now_iso(), uid, uid))
-
-
-def notify_connection_answer(db, conn_row) -> None:
-    """도매업체가 연결 요청에 답했을 때(routes_ws) 사장님에게 바로 알린다."""
-    ws = db.execute("SELECT biz_name FROM ws_accounts WHERE id = ?", (conn_row["ws_id"],)).fetchone()
-    item = db.execute("SELECT name FROM mk_items WHERE id = ?", (conn_row["item_id"],)).fetchone()
-    who = (ws["biz_name"] if ws and ws["biz_name"] else "도매업체")
-    what = item["name"] if item else "품목"
-    if conn_row["status"] == "accepted":
-        title, body = f"{who}에서 {what} 연결을 수락했어요", "곧 연락이 갈 거예요. 거래가 끝나면 결과를 남겨 주세요."
-    else:
-        title, body = f"{who}에서 {what} 연결을 거절했어요", "다른 제안이 오면 다시 알려 드릴게요."
-    push(db, conn_row["user_id"], "ws_conn", title, body, link="#/market/connections",
-         dedupe_key=f"ws_conn:{conn_row['id']}:{conn_row['status']}")
-
 
 def sync(db, user: dict, force: bool = False) -> int:
     """상태 알림을 새로 만들고, 새로 만든 개수를 돌려줍니다."""
@@ -351,8 +307,6 @@ def sync(db, user: dict, force: bool = False) -> int:
     if on["sales"]:
         collect_delivery(db, user, pairs, n)
         collect_sales(db, user, n)
-    if on["market"]:
-        collect_market(db, user, n)
     if on["system"]:
         collect_ocr(db, user, n)
     old = (datetime.now(timezone.utc) - timedelta(days=KEEP_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")

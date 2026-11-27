@@ -160,12 +160,17 @@ def oauth_user(db, provider: str, provider_uid: str, email: str | None) -> dict:
     existing = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone() if email else None
     if existing:
         uid = existing["id"]
+        # 제공자가 확인해 준 이메일과 같은 계정이니, 그 계정의 이메일도 확인된 것으로 본다.
+        if not existing["email_verified_at"]:
+            db.execute("UPDATE users SET email_verified_at = ? WHERE id = ?", (now_iso(), uid))
     else:
         trial_end = (datetime.now(timezone.utc) + timedelta(days=36500)).strftime(ISO)
         placeholder_email = email or f"{provider}-{provider_uid}@oauth.wongaenote.local"
         cur = db.execute(
-            "INSERT INTO users(email, pw_hash, store_name, trial_ends_at, created_at, identity_required) VALUES (?,?,?,?,?,?)",
-            (placeholder_email, unusable_password_hash(), "", trial_end, now_iso(), int(identity.enabled())),
+            "INSERT INTO users(email, pw_hash, store_name, trial_ends_at, created_at, identity_required, email_verified_at) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (placeholder_email, unusable_password_hash(), "", trial_end, now_iso(), int(identity.enabled()),
+             now_iso() if email else None),
         )
         uid = cur.lastrowid
     db.execute(
@@ -239,3 +244,9 @@ def is_admin(email: str | None) -> bool:
         return False
     admins = {e.strip().lower() for e in config.env_str("ADMIN_EMAILS", "").split(",") if e.strip()}
     return email.strip().lower() in admins
+
+
+def is_admin_user(user: dict) -> bool:
+    """운영자 화면 권한. ADMIN_EMAILS에 있는 이메일이면서, 그 이메일이 본인 것으로 확인된 계정만 통과한다.
+    확인 안 된 이메일 가입 계정이면, 남이 운영자 이메일을 먼저 적어 가입해도 권한을 얻지 못한다."""
+    return bool(user.get("email_verified_at")) and is_admin(user.get("email"))

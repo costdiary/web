@@ -6,6 +6,37 @@ import { openCookieSettings } from './analytics.js';
 import { MARKET_ENABLED } from './core.js';
 import { prefsForm } from './notifications.js';
 import { identityBox } from './identity.js';
+import { emailCodeBox } from './auth.js';
+
+/* 이 기능 전에 이메일로 가입한 계정: 설정에서 자기 주소로 번호를 받아 확인한다. */
+function emailVerifyCell(me) {
+  const v = me.email_verify || {};
+  if (!v.has_email) return null;
+  if (v.verified) return h('span', { class: 'email-ok' }, '확인됨');
+  if (!v.available) return h('span', { class: 'small muted' }, '이메일 확인 전');
+  const err = h('p', { class: 'form-err', role: 'alert', hidden: true });
+  const box = emailCodeBox({
+    send: () => api('/api/me/email-code', { method: 'POST' }),
+    sendLabel: '이메일 인증하기',
+    onError: (m) => { err.textContent = m; err.hidden = !m; },
+  });
+  const ok = h('button', { class: 'btn sm', type: 'button' }, '확인');
+  ok.addEventListener('click', () => busy(ok, async () => {
+    err.hidden = true;
+    if (box.value().length !== 6) { err.textContent = '메일로 받은 인증번호 6자리를 넣어 주세요.'; err.hidden = false; return; }
+    try {
+      app.me = await api('/api/me/email-verify', { method: 'POST', body: { code: box.value() } });
+    } catch (e) { err.textContent = errMsg(e); err.hidden = false; return; }
+    bus.dispatchEvent(new Event('me-changed'));
+    wrap.replaceChildren(h('span', { class: 'email-ok' }, '확인됨'));
+    toast('이메일을 확인했습니다.');
+  }));
+  box.codeRow.append(h('div', null, ok));
+  const wrap = h('div', { class: 'email-verify' },
+    h('p', { class: 'small muted', style: 'margin:0 0 6px' }, '아직 이 이메일이 본인 것인지 확인하지 않았어요.'),
+    box.sendBtn, box.codeRow, err);
+  return wrap;
+}
 
 function planText(p) {
   if (p.state === 'paid') return `이용 중 · ${ymd(p.ends_at)}까지`;
@@ -98,7 +129,7 @@ export async function render(box) {
   const planBox = h('section', { class: 'sheet' },
     h('div', { class: 'sheet-h' }, h('h2', null, '이용 현황')),
     h('dl', { class: 'kv' },
-      h('dt', null, '계정'), h('dd', null, me.email),
+      h('dt', null, '계정'), h('dd', null, me.email, emailVerifyCell(me)),
       ...(me.identity?.enabled ? [h('dt', null, '본인인증'), h('dd', null, identityBox({
         purpose: 'account',
         initial: me.identity.verified ? { name: me.identity.name, phone: me.identity.phone } : null,

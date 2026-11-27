@@ -67,11 +67,60 @@ export function openResetPassword(token) {
   return dlg;
 }
 
+/* 이메일 인증번호 6자리(app/email_verify.py). send()는 번호를 보내는 요청, 화면은 번호 입력칸과
+   다시 받기(60초 대기)를 맡는다. 가입 화면과 설정 화면이 같이 쓴다. */
+export function emailCodeBox({ send, sendLabel = '인증번호 받기', onError = () => {}, onSent = () => {} }) {
+  const sendBtn = h('button', { class: 'btn ghost sm', type: 'button' }, sendLabel);
+  const code = h('input', {
+    class: 'input', type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxLength: 6,
+    pattern: '[0-9]*', placeholder: '6자리 숫자', 'aria-label': '이메일 인증번호',
+  });
+  const note = h('p', { class: 'hint' });
+  const codeRow = h('div', { class: 'email-code', hidden: true }, code, note);
+  let timer = null;
+  const countdown = (sec) => {
+    clearInterval(timer);
+    let left = sec;
+    const tick = () => {
+      if (left <= 0) { clearInterval(timer); sendBtn.disabled = false; sendBtn.textContent = '다시 받기'; return; }
+      sendBtn.disabled = true;
+      sendBtn.textContent = `다시 받기 ${left}초`;
+      left -= 1;
+    };
+    tick();
+    timer = setInterval(tick, 1000);
+  };
+  sendBtn.addEventListener('click', async () => {
+    onError('');
+    sendBtn.disabled = true;
+    try {
+      const r = await send();
+      if (!r) { sendBtn.disabled = false; return; }
+      codeRow.hidden = false;
+      note.textContent = `메일로 보낸 6자리 번호를 ${r.expires_minutes || 10}분 안에 넣어 주세요. 안 보이면 스팸함도 확인해 주세요.`;
+      countdown(r.resend_seconds || 60);
+      code.value = '';
+      code.focus();
+      onSent();
+    } catch (e) {
+      sendBtn.disabled = false;
+      onError(errMsg(e));
+    }
+  });
+  code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, 6); });
+  return {
+    sendBtn, code, codeRow,
+    sent: () => !codeRow.hidden,
+    value: () => code.value.trim(),
+    reset: () => { clearInterval(timer); codeRow.hidden = true; code.value = ''; sendBtn.disabled = false; sendBtn.textContent = sendLabel; },
+  };
+}
+
 /* verified: 모바일에서 본인인증 창이 페이지를 이동시켰다 돌아온 경우, 이미 끝난 인증 결과(identity.js).
    prefill: 그때 적어 두었던 이메일·가게 이름(비밀번호는 저장하지 않으므로 다시 입력). */
 export function openSignup({ onDone, verified = null, prefill = {} } = {}) {
   const err = errorBox();
-  const email = h('input', { class: 'input', type: 'email', name: 'email', autocomplete: 'email', required: true, placeholder: 'owner@example.com', value: prefill.email || '' });
+  const email = h('input', { class: 'input', id: 'signup-email', type: 'email', name: 'email', autocomplete: 'email', required: true, placeholder: 'owner@example.com', value: prefill.email || '' });
   const pw = h('input', { class: 'input', type: 'password', name: 'password', autocomplete: 'new-password', required: true, minLength: 8 });
   const store = h('input', { class: 'input', type: 'text', name: 'store', autocomplete: 'organization', maxLength: 60, placeholder: '예: 한우리식당', value: prefill.store || '' });
   // 본인인증을 켠 운영(app.pub.identity_enabled)에서는 가입 전에 휴대폰 인증을 먼저 받는다.
@@ -84,6 +133,16 @@ export function openSignup({ onDone, verified = null, prefill = {} } = {}) {
       onError: (m) => err.show(m),
     }))
     : null;
+  // 이메일 인증을 켠 운영(app.pub.email_verify_required)에서는 메일로 받은 번호를 넣어야 가입된다.
+  const emailCode = app.pub?.email_verify_required ? emailCodeBox({
+    send: async () => {
+      if (!email.value.trim()) { err.show('이메일을 먼저 입력해 주세요.'); email.focus(); return null; }
+      return api('/api/auth/email-code', { method: 'POST', body: { email: email.value } });
+    },
+    onError: (m) => (m ? err.show(m) : err.clear()),
+  }) : null;
+  // 번호를 받은 뒤 주소를 고치면 그 번호는 쓸 수 없으니 다시 받게 한다.
+  if (emailCode) email.addEventListener('input', () => { if (emailCode.sent()) emailCode.reset(); });
   const code = app.pub?.signup_code_required
     ? h('input', { class: 'input', type: 'text', name: 'code', autocomplete: 'off', required: true })
     : null;
@@ -91,7 +150,10 @@ export function openSignup({ onDone, verified = null, prefill = {} } = {}) {
   const form = h('form', { novalidate: true },
     err,
     ivField,
-    field('이메일', email),
+    emailCode
+      ? h('div', { class: 'field' }, h('label', { for: 'signup-email' }, '이메일'),
+        h('div', { class: 'email-send' }, email, emailCode.sendBtn), emailCode.codeRow)
+      : field('이메일', email),
     field('비밀번호', pw, '8자 이상. 영문·숫자·기호를 섞으면 더 안전합니다.'),
     field('가게 이름 (선택)', store),
     code ? field('가입 코드', code, '안내받은 초대 코드를 입력해 주세요.') : null,
@@ -99,17 +161,19 @@ export function openSignup({ onDone, verified = null, prefill = {} } = {}) {
     h('p', { class: 'hint', style: 'margin-top:12px' }, '카드 등록은 필요 없습니다. 가입하면 ', h('button', { class: 'link-btn small', type: 'button', onclick: openDataNotice }, '개인정보처리방침'), '과 ', h('button', { class: 'link-btn small', type: 'button', onclick: openTerms }, '이용약관'), '에 동의한 것으로 봅니다.'),
     h('p', { style: 'margin-top:12px;font-size:.9375rem' }, '이미 계정이 있으세요? ',
       h('button', { class: 'link-btn', type: 'button', onclick: () => { dlg.close(); openLogin({ onDone }); } }, '로그인')));
-  form.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
     err.clear();
     if (!email.value.trim() || pw.value.length < 8) {
       err.show(!email.value.trim() ? '이메일을 입력해 주세요.' : '비밀번호는 8자 이상으로 정해 주세요.');
       return;
     }
+    if (emailCode && !emailCode.sent()) { err.show("이메일 옆 '인증번호 받기'를 눌러 메일로 번호를 받아 주세요."); return; }
+    if (emailCode && emailCode.value().length !== 6) { err.show('메일로 받은 인증번호 6자리를 넣어 주세요.'); emailCode.code.focus(); return; }
     if (ivField && !ivResult) { err.show('휴대폰 본인인증을 먼저 해 주세요.'); return; }
     await busy(submit, async () => {
       try {
-        await api('/api/auth/signup', { method: 'POST', body: { email: email.value, password: pw.value, store_name: store.value, code: code ? code.value : '', identity_verification_id: ivResult ? ivResult.verification_id : '' } });
+        await api('/api/auth/signup', { method: 'POST', body: { email: email.value, password: pw.value, store_name: store.value, code: code ? code.value : '', identity_verification_id: ivResult ? ivResult.verification_id : '', email_code: emailCode ? emailCode.value() : '' } });
       } catch (e) { err.show(errMsg(e)); return; }
       dlg.close();
       if (onDone) await onDone();

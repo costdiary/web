@@ -212,8 +212,8 @@ def _commit_ingredients(db, uid: int, body: ImportCommitIn) -> dict:
             ing = db.execute("SELECT * FROM ingredients WHERE user_id = ? AND name = ?", (uid, rec.name)).fetchone()
             if ing is None:
                 cur = db.execute(
-                    "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, updated_at) VALUES (?,?,?,?,?,?,?)",
-                    (uid, rec.name, kind, rec.yield_pct or 100, rec.supplier, rec.category, now),
+                    "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, updated_at, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                    (uid, rec.name, kind, rec.yield_pct or 100, rec.supplier, rec.category, now, now),
                 )
                 if priced:  # 가격이 없으면 '단가 없음'으로 두고 나중에 명세서로 채웁니다.
                     ing = db.execute("SELECT * FROM ingredients WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -318,8 +318,8 @@ def _commit_menus(db, uid: int, body: ImportCommitIn) -> dict:
                     ing = db.execute("SELECT * FROM ingredients WHERE user_id = ? AND name = ?", (uid, ln.name)).fetchone()
                 if ing is None:
                     cur = db.execute(
-                        "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, updated_at) VALUES (?,?,?,?,?,?,?)",
-                        (uid, ln.name, kind, 100, "", "", now),
+                        "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, updated_at, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                        (uid, ln.name, kind, 100, "", "", now, now),
                     )
                     ing = db.execute("SELECT * FROM ingredients WHERE id = ?", (cur.lastrowid,)).fetchone()
                     new_ings += 1

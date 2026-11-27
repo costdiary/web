@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import market_catalog
@@ -35,6 +35,21 @@ def parse_iso(s: str | None) -> datetime | None:
     if not s:
         return None
     return datetime.strptime(s, ISO).replace(tzinfo=timezone.utc)
+
+
+# 새로 추가한 식자재·프렙은 이 기간 동안 목록 맨 위에 'NEW'로 보입니다.
+NEW_DAYS = 3
+
+
+def is_new(created_at: str | None) -> bool:
+    t = parse_iso(created_at)
+    return t is not None and datetime.now(timezone.utc) - t < timedelta(days=NEW_DAYS)
+
+
+def new_first(items: list[dict]) -> list[dict]:
+    """is_new인 항목을 최근 것부터 맨 위로 올립니다. 나머지는 원래 순서(이름순)를 지킵니다."""
+    fresh = sorted((x for x in items if x["is_new"]), key=lambda x: x["created_at"], reverse=True)
+    return fresh + [x for x in items if not x["is_new"]]
 
 
 SCHEMA = """
@@ -800,7 +815,9 @@ def connect() -> sqlite3.Connection:
 #     도매 알림(kind가 ws_로 시작)과 '도매' 분류 켜고 끄기 기록을 지운다. 도매 소식은 도매마켓 화면에서 본다.
 # 21: 이메일 인증 — users.email_verified_at, email_codes 표. 기존 계정 중 소셜 로그인으로 들어와
 #     제공자가 확인해 준 진짜 이메일이 있는 계정은 확인된 것으로 채운다(이메일 가입 계정은 비워 둔다).
-SCHEMA_VERSION = 21
+# 22: 새로 추가한 식자재·프렙에 NEW 표시 — ingredients.created_at, preps.created_at을 ALTER로 더한다.
+#     기존 행은 언제 만들었는지 몰라 비워 둔다(NEW로 보이지 않음). 예시 데이터(seed.py)도 비워 둔다.
+SCHEMA_VERSION = 22
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -932,6 +949,10 @@ def migrate(conn: sqlite3.Connection) -> None:
                 "AND email NOT LIKE '%@oauth.wongaenote.local' "
                 "AND id IN (SELECT user_id FROM oauth_accounts)"
             )
+        if conn.execute("PRAGMA user_version").fetchone()[0] < 22:
+            for table in ("ingredients", "preps"):
+                if "created_at" not in _columns(conn, table):
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN created_at TEXT")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.execute("COMMIT")
     except BaseException:

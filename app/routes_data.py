@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 
 from . import auth, channels, config, costing, market, notifications, ocr, security, seed, services, units
-from .db import ISO, get_db, now_iso, transaction
+from .db import ISO, get_db, is_new, new_first, now_iso, transaction
 from .deps import current_user, writable_user
 from .routes_sales import _summary as _sales_summary
 from .schemas import IngredientIn, InvoiceConfirmIn, MenuIn
@@ -67,6 +67,8 @@ def ing_view(r, chg: dict | None = None, used: int = 0) -> dict:
         "effective_display_price": round(eff_disp, 2) if eff_disp is not None else None,
         "price_checked_at": r["price_checked_at"],
         "updated_at": r["updated_at"],
+        "created_at": r["created_at"],
+        "is_new": is_new(r["created_at"]),
         "used_in": used,
         "change_pct": None,
         "prev_display_price": None,
@@ -108,7 +110,7 @@ def list_ingredients(user: dict = Depends(current_user), db=Depends(get_db)):
     chg = services.price_changes(db, uid)
     used = services.used_counts(db, uid)
     rows = db.execute("SELECT * FROM ingredients WHERE user_id = ? ORDER BY name", (uid,)).fetchall()
-    return {"items": [ing_view(r, chg.get(r["id"]), used.get(r["id"], 0)) for r in rows]}
+    return {"items": new_first([ing_view(r, chg.get(r["id"]), used.get(r["id"], 0)) for r in rows])}
 
 
 @router.post("/ingredients")
@@ -120,9 +122,9 @@ def create_ingredient(body: IngredientIn, user: dict = Depends(writable_user), d
     try:
         with transaction(db):
             cur = db.execute(
-                "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, origin, grade, cut, updated_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (uid, body.name, kind, body.yield_pct, body.supplier, body.category, body.origin, body.grade, body.cut, now),
+                "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, origin, grade, cut, updated_at, created_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (uid, body.name, kind, body.yield_pct, body.supplier, body.category, body.origin, body.grade, body.cut, now, now),
             )
             iid = cur.lastrowid
             ing = db.execute("SELECT * FROM ingredients WHERE id = ?", (iid,)).fetchone()
@@ -516,9 +518,9 @@ def confirm_invoice(body: InvoiceConfirmIn, user: dict = Depends(writable_user),
                     raise HTTPException(400, f"'{ln.name}': 이미 있는 식자재는 {allowed} 단위로 입력해야 합니다.")
             if ing is None:
                 cur = db.execute(
-                    "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, origin, grade, cut, updated_at) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?)",
-                    (uid, ln.name, kind, 100, body.supplier, "", ln.origin, ln.grade, ln.cut, now_iso()),
+                    "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, origin, grade, cut, updated_at, created_at) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    (uid, ln.name, kind, 100, body.supplier, "", ln.origin, ln.grade, ln.cut, now_iso(), now_iso()),
                 )
                 ing = db.execute("SELECT * FROM ingredients WHERE id = ?", (cur.lastrowid,)).fetchone()
                 created = True

@@ -4,14 +4,14 @@ import {
   h, api, app, field, numInput, selectOf, parseNum, n0, n3, icon, go, refreshRoute, fill,
   confirmDialog, busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS,
 } from './core.js';
-import { emptyBlock, num } from './ui.js';
+import { emptyBlock, num, newTag } from './ui.js';
 
 function prepRow(p) {
   const sub = [`완성량 ${n3(p.yield_qty)}${p.unit_kind}`, `재료 ${p.items.length}개`, p.used_in_menus ? `메뉴 ${p.used_in_menus}개에 사용` : '아직 메뉴에 안 씀'].join(' · ');
   return h('li', null,
     h('a', { class: 'row', href: `#/preps/${p.id}` },
       h('div', { class: 'row-main' },
-        h('span', { class: 'row-title' }, p.name),
+        h('span', { class: 'row-title' }, p.name, newTag(p)),
         h('div', { class: 'row-sub' }, sub)),
       h('div', { class: 'row-end' },
         p.unit_price == null

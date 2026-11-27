@@ -121,8 +121,8 @@ def _confirm(body: RecipeConfirmIn, user: dict, db):
                     raise HTTPException(400, f"'{ln.name}': 이미 있는 식자재는 {allowed} 단위로 입력해야 합니다.")
             if ing is None:  # 가격은 나중에 명세서로 채웁니다. 가격이 없는 동안은 원가에서 빠지고 '단가 없음'으로 표시됩니다.
                 cur = db.execute(
-                    "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, updated_at) VALUES (?,?,?,?,?,?,?)",
-                    (uid, ln.name, kind, 100, "", "", now_iso()),
+                    "INSERT INTO ingredients(user_id, name, unit_kind, yield_pct, supplier, category, updated_at, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                    (uid, ln.name, kind, 100, "", "", now_iso(), now_iso()),
                 )
                 ing = db.execute("SELECT * FROM ingredients WHERE id = ?", (cur.lastrowid,)).fetchone()
                 created += 1

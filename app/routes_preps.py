@@ -6,7 +6,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, HTTPException
 
 from . import preps as preps_mod, units
-from .db import get_db, now_iso, transaction
+from .db import get_db, is_new, new_first, now_iso, transaction
 from .deps import current_user, writable_user
 from .schemas import PrepIn
 
@@ -34,6 +34,7 @@ def _view(db, row) -> dict:
         "id": row["id"], "name": row["name"], "unit_kind": row["unit_kind"], "yield_qty": row["yield_qty"],
         "ingredient_id": row["ingredient_id"], "unit_price": cost["unit_price"], "total_cost": cost["total_cost"],
         "missing": cost["missing"], "used_in_menus": used,
+        "created_at": row["created_at"], "is_new": is_new(row["created_at"]),
         "items": [{"ingredient_id": r["ingredient_id"], "name": r["name"], "qty": r["qty"], "kind": r["unit_kind"]} for r in item_rows],
     }
 
@@ -73,7 +74,7 @@ def _resolve_yield(body: PrepIn) -> float:
 @router.get("")
 def list_preps(user: dict = Depends(current_user), db=Depends(get_db)):
     rows = db.execute("SELECT * FROM preps WHERE user_id = ? ORDER BY name", (user["id"],)).fetchall()
-    return {"items": [_view(db, r) for r in rows]}
+    return {"items": new_first([_view(db, r) for r in rows])}
 
 
 @router.get("/{pid}")
@@ -93,13 +94,13 @@ def create_prep(body: PrepIn, user: dict = Depends(writable_user), db=Depends(ge
     try:
         with transaction(db):
             cur = db.execute(
-                "INSERT INTO ingredients(user_id, name, unit_kind, category, supplier, updated_at) VALUES (?,?,?,?,?,?)",
-                (uid, body.name, body.unit_kind, "프렙", "", now),
+                "INSERT INTO ingredients(user_id, name, unit_kind, category, supplier, updated_at, created_at) VALUES (?,?,?,?,?,?,?)",
+                (uid, body.name, body.unit_kind, "프렙", "", now, now),
             )
             iid = cur.lastrowid
             cur2 = db.execute(
-                "INSERT INTO preps(user_id, name, unit_kind, yield_qty, ingredient_id, updated_at) VALUES (?,?,?,?,?,?)",
-                (uid, body.name, body.unit_kind, yield_qty, iid, now),
+                "INSERT INTO preps(user_id, name, unit_kind, yield_qty, ingredient_id, updated_at, created_at) VALUES (?,?,?,?,?,?,?)",
+                (uid, body.name, body.unit_kind, yield_qty, iid, now, now),
             )
             pid = cur2.lastrowid
             db.execute("UPDATE ingredients SET from_prep_id = ? WHERE id = ?", (pid, iid))

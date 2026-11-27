@@ -259,6 +259,7 @@ a.row:hover, button.row:hover { background: var(--sheet-2); border-radius: var(-
 .row-wide { grid-column: 1 / -1; }
 .tag { display: inline-block; padding: 0 5px; margin-left: 4px; border: 1px solid var(--rule-2); border-radius: var(--r-sm); font-size: 0.6875rem; font-weight: 700; color: var(--ink-2); vertical-align: 2px; }
 .tag.warn { color: var(--amber); border-color: var(--amber); }
+.tag.new { background: var(--hl); border-color: var(--hl); color: var(--hl-ink); letter-spacing: 0.04em; }
 
 /* 오른 가격 표시(형광펜) */
 .chg {

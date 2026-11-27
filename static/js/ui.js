@@ -62,6 +62,11 @@ export function marginBar({ ratio, target, up = 0, big = false, labels = false, 
   return wrap;
 }
 
+/* 새로 추가한 식자재·프렙(서버가 is_new로 알려 줌, 3일 동안) 이름 옆에 붙는 NEW 표시 */
+export function newTag(it) {
+  return it.is_new ? h('span', { class: 'tag new', title: '최근 3일 안에 추가했습니다' }, 'NEW') : null;
+}
+
 export function emptyBlock({ title, text, actions = [] }) {
   return h('div', { class: 'empty' }, h('h2', null, title), text ? h('p', null, text) : null,
     actions.length ? h('div', { class: 'btn-row' }, actions) : null);

@@ -42,11 +42,19 @@ def env_bool(name: str, default: bool = False) -> bool:
     return env_str(name, "1" if default else "0").lower() in ("1", "true", "yes", "on")
 
 
+def _market_url() -> str:
+    """도매마켓 주소. 전용 도메인(MARKET_HOSTS의 첫 번째)이 있으면 그 주소, 없으면 같은 서버의 /partner."""
+    hosts = [h.strip() for h in env_str("MARKET_HOSTS").split(",") if h.strip()]
+    return f"https://{hosts[0]}/" if hosts else "/partner"
+
+
 def public_config() -> dict:
     """로그인 전에도 화면에 보여줘도 되는 설정값. 원가노트는 무료이므로 체험·요금 안내는 없습니다."""
-    from . import identity, oauth  # 지연 import: oauth.py가 config를 쓰므로 모듈 맨 위에서 돌면 순환 참조가 됩니다.
+    from . import email_verify, identity, oauth  # 지연 import: oauth.py가 config를 쓰므로 모듈 맨 위에서 돌면 순환 참조가 됩니다.
     return {
         "signup_code_required": bool(env_str("SIGNUP_CODE")),
+        # 이메일 가입 때 메일로 받은 인증번호 6자리를 넣어야 하는지(email_verify.py).
+        "email_verify_required": email_verify.required(),
         "contact_email": env_str("CONTACT_EMAIL"),
         "business_name": env_str("BUSINESS_NAME"),
         "biz_reg_no": env_str("BIZ_REG_NO"),
@@ -55,9 +63,12 @@ def public_config() -> dict:
         "ocr_enabled": bool(env_str("ANTHROPIC_API_KEY")),
         # 버전1(기본값 꺼짐)은 도매마켓을 화면에서 숨긴다. 재배포 없이 환경변수만으로 버전2로 되돌릴 수 있다.
         "market_enabled": env_bool("MARKET_ENABLED", False),
+        # 원가다이어리와 도매마켓은 서로 다른 서비스라 서로를 링크로만 오간다.
+        "app_url": env_str("APP_BASE_URL", "").rstrip("/") or "/",
+        "market_url": _market_url(),
         "orders_enabled": env_bool("ORDERS_ENABLED", False),
-        # 후원하기는 기본 켜짐 — 끄고 싶을 때만 환경변수로 끈다.
-        "donation_enabled": env_bool("DONATION_ENABLED", True),
+        # 후원하기는 기본 꺼짐(토스 계약 전). 켜려면 DONATION_ENABLED=1. 꺼져 있으면 메뉴·약관 문구·API 모두 숨긴다.
+        "donation_enabled": env_bool("DONATION_ENABLED", False),
         # 토스페이먼츠 키가 아직 없으면 화면에 "테스트로 처리됩니다" 안내를 보여준다(payments.get_provider()와 같은 기준).
         "donation_real_pg": bool(env_str("TOSS_SECRET_KEY")),
         # 휴대폰 본인인증(identity.py). real=False면 화면이 "테스트 인증" 입력칸을 보여준다.

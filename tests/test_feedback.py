@@ -13,6 +13,16 @@ from app.routes_account import reset_rate_limits  # noqa: E402
 H = {"X-Requested-With": "fetch"}
 
 
+def _mark_verified(email):
+    """운영자 권한은 이메일이 확인된 계정에만 준다. 시험에서는 바로 확인됨으로 표시."""
+    from app.db import connect
+    conn = connect()
+    try:
+        conn.execute("UPDATE users SET email_verified_at = created_at WHERE email = ?", (email,))
+    finally:
+        conn.close()
+
+
 def _signup(c, email):
     r = c.post("/api/auth/signup", json={"email": email, "password": "password1234", "store_name": "테스트 식당", "code": ""},
                headers=H)
@@ -44,6 +54,7 @@ def test_feedback_flow():
         assert anon.get("/api/admin/feedback").status_code in (401, 404)
 
         _signup(adm, admin_email)
+        _mark_verified(admin_email)
         res = adm.get("/api/admin/feedback?status=new").json()
         mine = [i for i in res["items"] if i["message"] in ("메뉴 원가를 엑셀로 뽑고 싶어요", "명세서 날짜가 틀려요")]
         assert len(mine) == 2

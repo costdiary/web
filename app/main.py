@@ -108,7 +108,7 @@ async def guard(request: Request, call_next):
     # 다른 사이트에서 몰래 보내는 요청(CSRF)을 막기 위해, 쓰기 요청은 직접 만든 헤더가 있어야 합니다.
     # PG 웹훅은 브라우저가 아니라 PG사 서버가 직접 호출하므로 이 헤더를 보내지 않습니다 — 대신
     # payments.parse_webhook() 의 서명 검증으로 보호합니다.
-    if request.method not in ("GET", "HEAD", "OPTIONS") and path.startswith("/api/") and not path.startswith("/api/payments/"):
+    if request.method not in ("GET", "HEAD", "OPTIONS") and path.startswith("/api/") and not path.startswith(("/api/payments/", "/api/ws/payments/")):
         if request.headers.get("x-requested-with") != "fetch":
             return JSONResponse({"detail": "잘못된 요청입니다."}, status_code=403)
     response = await call_next(request)

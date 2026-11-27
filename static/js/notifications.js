@@ -1,6 +1,6 @@
 /* 알림 센터: 상단 종(배지), 알림 목록 화면, 알림 설정(분류별 켜고 끄기).
-   알림은 서버(app/notifications.py)가 만든다. 원가·단가, 매출·배달, 도매, 서비스 안내 네 분류이고,
-   도매 연동(거래처 단가 변동·주문·입고·전자 명세서)이 붙으면 같은 목록에 '도매' 분류로 들어온다. */
+   알림은 서버(app/notifications.py)가 만든다. 원가·단가, 매출·배달, 서비스 안내 세 분류다.
+   도매마켓 소식은 여기 넣지 않는다(도매마켓은 다른 서비스라 그쪽 화면에서 본다). */
 import { h, api, app, fill, icon, busy, toast, errMsg, go, openDialog } from './core.js';
 import { emptyBlock } from './ui.js';
 
@@ -72,7 +72,7 @@ function groupOf(iso) {
   return '그 전';
 }
 
-const CAT_LABEL = { cost: '원가·단가', sales: '매출·배달', market: '도매', system: '안내' };
+const CAT_LABEL = { cost: '원가·단가', sales: '매출·배달', system: '안내' };
 
 function item(n, onOpen) {
   const a = h('a', { class: `notif${n.read ? '' : ' unread'}`, href: n.link || '#/notifications' },
@@ -118,7 +118,7 @@ export async function render(box) {
     if (!d.items.length) {
       fill(list, h('section', { class: 'sheet' }, emptyBlock({
         title: cat ? '이 분류에는 알림이 없어요' : '새 알림이 없어요',
-        text: '식자재 단가가 오르거나 내리면, 배달로 팔면 손해인 메뉴가 생기면, 도매업체가 더 싼 가격을 제안하면 여기에 알려 드려요.',
+        text: '식자재 단가가 오르거나 내리면, 배달로 팔면 손해인 메뉴가 생기면 여기에 알려 드려요.',
         actions: [h('a', { class: 'btn ghost sm', href: '#/invoice' }, '명세서 올리기')],
       })));
       return;

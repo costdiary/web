@@ -14,6 +14,16 @@ CHROME = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, l
 PHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1"
 
 
+def _mark_verified(email):
+    """운영자 권한은 이메일이 확인된 계정에만 준다(auth.is_admin_user). 시험에서는 바로 확인됨으로 표시."""
+    from app.db import connect
+    conn = connect()
+    try:
+        conn.execute("UPDATE users SET email_verified_at = created_at WHERE email = ?", (email,))
+    finally:
+        conn.close()
+
+
 def _signup(c, email):
     r = c.post("/api/auth/signup", json={"email": email, "password": "password1234", "store_name": "테스트 식당", "code": ""},
                headers=H)
@@ -27,6 +37,7 @@ def test_visits_and_signups_for_admin_only():
         before = None
         with TestClient(app) as adm:
             _signup(adm, admin_email)
+            _mark_verified(admin_email)
             before = adm.get("/api/admin/stats?days=7").json()
 
             anon.get("/", headers={"user-agent": CHROME, "referer": "https://www.instagram.com/p/abc"})
@@ -55,6 +66,7 @@ def test_admin_panel_users_tables_and_funnel():
     os.environ["ADMIN_EMAILS"] = admin_email
     with TestClient(app) as adm, TestClient(app) as other:
         _signup(adm, admin_email)
+        _mark_verified(admin_email)
         owner = f"o{os.urandom(3).hex()}@example.com"
         _signup(other, owner)
         assert other.post("/api/demo/seed", headers=H).status_code == 200

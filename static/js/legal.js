@@ -1,5 +1,5 @@
 /* 이용약관·개인정보처리방침 전문. 랜딩·가입·설정 화면에서 함께 쓴다. */
-import { h, app, openDialog } from './core.js';
+import { h, app, openDialog, DONATE_ENABLED } from './core.js';
 
 /* 이용약관(제1조~제12조)과 개인정보처리방침(1~11)의 전체 조문. 짧은 요약 대신 실제 내용을
    넓은 다이얼로그(openDialog wide:true)에 통째로 보여 준다 — 새 라우트를 만들지 않기 위함. */
@@ -98,6 +98,22 @@ const PRIVACY_SECTIONS = [
   ]],
 ];
 
+/* 후원을 꺼 둔 동안(DONATION_ENABLED=0, 토스 계약 전)에는 개인정보처리방침에서 후원 관련 문구를 뺀다.
+   다시 켜면 아래 원문이 그대로 돌아온다. */
+const NO_DONATION_EDITS = [
+  ['휴대폰 본인인증 시(가입 또는 후원 전)', '휴대폰 본인인증 시(가입할 때)'],
+  [', 후원 시 입력한 닉네임·금액·메시지', ''],
+  ['개선사항 요청 응대(남겨 주신 연락처로 답변), 후원 접수 및 동의한 경우 후원자 명단 표시', '개선사항 요청 응대(남겨 주신 연락처로 답변)'],
+];
+const DONATION_ONLY = ['후원 정보: '];
+
+function privacySections() {
+  if (DONATE_ENABLED) return PRIVACY_SECTIONS;
+  return PRIVACY_SECTIONS.map(([title, paras]) => [title, paras
+    .filter((t) => !DONATION_ONLY.some((d) => t.startsWith(d)))
+    .map((t) => NO_DONATION_EDITS.reduce((acc, [from, to]) => acc.replace(from, to), t))]);
+}
+
 const PRIVACY_SECTIONS_TAIL = [
   ['6. 정보주체의 권리와 행사 방법', [
     '이용자는 설정 화면에서 언제든지 자신의 개인정보를 조회·수정할 수 있으며, 계정 삭제(탈퇴)를 통해 개인정보 삭제를 요청할 수 있습니다. 삭제 전 엑셀(CSV)로 입력 자료를 내려받을 수 있습니다.',
@@ -158,12 +174,12 @@ export function openDataNotice() {
     content: h('div', { class: 'stack' },
       h('p', { class: 'xs muted' }, '시행일: 2026년 12월 3일 (이전 방침: 2026년 11월 19일 시행)'),
       h('p', null, '원가다이어리(이하 "운영자")는 개인정보보호법 등 관련 법령을 준수하며, 다음과 같이 개인정보를 처리합니다.'),
-      PRIVACY_SECTIONS.map(legalBlock),
+      privacySections().map(legalBlock),
       h('div', null, h('div', { class: 'h-sec' }, '5. 개인정보 처리위탁 및 국외 이전'),
         h('p', null, '운영자는 서비스 제공을 위하여 아래와 같이 개인정보 처리를 위탁하거나 국외로 이전합니다. 거래명세서·요리 사진의 자동 인식(OCR)을 이용하지 않고 직접 입력만 이용하는 경우, 사진은 국외로 전송되지 않습니다.'),
         processorRow('Anthropic, PBC (미국)', '거래명세서·요리 사진의 AI 인식(OCR)', '업로드한 거래명세서·요리 사진', 'Anthropic의 자체 보유기간 정책에 따름'),
         processorRow('코리아포트원 및 본인인증기관(통신사·본인확인기관)', '휴대폰 본인인증', '이름, 휴대폰 번호, 생년월일, 성별, 내·외국인 여부', '본인인증 업체의 법정 보유기간에 따름'),
-        processorRow('토스페이먼츠', '후원 결제 처리', '결제 정보(결제 수단, 결제 금액, 주문번호)', '전자금융거래법 등 관계 법령이 정한 기간'),
+        DONATE_ENABLED && processorRow('토스페이먼츠', '후원 결제 처리', '결제 정보(결제 수단, 결제 금액, 주문번호)', '전자금융거래법 등 관계 법령이 정한 기간'),
         processorRow('Google LLC (미국) — 구글 애널리틱스', '방문 통계 분석(쿠키 동의 시에만)', '쿠키 식별자, 방문한 화면, 기능 사용 여부, 기기·브라우저·대략적인 지역 정보(이용 시점에 인터넷으로 전송)', '수집일로부터 14개월'),
         processorRow('서버 호스팅사(인프라 제공업체)', '서버 운영 및 데이터 보관', '서비스 이용에 따라 저장되는 모든 개인정보', '위탁계약 종료 또는 회원 탈퇴 시까지')),
       PRIVACY_SECTIONS_TAIL.map(legalBlock),

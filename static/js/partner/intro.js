@@ -72,6 +72,34 @@ export function openWsLogin({ onDone } = {}) {
   return dlg;
 }
 
+/* 식당 사장님 로그인 — 원가다이어리 계정(이메일·비밀번호)을 그대로 쓴다. */
+export function openOwnerLogin({ onDone } = {}) {
+  const err = errorBox();
+  const email = h('input', { class: 'input', type: 'email', autocomplete: 'email', required: true });
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', required: true });
+  const submit = h('button', { class: 'btn block', type: 'submit' }, '사장님으로 로그인');
+  const form = h('form', { novalidate: true },
+    h('p', { class: 'small', style: 'margin-bottom:12px' }, '원가다이어리 계정으로 로그인하면, 내 식자재에 들어온 단가 제안과 우리 동네 떨이를 볼 수 있어요.'),
+    err, field('원가다이어리 이메일', email), field('비밀번호', pw), submit,
+    h('p', { class: 'small muted', style: 'margin-top:12px' }, '카카오·네이버·구글로 가입하셨다면 원가다이어리에 로그인한 뒤 ',
+      h('b', null, '설정 > 도매마켓 연결'), '에서 들어오세요.'));
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    err.clear();
+    if (!email.value.trim() || !pw.value) { err.show('이메일과 비밀번호를 입력해 주세요.'); return; }
+    await busy(submit, async () => {
+      try {
+        await api('/api/auth/login', { method: 'POST', body: { email: email.value, password: pw.value } });
+      } catch (e) { err.show(errMsg(e)); return; }
+      dlg.close();
+      if (onDone) await onDone();
+    });
+  });
+  const dlg = openDialog({ title: '식당 사장님 로그인', content: form });
+  email.focus();
+  return dlg;
+}
+
 const FAQ = [
   ['식당이 지금 얼마에 사고 있는지 볼 수 있나요?', '아니요. 현재 거래가는 어떤 화면에서도 공개하지 않습니다. 보이는 것은 품목·원산지·등급·권역·월 구매량 구간·구매처 수 구간뿐입니다. 그래서 “얼마보다 조금만 싸게”가 아니라, 내가 실제로 공급할 수 있는 가격을 제안하게 됩니다.'],
   ['내 제안가를 다른 도매업체가 볼 수 있나요?', '볼 수 없습니다. 제안은 조건이 맞는 식당 사장님 화면에만 조용히 전달되고, 다른 판매자에게는 내 제안의 존재조차 보이지 않습니다.'],
@@ -97,12 +125,14 @@ function sampleCard() {
 export function renderIntro(root, onAuth) {
   const start = () => openWsSignup({ onDone: onAuth });
   const login = () => openWsLogin({ onDone: onAuth });
+  const ownerLogin = () => openOwnerLogin({ onDone: onAuth });
   const step = (no, title, text) => h('div', { class: 'step' }, h('div', { class: 'step-no', 'aria-hidden': 'true' }, no), h('h3', null, title), h('p', null, text));
   const why = (ic, title, text) => h('div', { class: 'dm-why-card' }, h('span', { class: 'dm-why-ic' }, ic), h('h3', null, title), h('p', null, text));
   root.replaceChildren(h('div', { class: 'land dm-land' },
     h('header', { class: 'land-top' },
       brandMark('', { href: null, sub: true }),
       h('div', { class: 'btn-row' },
+        h('button', { class: 'btn ghost sm', type: 'button', onclick: ownerLogin }, '식당 사장님'),
         h('button', { class: 'btn ghost sm', type: 'button', onclick: login }, '로그인'),
         h('button', { class: 'btn sm dm-top-cta', type: 'button', onclick: start }, '무료 가입'))),
     h('main', { id: 'main' },
@@ -115,7 +145,10 @@ export function renderIntro(root, onAuth) {
             h('div', { class: 'btn-row' },
               h('button', { class: 'btn', type: 'button', onclick: start }, '도매업체로 가입하기'),
               h('button', { class: 'btn ghost', type: 'button', onclick: login }, '이미 계정이 있어요')),
-            h('p', { class: 'hero-note' }, '가입·수요 열람·제안 등록은 무료입니다. 사업자 인증을 마친 판매자만 이용할 수 있습니다.')),
+            h('p', { class: 'hero-note' }, '가입·수요 열람·제안 등록은 무료입니다. 사업자 인증을 마친 판매자만 이용할 수 있습니다.'),
+            h('p', { class: 'hero-note' }, '식당 사장님이세요? ',
+              h('button', { class: 'link-btn', type: 'button', onclick: ownerLogin }, '원가다이어리 계정으로 로그인'),
+              '하면 내게 온 단가 제안을 볼 수 있어요.')),
           sampleCard())),
 
       h('section', { class: 'sec', 'aria-labelledby': 'how-t' },
@@ -169,6 +202,5 @@ export function renderIntro(root, onAuth) {
         FAQ.map(([q, a]) => h('details', null, h('summary', null, q), h('p', null, a))))),
     h('footer', { class: 'foot' },
       h('span', null, '도매마켓 — 식자재 판매자 센터'),
-      // 전용 도메인에서는 '/' 가 곧 도매마켓이라 원가노트 링크를 두지 않는다.
-      location.pathname.startsWith('/partner') ? h('span', null, '식당 사장님이신가요? ', h('a', { href: '/' }, '원가다이어리로 가기')) : null)));
+      h('span', null, '식당 사장님이신가요? ', h('button', { class: 'link-btn', type: 'button', onclick: ownerLogin }, '사장님 로그인')))));
 }

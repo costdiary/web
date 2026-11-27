@@ -11,12 +11,12 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
-from . import auth, config, identity, mailer, market, notifications, oauth, security, services
+from . import auth, config, email_verify, identity, mailer, market, notifications, oauth, security, services
 from .db import ISO, get_db, now_iso, parse_iso, transaction
 from .deps import current_user
 from .routes_market import market_me_summary
 from .schemas import (
-    ChangePasswordIn, DeleteAccountIn, FeedbackIn, ForgotPasswordIn, LoginIn, ResetPasswordIn, SettingsIn, SignupIn,
+    ChangePasswordIn, DeleteAccountIn, EmailCodeIn, EmailVerifyIn, FeedbackIn, ForgotPasswordIn, LoginIn, ResetPasswordIn, SettingsIn, SignupIn,
 )
 
 OAUTH_STATE_COOKIE = "oauth_state"
@@ -71,7 +71,14 @@ def me_payload(db, user: dict) -> dict:
     return {
         "email": user["email"],
         "store_name": user["store_name"],
-        "is_admin": auth.is_admin(user["email"]),
+        "is_admin": auth.is_admin_user(user),
+        "email_verify": {
+            "verified": bool(user.get("email_verified_at")),
+            # 소셜로만 가입해 진짜 이메일이 없는 계정은 확인할 주소가 없다.
+            "has_email": not email_verify.is_placeholder(user["email"]),
+            # 메일을 보낼 수 있어야 설정 화면에서 인증하기 버튼을 보여 준다.
+            "available": email_verify.required(),
+        },
         "settings": {
             "target_cost_ratio": user["target_cost_ratio"],
             "alert_pct": user["alert_pct"],
@@ -129,6 +136,14 @@ def signup(body: SignupIn, request: Request, response: Response, db=Depends(get_
     if required and not hmac.compare_digest(body.code.strip().encode("utf-8"), required.encode("utf-8")):
         raise HTTPException(403, "가입 코드가 맞지 않습니다.")
     _record(f"signup:{ip}")
+    need_email_code = email_verify.required()
+    if need_email_code:
+        # 번호 확인은 가입과 따로 저장한다: 틀린 횟수는 남아야 하고, 맞아도 아래 가입이 다른 이유로
+        # 실패하면(본인인증 등) 같은 번호로 다시 시도할 수 있게 여기서는 지우지 않는다.
+        with transaction(db):
+            problem = email_verify.attempt(db, email, email_verify.PURPOSE_SIGNUP, body.email_code, consume=False)
+        if problem:
+            raise HTTPException(400, problem)
     need_identity = identity.enabled()
     # trial_ends_at 컬럼은 과거 체험 요금제에서 남은 것으로, 더는 기능을 막는 데 쓰지 않습니다
     # (원가노트는 무료). NOT NULL이라 값은 계속 채우되, 의미 없는 먼 미래 날짜를 넣습니다.
@@ -143,15 +158,79 @@ def signup(body: SignupIn, request: Request, response: Response, db=Depends(get_
             except identity.IdentityError as e:
                 raise HTTPException(e.status, str(e))
         cur = db.execute(
-            "INSERT INTO users(email, pw_hash, store_name, trial_ends_at, created_at) VALUES (?,?,?,?,?)",
-            (email, pw_hash, body.store_name.strip(), trial_end, now_iso()),
+            "INSERT INTO users(email, pw_hash, store_name, trial_ends_at, created_at, email_verified_at) VALUES (?,?,?,?,?,?)",
+            (email, pw_hash, body.store_name.strip(), trial_end, now_iso(), now_iso() if need_email_code else None),
         )
         if need_identity:
             identity.attach(db, iv["id"], cur.lastrowid)
+        if need_email_code:
+            email_verify.consume_code(db, email, email_verify.PURPOSE_SIGNUP)
         token = auth.new_session(db, cur.lastrowid)
     security.audit("signup", user_id=cur.lastrowid, ip=ip)
     _set_cookie(response, token)
     return {"ok": True}
+
+
+@router.post("/auth/email-code")
+def signup_email_code(body: EmailCodeIn, request: Request, db=Depends(get_db)):
+    """가입 화면의 '인증번호 받기'. 이미 가입된 주소여도 같은 응답을 주고, 메일로만 알려 준다."""
+    if not email_verify.required():
+        raise HTTPException(404)
+    ip = client_ip(request)
+    email = body.email.strip().lower()
+    if not EMAIL_RE.match(email):
+        raise HTTPException(400, "이메일 형식을 확인해 주세요.")
+    # 남의 주소로 메일 폭탄을 보내지 못하게 주소마다, 접속 주소마다 횟수를 묶는다.
+    if _too_many(f"ecode:{ip}", 10, 3600) or _too_many(f"ecodemail:{email}", 5, 3600):
+        raise HTTPException(429, "인증번호 요청이 너무 많아요. 잠시 후 다시 시도해 주세요.")
+    with transaction(db):
+        exists = db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
+        code = None if exists else email_verify.issue(db, email, email_verify.PURPOSE_SIGNUP)
+    if not exists and code is None:
+        raise HTTPException(429, f"방금 보냈어요. {email_verify.RESEND_SECONDS}초 뒤에 다시 받을 수 있어요.")
+    _record(f"ecode:{ip}")
+    _record(f"ecodemail:{email}")
+    if exists:
+        email_verify.send_already_registered(email)
+    else:
+        email_verify.send_code(email, code)
+    security.audit("email_code_sent", ip=ip, detail=email[:80])
+    return {"ok": True, "expires_minutes": email_verify.CODE_MINUTES, "resend_seconds": email_verify.RESEND_SECONDS}
+
+
+@router.post("/me/email-code")
+def account_email_code(request: Request, user: dict = Depends(current_user), db=Depends(get_db)):
+    """이 기능 전에 이메일로 가입한 계정이 설정 화면에서 자기 주소를 확인할 때."""
+    if not email_verify.required() or email_verify.is_placeholder(user["email"]):
+        raise HTTPException(404)
+    if user.get("email_verified_at"):
+        return {"ok": True, "verified": True}
+    if _too_many(f"ecodeuser:{user['id']}", 5, 3600):
+        raise HTTPException(429, "인증번호 요청이 너무 많아요. 잠시 후 다시 시도해 주세요.")
+    with transaction(db):
+        code = email_verify.issue(db, user["email"], email_verify.PURPOSE_ACCOUNT)
+    if code is None:
+        raise HTTPException(429, f"방금 보냈어요. {email_verify.RESEND_SECONDS}초 뒤에 다시 받을 수 있어요.")
+    _record(f"ecodeuser:{user['id']}")
+    email_verify.send_code(user["email"], code)
+    security.audit("email_code_sent", user_id=user["id"], ip=client_ip(request))
+    return {"ok": True, "expires_minutes": email_verify.CODE_MINUTES, "resend_seconds": email_verify.RESEND_SECONDS}
+
+
+@router.post("/me/email-verify")
+def account_email_verify(body: EmailVerifyIn, request: Request, user: dict = Depends(current_user), db=Depends(get_db)):
+    if email_verify.is_placeholder(user["email"]):
+        raise HTTPException(404)
+    if not user.get("email_verified_at"):
+        with transaction(db):
+            problem = email_verify.attempt(db, user["email"], email_verify.PURPOSE_ACCOUNT, body.code)
+            if not problem:
+                db.execute("UPDATE users SET email_verified_at = ? WHERE id = ?", (now_iso(), user["id"]))
+        if problem:
+            raise HTTPException(400, problem)
+        security.audit("email_verified", user_id=user["id"], ip=client_ip(request))
+    fresh = dict(db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone())
+    return me_payload(db, fresh)
 
 
 @router.post("/auth/login")

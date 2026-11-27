@@ -1,8 +1,11 @@
-/* 도매마켓 — 식자재 판매자 센터: 로그인 확인 -> 소개 화면 또는 앱 틀 + 화면 전환 */
+/* 도매마켓: 로그인 확인 -> 소개 화면 또는 앱 틀 + 화면 전환.
+   두 종류의 사람이 쓴다. 도매업체(판매자 센터, ws 계정)와 식당 사장님(원가다이어리 계정으로 로그인,
+   받은 단가 제안·떨이·연결 요청). 원가다이어리 앱에는 도매 화면이 없고, 사장님도 여기서 본다. */
 import { h, $, api, app, bus, icon, toast, errMsg, ApiError } from '../core.js';
 import { skeleton, emptyBlock } from '../ui.js';
 import { BRAND, brandMark, pic, refreshInbox } from './kit.js';
 import { renderIntro } from './intro.js';
+import * as owner from './owner.js';
 import * as verify from './verify.js';
 import * as profile from './profile.js';
 import * as home from './home.js';
@@ -47,6 +50,19 @@ const ROUTES = [
   { re: /^#\/billing\/?$/, tab: '#/billing', title: '결제 내역', run: (box) => billing.render(box) },
 ];
 
+/* 식당 사장님 메뉴. 해시가 판매자 메뉴와 겹치지 않게 '#/o/'로 시작한다. */
+const OWNER_NAV = [
+  ['#/o/offers', '단가 제안', () => pic('tag', 22)],
+  ['#/o/deals', '떨이', () => icon('box', 22)],
+  ['#/o/connections', '연결 요청', () => icon('bell', 22)],
+];
+const OWNER_ROUTES = [
+  { re: /^#\/o\/offers\/?$/, tab: '#/o/offers', title: '단가 제안', run: (box) => owner.renderOffers(box) },
+  { re: /^#\/o\/deals\/?$/, tab: '#/o/deals', title: '떨이', run: (box) => owner.render(box) },
+  { re: /^#\/o\/connections\/?$/, tab: '#/o/connections', title: '연결 요청', run: (box) => owner.renderConnections(box) },
+];
+let mode = null; // 'ws'(도매업체) | 'owner'(식당 사장님)
+
 const STATUS_TEXT = { pending: '인증 대기', verified: '인증 판매자', rejected: '인증 반려', suspended: '이용 정지' };
 
 function navLink([href, label, ic, needsVerified = true], extra = '') {
@@ -69,7 +85,29 @@ function paintInbox() {
   if (tab) tab.setAttribute('aria-label', n ? `연결 요청, 응답 대기 ${n}건` : '연결 요청');
 }
 
+function renderOwnerShell() {
+  const me = app.me;
+  const nav = h('nav', { class: 'tabbar dm-nav', 'aria-label': '주 메뉴' },
+    brandMark('rail-brand'),
+    OWNER_NAV.map(([href, label, ic]) => h('a', { class: 'tab', href, 'data-tab': href },
+      h('span', { class: 'tab-ic' }, ic()), h('span', { class: 'tab-t' }, label))),
+    h('div', { class: 'dm-rail-sep', 'aria-hidden': 'true' }),
+    h('a', { class: 'tab rail-only', href: owner.appHref('') }, h('span', { class: 'tab-ic' }, pic('arrow', 22)), h('span', { class: 'tab-t' }, '원가다이어리로')),
+    h('p', { class: 'dm-rail-foot' }, '내 가게 이름과 매입가는', h('br'), '도매업체에게 보이지 않습니다.'));
+  const logout = h('button', { class: 'btn ghost sm', type: 'button', onclick: async () => {
+    try { await api('/api/auth/logout', { method: 'POST' }); } catch { /* 이미 끊긴 세션이어도 화면은 나간다 */ }
+    leaveApp();
+  } }, '로그아웃');
+  root.replaceChildren(h('div', { class: 'app dm-app' },
+    h('header', { class: 'topbar' }, h('div', { class: 'topbar-in' },
+      brandMark(''), h('span', { class: 'topbar-store', id: 'ws-name' }, me.store_name || me.email),
+      h('span', { class: 'tag' }, '식당 사장님'), logout)),
+    h('main', { id: 'main', class: 'main', tabindex: '-1' }),
+    nav));
+}
+
 function renderShell() {
+  if (mode === 'owner') { renderOwnerShell(); return; }
   const ws = app.me;
   const nav = h('nav', { class: 'tabbar dm-nav', 'aria-label': '주 메뉴' },
     brandMark('rail-brand', { sub: true }),
@@ -92,9 +130,12 @@ async function route() {
   const main = $('#main');
   if (!main || !app.me) return;
   const hash = location.hash || '#/';
-  const r = ROUTES.find((x) => x.re.test(hash)) || ROUTES[0];
+  if (mode === 'owner' && !OWNER_ROUTES.some((x) => x.re.test(hash))) { location.replace('#/o/offers'); return; }
+  if (mode === 'ws' && hash.startsWith('#/o/')) { location.replace('#/'); return; }
+  const list = mode === 'owner' ? OWNER_ROUTES : ROUTES;
+  const r = list.find((x) => x.re.test(hash)) || list[0];
   const m = hash.match(r.re) || [];
-  if (r.gate !== false && app.me.status !== 'verified') { location.replace('#/verify'); return; }
+  if (mode === 'ws' && r.gate !== false && app.me.status !== 'verified') { location.replace('#/verify'); return; }
   const mine = ++token;
   for (const d of document.querySelectorAll('dialog[open]')) d.close();
   document.title = r.title === BRAND ? BRAND : `${r.title} · ${BRAND}`;
@@ -125,20 +166,33 @@ async function refreshWsMe() {
 }
 
 async function boot() {
-  let logged = false;
-  try { await refreshWsMe(); logged = true; } catch { app.me = null; }
-  if (!logged) {
+  if (!app.pub) app.pub = await api('/api/public').catch(() => ({}));
+  mode = null;
+  try { await refreshWsMe(); mode = 'ws'; } catch { app.me = null; }
+  // 도매업체로 로그인하지 않았으면, 원가다이어리 계정(식당 사장님)으로 로그인돼 있는지 본다.
+  if (!mode && app.pub.logged_in) {
+    try { app.me = await api('/api/me'); mode = 'owner'; } catch { app.me = null; }
+  }
+  if (!mode) {
     document.title = `${BRAND} — 식자재 판매자 센터`;
     renderIntro(root, boot);
     return;
   }
+  // 사장님 첫 화면 주소를 미리 맞춰 둔다. route() 안에서 바꾸면 hashchange가 route()를 한 번 더 부르면서
+  // 아래 첫 접속 안내창을 닫아 버린다.
+  if (mode === 'owner' && !OWNER_ROUTES.some((x) => x.re.test(location.hash))) history.replaceState(null, '', `${location.pathname}#/o/offers`);
   renderShell();
   await route();
+  if (mode === 'owner' && app.me.market && app.me.market.notice_required) {
+    owner.openMarketNotice({ onDone: async () => { app.me = await api('/api/me'); route(); } });
+  }
 }
 
 function leaveApp(message) {
   token += 1;
   app.me = null;
+  mode = null;
+  app.pub = null; // 로그인 여부(logged_in)를 다시 받아 오도록
   if (location.hash) history.replaceState(null, '', location.pathname);
   document.title = `${BRAND} — 식자재 판매자 센터`;
   renderIntro(root, boot);
@@ -153,24 +207,24 @@ bus.addEventListener('auth-lost', () => { if (app.me) leaveApp('로그인이 만
 bus.addEventListener('inbox-changed', paintInbox);
 bus.addEventListener('me-changed', () => {
   const name = $('#ws-name');
-  if (name && app.me) name.textContent = app.me.biz_name || app.me.email;
+  if (name && app.me && mode === 'ws') name.textContent = app.me.biz_name || app.me.email;
   paintInbox();
 });
 /* 인증이 방금 끝났으면(메뉴 잠금 해제) 틀을 다시 그린다. */
 bus.addEventListener('ws-status-changed', () => {
-  if (!app.me) return;
+  if (!app.me || mode !== 'ws') return;
   const keep = [...($('#main')?.childNodes || [])]; // 방금 보여 준 인증 결과 화면은 그대로 둔다
   renderShell();
   $('#main').replaceChildren(...keep);
 });
 /* 다른 일을 하다 돌아왔을 때 새 연결 요청이 왔는지 한 번 확인한다(주기적 폴링은 하지 않는다). */
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshInbox(); });
+document.addEventListener('visibilitychange', () => { if (mode === 'ws' && document.visibilityState === 'visible') refreshInbox(); });
 
 boot();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // 전용 도메인이면 '/', 원가노트와 같은 주소를 쓰면 '/partner' 범위만 맡는다(원가노트의 /sw.js 와 겹치지 않게).
+    // 전용 도메인이면 '/', 원가다이어리와 같은 주소를 쓰면 '/partner' 범위만 맡는다(원가다이어리의 /sw.js 와 겹치지 않게).
     const scope = location.pathname.startsWith('/partner') ? '/partner' : '/';
     navigator.serviceWorker.register('/sw-market.js', { scope }).catch(() => {});
   });

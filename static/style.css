@@ -858,11 +858,23 @@ ul.plain.src li { padding-top: 6px; border-top: 1px dotted var(--rule-2); }
   display: inline-grid; place-items: center; border-radius: 999px; background: var(--accent-bg); color: #1c1305;
   font: 800 0.6875rem/1 var(--font-num);
 }
-.dm-nav .rail-only, .dm-rail-sep, .dm-rail-foot { display: none; }
+.dm-nav .rail-only, .dm-nav .rail-brand, .dm-rail-sep, .dm-rail-foot { display: none; }
+/* 휴대폰: 도매마켓 아래 메뉴는 판매자 6칸, 사장님 3칸이라 칸 수를 메뉴 개수에 맞춘다(원가다이어리는 5칸 고정). */
+@media (max-width: 959.98px) {
+  .dm-nav { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+}
 .dm-nav .tab[aria-current="page"]::before { border-radius: 0 0 3px 3px; }
 @media (min-width: 960px) {
-  .dm-nav { background: var(--sheet-2); padding-top: 84px; }
-  .dm-nav .rail-brand { top: 18px; }
+  /* 원가다이어리는 PC에서 아래 메뉴(.tabbar)를 숨기고 따로 .rail을 쓰지만, 도매마켓은 같은 메뉴를 왼쪽 세로 막대로 바꿔 쓴다. */
+  .dm-nav {
+    top: 0; right: auto; bottom: 0; width: var(--rail);
+    display: flex; flex-direction: column; gap: 2px;
+    border-top: 0; border-right: 1px solid var(--rule);
+    box-shadow: 2px 0 8px rgba(var(--shade), 0.04);
+    padding: 84px 12px 16px; background: var(--sheet-2);
+  }
+  .dm-nav .tab { flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 44px; padding: 0 12px; font-size: 0.9375rem; }
+  .dm-nav .rail-brand { display: inline-flex; position: absolute; top: 18px; left: 20px; }
   .dm-nav .rail-brand .dm-brand-t { font-size: 1.1875rem; }
   .dm-nav .rail-only { display: flex; }
   .dm-nav .tab { border-radius: 999px; }
@@ -2117,3 +2129,14 @@ a.dm-stat:active { transform: scale(0.98); }
   .ad-tiles-sm .ad-tile:nth-child(odd) { padding-left: 0; border-left: 0; }
   .ad-tiles-sm .ad-tile:nth-child(even) { padding-left: 14px; border-left: 1px solid var(--rule); }
 }
+
+/* 이메일 인증번호(가입·설정) */
+.email-send { display: flex; gap: 8px; align-items: stretch; }
+.email-send .input { flex: 1; min-width: 0; }
+.email-send .btn { flex: none; min-height: 44px; white-space: nowrap; }
+.email-code { display: grid; gap: 6px; }
+.email-code .input { font-variant-numeric: tabular-nums; max-width: 14em; }
+.email-code .input:not(:placeholder-shown) { letter-spacing: 0.3em; }
+.email-code[hidden] { display: none; }
+.email-verify { display: grid; gap: 8px; justify-items: start; margin-top: 6px; }
+.email-ok { margin-left: 8px; font-size: 0.8125rem; font-weight: 700; color: var(--green); }

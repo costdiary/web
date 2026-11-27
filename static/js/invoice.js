@@ -1,7 +1,7 @@
 /* 거래명세서: 사진 올리기 → 읽은 내용 확인 → 단가 반영 */
 import {
   h, api, app, numInput, selectOf, comboSelect, parseNum, n0, n3, nPrice, openDialog, busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS,
-  DISPLAY, KIND_HINT, icon, refreshMe, ymd, refreshRoute, fill, MARKET_ENABLED,
+  DISPLAY, KIND_HINT, icon, refreshMe, ymd, refreshRoute, fill,
 } from './core.js';
 import { chg, num, emptyBlock, termInput } from './ui.js';
 
@@ -223,7 +223,6 @@ export async function render(box) {
   function showDone(res) {
     const changed = res.updated.filter((u) => u.changed && !u.created);
     const created = res.updated.filter((u) => u.created);
-    const offerLink = h('span');
     fill(stage,
       h('section', { class: 'sheet' },
         h('div', { class: 'sheet-h' }, h('h2', null, '반영했습니다')),
@@ -235,17 +234,11 @@ export async function render(box) {
           h('div', null, h('b', null, u.name), u.created ? h('span', { class: 'tag' }, '새로 등록') : null,
             u.prev_display_price != null && u.changed ? h('div', { class: 'was' }, `${nPrice(u.prev_display_price)}원/${u.unit}`) : null),
           h('div', { class: 'row-end' }, num(nPrice(u.display_price), `원/${u.unit}`), u.changed && !u.created ? chg(u.change_pct) : (u.created ? null : h('span', { class: 'xs muted' }, '변동 없음')))))),
-        offerLink,
         h('div', { class: 'btn-row', style: 'margin-top:16px' },
           h('a', { class: 'btn', href: '#/' }, '원가 알림 보기'),
           h('a', { class: 'btn ghost', href: '#/menus' }, '메뉴 원가율 보기'),
           h('button', { class: 'btn ghost', type: 'button', onclick: refreshRoute }, '다른 명세서 올리기'))));
     window.scrollTo(0, 0);
-    // 명세서를 반영하면서 평균 매입가가 갱신되어, 더 싼 도매 제안이 새로 떴을 수 있습니다.
-    if (MARKET_ENABLED) api('/api/market/offers').then(({ unread }) => {
-      if (unread > 0) fill(offerLink, h('p', { class: 'note-warn', role: 'status', style: 'margin-top:12px' },
-        h('a', { href: '#/market/offers' }, `더 싼 제안 ${unread}건 보기`)));
-    }).catch(() => {});
   }
 
   showPick();

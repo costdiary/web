@@ -24,6 +24,15 @@ class SignupIn(BaseModel):
     store_name: str = Field("", max_length=60)
     code: str = Field("", max_length=60)
     identity_verification_id: str = Field("", max_length=80)  # 본인인증을 켠 경우에만 필요(identity.py)
+    email_code: str = Field("", max_length=12)  # 이메일 인증을 켠 경우에만 필요(email_verify.py)
+
+
+class EmailCodeIn(BaseModel):
+    email: str = Field(max_length=120)
+
+
+class EmailVerifyIn(BaseModel):
+    code: str = Field(min_length=1, max_length=12)
 
 
 class LoginIn(BaseModel):

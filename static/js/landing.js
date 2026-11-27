@@ -3,7 +3,7 @@
    → 시작 순서 → 하는 일·안 하는 일 → 가격 → 자주 묻는 질문 → 마지막 권유.
    데모 숫자는 체험용 예시 가게(app/seed.py)와 같은 값이고, 계산식은 app/costing.py·app/labor.py를 줄여 옮긴 것.
    실제 시세나 실제 정산 금액이 아니므로 화면에도 '예시'라고 적는다. 스타일은 static/landing.css(.lp 아래). */
-import { h, app, n0, n1, roundUp100, icon } from './core.js';
+import { h, app, n0, n1, roundUp100, icon, DONATE_ENABLED } from './core.js';
 import { openSignup, openLogin } from './auth.js';
 import { openDataNotice, openTerms } from './legal.js';
 import { openCookieSettings } from './analytics.js';
@@ -578,7 +578,9 @@ export function renderLanding(root, onAuth) {
               h('h2', { id: 'lp-price-t' }, '가격'),
               h('p', { class: 'lp-price-big' }, h('span', null, '0'), '원'),
               h('p', { class: 'lp-price-head' }, '체험판도, 개수 제한도, 기간도 없습니다'),
-              h('p', null, '원가다이어리의 모든 기능은 무료입니다. 광고와 후원으로만 운영되기 때문에 사장님은 아무 비용 없이 사용하실 수 있습니다.'),
+              h('p', null, DONATE_ENABLED
+                ? '원가다이어리의 모든 기능은 무료입니다. 광고와 후원으로만 운영되기 때문에 사장님은 아무 비용 없이 사용하실 수 있습니다.'
+                : '원가다이어리의 모든 기능은 무료입니다. 사장님은 아무 비용 없이 사용하실 수 있습니다.'),
               cta('무료로 시작하기', 'is-accent is-lg')),
             h('ul', { class: 'lp-price-r' },
               h('li', null, icon('check', 18), '식자재·메뉴 등록 개수 제한 없음'),

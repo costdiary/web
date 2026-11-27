@@ -68,3 +68,29 @@ def test_llms_txt_sitemap_and_guide():
     assert g.status_code == 200 and "원가율(%) = 한 그릇 재료비 ÷ 판매가 × 100" in g.text
     assert c.get("/guide/../main").status_code == 404
     assert c.get("/guide/nope").status_code == 404
+
+
+def test_keyword_guides_are_listed_linked_and_crawlable():
+    sm = c.get("/sitemap.xml").text
+    pages = {
+        "cost-calculator": "음식 원가계산기",
+        "restaurant-cost": "음식점 원가 계산 방법",
+        "receipt-management": "영수증·거래명세서 관리",
+    }
+    home = c.get("/").text
+    llms = c.get("/llms.txt").text
+    for slug, words in pages.items():
+        assert f"/guide/{slug}</loc><lastmod>" in sm
+        g = c.get(f"/guide/{slug}")
+        assert g.status_code == 200 and words in g.text
+        assert f'<link rel="canonical" href="https://mycostdiary.com/guide/{slug}">' in g.text
+        for block in re.findall(r'<script type="application/ld\+json">(.*?)</script>', g.text, re.S):
+            json.loads(block)
+        assert "<script>" not in g.text and " onclick=" not in g.text and " onsubmit=" not in g.text  # CSP: 인라인 스크립트 금지
+        assert f"/guide/{slug}" in home and f"/guide/{slug}" in llms
+    assert "원가계산기" in home.split("</title>")[0]
+    # 계산기는 자바스크립트 없이도 예시 결과가 보인다
+    calc = c.get("/guide/cost-calculator").text
+    assert "3,680원" in calc and "40.9%" in calc and "/static/js/cost-calc.js" in calc
+    assert c.get("/static/js/cost-calc.js").status_code == 200
+    assert c.get("/static/guide/guide.css").status_code == 200

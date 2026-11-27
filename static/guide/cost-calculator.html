@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>음식 원가계산기 · 메뉴 원가율과 남는 돈 바로 계산 (무료) | 원가다이어리</title>
+  <meta name="description" content="재료 가격과 한 그릇에 쓰는 양만 넣으면 메뉴 원가, 원가율, 남는 돈, 목표 원가율 판매가, 배달 한 건 손익까지 바로 나오는 무료 식당 원가계산기입니다. 가입 없이 쓸 수 있어요.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <link rel="canonical" href="https://mycostdiary.com/guide/cost-calculator">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="원가다이어리">
+  <meta property="og:url" content="https://mycostdiary.com/guide/cost-calculator">
+  <meta property="og:title" content="음식 원가계산기 · 메뉴 원가율과 남는 돈 바로 계산">
+  <meta property="og:description" content="재료 가격과 쓰는 양만 넣으면 원가율, 남는 돈, 권장 판매가, 배달 손익까지. 가입 없이 무료.">
+  <meta property="og:image" content="https://mycostdiary.com/static/og-image.png">
+  <meta property="og:locale" content="ko_KR">
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/fonts/noto/noto.css?v=1">
+  <link rel="stylesheet" href="/static/guide/guide.css?v=2">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[
+   {"@type":"WebApplication","name":"음식 원가계산기","url":"https://mycostdiary.com/guide/cost-calculator","inLanguage":"ko-KR",
+    "applicationCategory":"BusinessApplication","operatingSystem":"Web",
+    "description":"재료 가격과 한 그릇에 쓰는 양으로 메뉴 원가, 원가율, 남는 돈, 목표 원가율 판매가, 배달 한 건 손익을 계산하는 무료 식당 원가계산기",
+    "offers":{"@type":"Offer","price":"0","priceCurrency":"KRW"},
+    "publisher":{"@type":"Organization","name":"원가다이어리","url":"https://mycostdiary.com/"}},
+   {"@type":"BreadcrumbList","itemListElement":[
+    {"@type":"ListItem","position":1,"name":"원가다이어리","item":"https://mycostdiary.com/"},
+    {"@type":"ListItem","position":2,"name":"음식 원가계산기","item":"https://mycostdiary.com/guide/cost-calculator"}]},
+   {"@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"메뉴 원가는 어떻게 계산하나요?","acceptedAnswer":{"@type":"Answer","text":"재료마다 (산 가격 ÷ 산 양) × 한 그릇에 쓰는 양을 구해 모두 더합니다. 다듬고 버리는 양이 있으면 수율로 나눕니다. 예를 들어 kg당 9,000원인 돼지고기를 수율 90%로 200g 쓰면 9,000 ÷ 1,000 × 200 ÷ 0.9 = 2,000원입니다."}},
+    {"@type":"Question","name":"원가율은 몇 %가 적당한가요?","acceptedAnswer":{"@type":"Answer","text":"흔히 30~35% 안팎을 이야기하지만 업종, 임대료, 인건비 구조에 따라 가게마다 다릅니다. 목표 원가율을 정해 두고 그보다 높은 메뉴부터 판매가나 구성을 다시 보는 방법을 많이 씁니다."}},
+    {"@type":"Question","name":"목표 원가율에 맞는 판매가는 어떻게 구하나요?","acceptedAnswer":{"@type":"Answer","text":"권장 판매가 = 한 그릇 재료비 ÷ 목표 원가율입니다. 재료비 3,680원에 목표 35%면 3,680 ÷ 0.35 = 약 10,514원입니다."}},
+    {"@type":"Question","name":"이 원가계산기에 입력한 값은 저장되나요?","acceptedAnswer":{"@type":"Answer","text":"아니요. 이 페이지는 브라우저 안에서만 계산하고 아무 값도 서버로 보내지 않습니다. 메뉴를 여러 개 저장하고 단가가 바뀔 때 자동으로 다시 계산하려면 원가다이어리에 무료로 가입해 쓰면 됩니다."}}]}
+  ]}
+  </script>
+</head>
+<body>
+  <header><a href="/">원가다이어리</a><nav><a href="/guide/restaurant-cost">음식점 원가 계산법</a></nav></header>
+  <main>
+    <article>
+      <h1>음식 원가계산기</h1>
+      <p class="lead">재료를 얼마에 샀는지와 한 그릇에 얼마나 쓰는지만 넣으면 메뉴 원가, 원가율, 한 그릇에 남는 돈이 바로 나옵니다. 목표 원가율에 맞춘 판매가와 배달 한 건에 남는 돈도 같이 계산해요. 가입 없이 쓸 수 있고, 입력한 값은 이 화면 밖으로 나가지 않습니다.</p>
+
+      <form class="calc" id="calc" autocomplete="off">
+        <fieldset>
+          <legend>1. 메뉴</legend>
+          <div class="row2">
+            <label>메뉴 이름<input id="menuName" value="제육볶음 1인분"></label>
+            <label>판매가 (원)<input id="price" type="number" inputmode="numeric" min="0" step="100" value="9000"></label>
+            <label>목표 원가율 (%)<input id="target" type="number" inputmode="decimal" min="1" max="99" step="1" value="35"></label>
+          </div>
+          <label class="check"><input id="vat" type="checkbox"> 판매가에 부가세가 포함돼 있어요 (공급가 = 판매가 ÷ 1.1 기준으로 원가율 계산)</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>2. 재료</legend>
+          <p class="note" style="margin-top:0">산 양과 쓰는 양은 같은 단위(g, ml, 개)로 넣으세요. 수율은 다듬고 남아서 실제로 쓰는 비율이에요. 모르면 100으로 두세요.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>재료</th><th>산 가격(원)</th><th>산 양</th><th>수율(%)</th><th>한 그릇에 쓰는 양</th><th class="n">재료비</th><th><span class="sr">삭제</span></th></tr></thead>
+              <tbody id="rows">
+                <tr class="ing"><td class="name"><input aria-label="재료" value="돼지 앞다리살"></td><td data-l="산 가격(원)"><input aria-label="산 가격" type="number" inputmode="numeric" min="0" value="9000"></td><td data-l="산 양"><input aria-label="산 양" type="number" inputmode="decimal" min="0" value="1000"></td><td data-l="수율(%)"><input aria-label="수율" type="number" inputmode="decimal" min="1" max="100" value="90"></td><td data-l="쓰는 양"><input aria-label="한 그릇에 쓰는 양" type="number" inputmode="decimal" min="0" value="200"></td><td class="cost" data-l="재료비">2,000원</td><td><button type="button" class="x" aria-label="이 재료 빼기">×</button></td></tr>
+                <tr class="ing"><td class="name"><input aria-label="재료" value="양파"></td><td data-l="산 가격(원)"><input aria-label="산 가격" type="number" inputmode="numeric" min="0" value="2500"></td><td data-l="산 양"><input aria-label="산 양" type="number" inputmode="decimal" min="0" value="1000"></td><td data-l="수율(%)"><input aria-label="수율" type="number" inputmode="decimal" min="1" max="100" value="100"></td><td data-l="쓰는 양"><input aria-label="한 그릇에 쓰는 양" type="number" inputmode="decimal" min="0" value="80"></td><td class="cost" data-l="재료비">200원</td><td><button type="button" class="x" aria-label="이 재료 빼기">×</button></td></tr>
+                <tr class="ing"><td class="name"><input aria-label="재료" value="대파"></td><td data-l="산 가격(원)"><input aria-label="산 가격" type="number" inputmode="numeric" min="0" value="4000"></td><td data-l="산 양"><input aria-label="산 양" type="number" inputmode="decimal" min="0" value="1000"></td><td data-l="수율(%)"><input aria-label="수율" type="number" inputmode="decimal" min="1" max="100" value="100"></td><td data-l="쓰는 양"><input aria-label="한 그릇에 쓰는 양" type="number" inputmode="decimal" min="0" value="20"></td><td class="cost" data-l="재료비">80원</td><td><button type="button" class="x" aria-label="이 재료 빼기">×</button></td></tr>
+                <tr class="ing"><td class="name"><input aria-label="재료" value="제육 양념"></td><td data-l="산 가격(원)"><input aria-label="산 가격" type="number" inputmode="numeric" min="0" value="10000"></td><td data-l="산 양"><input aria-label="산 양" type="number" inputmode="decimal" min="0" value="1000"></td><td data-l="수율(%)"><input aria-label="수율" type="number" inputmode="decimal" min="1" max="100" value="100"></td><td data-l="쓰는 양"><input aria-label="한 그릇에 쓰는 양" type="number" inputmode="decimal" min="0" value="40"></td><td class="cost" data-l="재료비">400원</td><td><button type="button" class="x" aria-label="이 재료 빼기">×</button></td></tr>
+                <tr class="ing"><td class="name"><input aria-label="재료" value="쌀"></td><td data-l="산 가격(원)"><input aria-label="산 가격" type="number" inputmode="numeric" min="0" value="3000"></td><td data-l="산 양"><input aria-label="산 양" type="number" inputmode="decimal" min="0" value="1000"></td><td data-l="수율(%)"><input aria-label="수율" type="number" inputmode="decimal" min="1" max="100" value="100"></td><td data-l="쓰는 양"><input aria-label="한 그릇에 쓰는 양" type="number" inputmode="decimal" min="0" value="100"></td><td class="cost" data-l="재료비">300원</td><td><button type="button" class="x" aria-label="이 재료 빼기">×</button></td></tr>
+                <tr class="ing"><td class="name"><input aria-label="재료" value="반찬·포장"></td><td data-l="산 가격(원)"><input aria-label="산 가격" type="number" inputmode="numeric" min="0" value="700"></td><td data-l="산 양"><input aria-label="산 양" type="number" inputmode="decimal" min="0" value="1"></td><td data-l="수율(%)"><input aria-label="수율" type="number" inputmode="decimal" min="1" max="100" value="100"></td><td data-l="쓰는 양"><input aria-label="한 그릇에 쓰는 양" type="number" inputmode="decimal" min="0" value="1"></td><td class="cost" data-l="재료비">700원</td><td><button type="button" class="x" aria-label="이 재료 빼기">×</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <button type="button" class="add" id="add">+ 재료 더하기</button>
+        </fieldset>
+
+        <div class="result" aria-live="polite">
+          <div><span>한 그릇 재료비</span><output id="rCost">3,680원</output></div>
+          <div id="rRateBox" class="warn"><span>원가율</span><output id="rRate">40.9%</output></div>
+          <div><span>한 그릇에 남는 돈 (재료비만 뺀 값)</span><output id="rMargin">5,320원</output></div>
+          <div><span>목표 원가율 판매가</span><output id="rSuggest">10,514원</output></div>
+        </div>
+
+        <fieldset>
+          <legend>3. 배달로 팔면 (선택)</legend>
+          <div class="row2">
+            <label>중개 수수료 (%)<input id="dFee" type="number" inputmode="decimal" min="0" step="0.1" value="10"></label>
+            <label>결제 수수료 (%)<input id="dPay" type="number" inputmode="decimal" min="0" step="0.1" value="3"></label>
+            <label>사장님이 내는 배달비 (원)<input id="dShip" type="number" inputmode="numeric" min="0" step="100" value="2000"></label>
+          </div>
+          <p class="note">수수료는 설명용 예시값이에요. 실제 요율은 쓰는 배달앱의 계약과 정산서를 확인해 고쳐 넣으세요.</p>
+        </fieldset>
+        <div class="result" aria-live="polite">
+          <div><span>배달 한 건에 남는 돈</span><output id="rDel">2,150원</output></div>
+          <div><span>배달에서 매장만큼 남기려면</span><output id="rDelPrice">12,644원</output></div>
+        </div>
+      </form>
+      <p class="note">계산은 이 브라우저 안에서만 해요. 저장되지 않으니, 메뉴를 여러 개 관리하려면 아래 원가다이어리를 써 보세요.</p>
+
+      <h2>원가계산기 공식</h2>
+      <p class="formula">재료비 = 산 가격 ÷ 산 양 × 쓰는 양 ÷ 수율</p>
+      <p class="formula">원가율(%) = 한 그릇 재료비 ÷ 판매가 × 100</p>
+      <p class="formula">권장 판매가 = 한 그릇 재료비 ÷ 목표 원가율</p>
+      <p>위 예시처럼 돼지 앞다리살을 kg당 9,000원에 사서 다듬고 90%만 쓴다면, 200g의 재료비는 9,000 ÷ 1,000 × 200 ÷ 0.9 = 2,000원입니다. 재료를 모두 더하면 한 그릇 재료비 3,680원, 판매가 9,000원 기준 원가율은 약 40.9%입니다. 목표 원가율을 35%로 잡으면 3,680 ÷ 0.35 = 약 10,514원을 받아야 합니다.</p>
+
+      <h2>배달 한 건 손익 공식</h2>
+      <p class="formula">배달 한 건에 남는 돈 = 판매가 − 중개 수수료 − 결제 수수료 − 사장님 부담 배달비 − 재료비</p>
+      <p>9,000원짜리 메뉴를 중개 수수료 10%, 결제 수수료 3%, 배달비 2,000원으로 팔면 9,000 − 900 − 270 − 2,000 − 3,680 = 2,150원이 남습니다. 매장에서는 5,320원이 남으니, 같은 메뉴라도 배달 판매가를 따로 정하는 가게가 많습니다.</p>
+
+      <h2>원가 계산할 때 자주 빠뜨리는 것</h2>
+      <ul>
+        <li><b>밥, 반찬, 소스, 포장 용기</b>: 원래 나가는 것이라 잊기 쉬운데, 합치면 한 그릇에 수백 원이 됩니다.</li>
+        <li><b>수율</b>: 고기 손질, 채소 다듬기, 해동으로 버려지는 양을 빼지 않으면 원가가 실제보다 낮게 나옵니다.</li>
+        <li><b>부가세 기준</b>: 판매가가 부가세 포함이면 재료비도 포함 기준으로, 별도면 둘 다 별도로 맞춰야 비교가 정확합니다.</li>
+        <li><b>단가 갱신</b>: 원가율은 한 번 계산하고 끝나지 않습니다. 재료 단가가 오르면 그 재료가 들어간 메뉴가 모두 바뀝니다.</li>
+      </ul>
+
+      <h2>자주 묻는 질문</h2>
+      <h3>원가율은 몇 %가 적당한가요?</h3>
+      <p>흔히 30~35% 안팎을 이야기하지만, 업종과 임대료, 인건비 구조에 따라 맞는 목표는 가게마다 다릅니다. 목표를 하나 정해 두고 그보다 높은 메뉴부터 판매가나 구성을 다시 보는 방법을 많이 씁니다.</p>
+      <h3>재료 양(g)을 정확히 모르면요?</h3>
+      <p>어림잡아 넣고 먼저 계산해 보세요. 나중에 한 번 저울로 재서 고치면 숫자가 실제에 가까워집니다.</p>
+      <h3>입력한 값은 저장되나요?</h3>
+      <p>아니요. 이 페이지는 브라우저 안에서만 계산하고 서버로 아무것도 보내지 않습니다. 새로 고치면 예시 값으로 돌아갑니다.</p>
+    </article>
+
+    <section class="cta">
+      <h2 style="margin-top:0">메뉴 전체를 저장하고, 단가가 오르면 자동으로</h2>
+      <p>원가다이어리는 이 계산을 메뉴 전체에 대해 해 주는 무료 웹앱입니다. 거래명세서나 영수증으로 재료 단가를 한 번 넣어 두면, 단가가 바뀔 때 영향받는 메뉴의 원가율과 권장 판매가를 모두 다시 계산합니다. 육수·소스 같은 프렙 원가, 배달앱별 손익, 손익분기 매출도 계산해요.</p>
+      <a class="btn" href="/">원가다이어리 무료로 시작하기</a>
+    </section>
+
+    <nav class="related" aria-label="다른 안내 글">
+      <h2>함께 읽어 보기</h2>
+      <ul>
+        <li><a href="/guide/restaurant-cost">음식점 원가 계산 방법: 식재료비, 인건비, 고정비까지</a></li>
+        <li><a href="/guide/menu-cost-rate">식당 메뉴 원가율 계산하는 법 (공식과 예시)</a></li>
+        <li><a href="/guide/receipt-management">식당 영수증·거래명세서 관리하는 법</a></li>
+      </ul>
+    </nav>
+  </main>
+  <footer>© 원가다이어리 · <a href="/">mycostdiary.com</a></footer>
+  <script src="/static/js/cost-calc.js?v=1"></script>
+  <script type="module" src="/static/js/guide-ga.js"></script>
+</body>
+</html>

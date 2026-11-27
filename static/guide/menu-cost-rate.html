@@ -31,35 +31,10 @@
     {"@type":"Question","name":"수율은 원가에 어떻게 반영하나요?","acceptedAnswer":{"@type":"Answer","text":"실제 사용 단가 = 산 단가 ÷ 수율 입니다. kg당 9,000원인 고기를 다듬어 90%만 쓴다면 실제 단가는 kg당 10,000원으로 계산합니다."}}]}
   ]}
   </script>
-  <style>
-    :root { --paper:#F5F0E8; --sheet:#FFFDF9; --ink:#33210F; --ink-2:#5C4632; --rule:#E6DBC8; --link:#9A4A0B; --btn:#92400E; --btn-ink:#FFFDF9; --tint:#EEE5D6; color-scheme: light; }
-    @media (prefers-color-scheme: dark) {
-      :root { --paper:#17110B; --sheet:#211910; --ink:#F3E9DA; --ink-2:#CDBBA3; --rule:#3A2C1E; --link:#F2A44B; --btn:#E58A12; --btn-ink:#2B1A0A; --tint:#2A2015; color-scheme: dark; }
-    }
-    * { box-sizing: border-box; }
-    body { margin:0; background:var(--paper); color:var(--ink); font-family:"Noto Sans KR", system-ui, sans-serif; line-height:1.75; font-size:17px; word-break: keep-all; overflow-wrap: anywhere; }
-    header, main, footer { max-width: 760px; margin: 0 auto; padding: 0 20px; }
-    header { padding-top: 20px; }
-    header a { color: var(--ink); text-decoration: none; font-weight: 700; }
-    h1, h2 { font-family:"Noto Serif KR", serif; line-height:1.35; }
-    h1 { font-size: clamp(28px, 5vw, 38px); margin: 28px 0 8px; }
-    h2 { font-size: 24px; margin: 44px 0 8px; }
-    a { color: var(--link); }
-    .lead { color: var(--ink-2); font-size: 18px; }
-    .formula { background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; padding: 16px 20px; font-weight: 700; font-size: 19px; }
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; background: var(--sheet); border-radius: 12px; overflow: hidden; font-variant-numeric: tabular-nums; }
-    th, td { padding: 10px 12px; border-bottom: 1px solid var(--rule); text-align: left; white-space: nowrap; }
-    td.n, th.n { text-align: right; }
-    tfoot td { font-weight: 700; background: var(--tint); }
-    .note { font-size: 15px; color: var(--ink-2); }
-    .cta { margin: 48px 0; padding: 24px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 16px; }
-    .cta a.btn { display: inline-block; margin-top: 8px; background: var(--btn); color: var(--btn-ink); padding: 12px 20px; border-radius: 12px; text-decoration: none; font-weight: 700; }
-    footer { padding-bottom: 40px; font-size: 14px; color: var(--ink-2); }
-  </style>
+  <link rel="stylesheet" href="/static/guide/guide.css?v=2">
 </head>
 <body>
-  <header><a href="/">원가다이어리</a></header>
+  <header><a href="/">원가다이어리</a><nav><a href="/guide/cost-calculator">원가계산기</a></nav></header>
   <main>
     <article>
       <h1>식당 메뉴 원가율 계산하는 법</h1>
@@ -115,6 +90,15 @@
       <p>원가다이어리는 거래명세서나 영수증의 단가를 넣으면 수율, 프렙 소스, 부가세 기준까지 반영해 메뉴별 원가율과 권장 판매가, 배달 한 건에 남는 돈을 계산해 주는 무료 웹앱입니다. 단가가 바뀌면 영향받는 메뉴를 모두 다시 계산합니다.</p>
       <a class="btn" href="/">원가다이어리 무료로 시작하기</a>
     </section>
+
+    <nav class="related" aria-label="다른 안내 글">
+      <h2>함께 읽어 보기</h2>
+      <ul>
+        <li><a href="/guide/cost-calculator">음식 원가계산기 (가입 없이 바로 계산)</a></li>
+        <li><a href="/guide/restaurant-cost">음식점 원가 계산 방법: 식재료비, 인건비, 고정비까지</a></li>
+        <li><a href="/guide/receipt-management">식당 영수증·거래명세서 관리하는 법</a></li>
+      </ul>
+    </nav>
   </main>
   <footer>© 원가다이어리 · <a href="/">mycostdiary.com</a></footer>
   <script type="module" src="/static/js/guide-ga.js"></script>

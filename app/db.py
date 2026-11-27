@@ -800,7 +800,10 @@ def connect() -> sqlite3.Connection:
 #     도매 알림(kind가 ws_로 시작)과 '도매' 분류 켜고 끄기 기록을 지운다. 도매 소식은 도매마켓 화면에서 본다.
 # 21: 이메일 인증 — users.email_verified_at, email_codes 표. 기존 계정 중 소셜 로그인으로 들어와
 #     제공자가 확인해 준 진짜 이메일이 있는 계정은 확인된 것으로 채운다(이메일 가입 계정은 비워 둔다).
-SCHEMA_VERSION = 21
+# 22: 새로 추가한 식자재·프렙을 목록 맨 위에 NEW로 보여 주려고 ingredients/preps에 created_at을 ALTER로 더한다.
+#     추가 경로가 여러 곳(직접·명세서·가져오기·레시피·프렙)이라 INSERT마다 고치지 않고 트리거로 채운다.
+#     기존 행은 언제 만들었는지 모르므로 비워 둔다(NEW로 안 보임).
+SCHEMA_VERSION = 22
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -932,6 +935,15 @@ def migrate(conn: sqlite3.Connection) -> None:
                 "AND email NOT LIKE '%@oauth.wongaenote.local' "
                 "AND id IN (SELECT user_id FROM oauth_accounts)"
             )
+        if conn.execute("PRAGMA user_version").fetchone()[0] < 22:
+            for table in ("ingredients", "preps"):
+                if "created_at" not in _columns(conn, table):
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN created_at TEXT")
+                conn.execute(
+                    f"CREATE TRIGGER IF NOT EXISTS trg_{table}_created AFTER INSERT ON {table} "
+                    f"WHEN NEW.created_at IS NULL BEGIN "
+                    f"UPDATE {table} SET created_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = NEW.id; END"
+                )
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.execute("COMMIT")
     except BaseException:

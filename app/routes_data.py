@@ -67,6 +67,7 @@ def ing_view(r, chg: dict | None = None, used: int = 0) -> dict:
         "effective_display_price": round(eff_disp, 2) if eff_disp is not None else None,
         "price_checked_at": r["price_checked_at"],
         "updated_at": r["updated_at"],
+        "created_at": r["created_at"],
         "used_in": used,
         "change_pct": None,
         "prev_display_price": None,

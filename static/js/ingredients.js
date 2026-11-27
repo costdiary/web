@@ -3,7 +3,7 @@ import {
   h, api, app, field, numInput, selectOf, comboSelect, parseNum, n0, n3, nPrice, ago, ymd, daysSince, openDialog, confirmDialog,
   busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS, DISPLAY, icon, refreshRoute, fill,
 } from './core.js';
-import { chg, num, emptyBlock, termInput } from './ui.js';
+import { chg, num, emptyBlock, termInput, newFirst, newTag } from './ui.js';
 
 const STALE_DAYS = 45;
 const SOURCE = { manual: '직접 입력', invoice: '명세서', seed: '예시', import: '가져오기' };
@@ -12,7 +12,7 @@ function row(it) {
   const stale = it.display_price != null && (daysSince(it.price_checked_at) ?? 0) >= STALE_DAYS;
   const sub = [it.supplier, it.used_in ? `메뉴 ${it.used_in}개에 사용` : '아직 메뉴에 안 씀', it.yield_pct < 100 ? `수율 ${n3(it.yield_pct)}%` : null].filter(Boolean).join(' · ');
   const main = h('div', { class: 'row-main' },
-    h('span', { class: 'row-title' }, it.name,
+    h('span', { class: 'row-title' }, it.name, newTag(it),
       it.from_prep_id ? h('span', { class: 'tag' }, '프렙') : (stale ? h('span', { class: 'tag warn' }, `${ago(it.price_checked_at)} 확인`) : null)),
     h('div', { class: 'row-sub' }, sub));
   const end = h('div', { class: 'row-end' },
@@ -26,7 +26,7 @@ function row(it) {
 }
 
 export async function render(box) {
-  const { items } = await api('/api/ingredients');
+  const items = newFirst((await api('/api/ingredients')).items);
   const canWrite = app.me.plan.writable;
   const add = h('button', { class: 'btn sm', type: 'button', disabled: !canWrite, onclick: () => openIngredientEditor(null, refreshRoute) }, icon('plus', 18), '식자재 추가');
   box.append(h('div', { class: 'page-h' }, h('h1', null, '식자재', h('span', { class: 'sub' }, `${items.length}개`)), add));

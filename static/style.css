@@ -626,6 +626,7 @@ input[type="range"] { width: 100%; height: 28px; accent-color: var(--blue); back
 .tag.ok { color: var(--green); border-color: var(--green); }
 .tag.est { color: var(--blue); border: 1px dashed var(--blue); background: var(--blue-soft); }
 .tag.bad { color: var(--red); border-color: var(--red); }
+.tag.new { color: #fff; background: var(--btn); border-color: var(--btn); letter-spacing: 0.02em; }
 
 /* 켜고 끄는 스위치. 실제로는 체크박스라서 키보드와 화면 읽기 프로그램이 그대로 동작합니다. */
 .sw { position: relative; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 700; font-size: 0.9375rem; cursor: pointer; }

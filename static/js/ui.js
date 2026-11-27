@@ -1,5 +1,5 @@
 /* 여러 화면에서 쓰는 표시 부품: 도장, 가격 변동 표시, 마진 막대 */
-import { h, fill, api, n0, n1, nT } from './core.js';
+import { h, fill, api, n0, n1, nT, daysSince } from './core.js';
 
 export const STATUS_LABEL = { good: '양호', warn: '주의', bad: '위험', unknown: '미정' };
 
@@ -123,3 +123,12 @@ export function termInput({ kind, category = () => '', value = '', maxLength, pl
   });
   return wrap;
 }
+
+/* 최근 NEW_DAYS일 안에 추가한 식자재·프렙: 목록 맨 위(최근 것 먼저)에 NEW 표시. 나머지는 원래 순서(이름순) 그대로. */
+const NEW_DAYS = 3;
+export const isNew = (it) => (daysSince(it.created_at) ?? NEW_DAYS) < NEW_DAYS;
+export const newFirst = (items) => [
+  ...items.filter(isNew).sort((a, b) => b.created_at.localeCompare(a.created_at)),
+  ...items.filter((i) => !isNew(i)),
+];
+export const newTag = (it) => (isNew(it) ? h('span', { class: 'tag new', title: `최근 ${NEW_DAYS}일 안에 추가함` }, 'NEW') : null);

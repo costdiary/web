@@ -32,6 +32,7 @@ def _view(db, row) -> dict:
     ).fetchone()["c"]
     return {
         "id": row["id"], "name": row["name"], "unit_kind": row["unit_kind"], "yield_qty": row["yield_qty"],
+        "created_at": row["created_at"],
         "ingredient_id": row["ingredient_id"], "unit_price": cost["unit_price"], "total_cost": cost["total_cost"],
         "missing": cost["missing"], "used_in_menus": used,
         "items": [{"ingredient_id": r["ingredient_id"], "name": r["name"], "qty": r["qty"], "kind": r["unit_kind"]} for r in item_rows],

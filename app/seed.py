@@ -76,3 +76,5 @@ def seed_demo(db, user: dict) -> None:
                     "INSERT INTO menu_items(menu_id, ingredient_id, qty, position) VALUES (?,?,?,?)",
                     (mid, ids[iname], qty, pos),
                 )
+        # 예시 데이터는 사장님이 새로 추가한 게 아니라서 NEW 표시를 붙이지 않는다(db.py v22 트리거가 채운 값 비우기).
+        db.execute("UPDATE ingredients SET created_at = NULL WHERE user_id = ?", (uid,))

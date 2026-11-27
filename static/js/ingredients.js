@@ -76,6 +76,65 @@ export async function render(box) {
 }
 
 /* 추가·수정 대화상자. id가 null이면 새 식자재. 저장·삭제하면 onChange를 부릅니다. */
+/* 가격 이력 목록. onRemove가 있으면 한 줄을 왼쪽으로 밀어서(휴대폰) 또는 휴지통 버튼(PC)으로 지울 수 있다.
+   마지막 한 줄은 지울 수 없어서(단가가 사라지므로) 기록이 하나뿐이면 지우는 방법을 붙이지 않는다. */
+function histList(history, it, onRemove) {
+  const canRemove = !!onRemove && history.length > 1;
+  return h('ul', { class: `hist${canRemove ? ' can-del' : ''}` }, history.slice(0, 10).map((x) => {
+    const body = h('div', { class: 'hist-row' },
+      h('span', { class: 'muted' }, ymd(x.date)),
+      h('span', null, `${n3(x.pack_size)}${x.pack_unit} ${n0(x.pack_price)}원 `, h('span', { class: 'xs muted' }, SOURCE[x.source] || x.source)),
+      h('span', { class: 'nu' }, h('span', { class: 'n' }, nPrice(x.display_price)), h('span', { class: 'u' }, `원/${it.display_unit}`)),
+      canRemove ? h('button', {
+        class: 'hist-del', type: 'button', title: '이 가격 기록 삭제', 'aria-label': `${ymd(x.date)} 가격 기록 삭제`,
+        onclick: () => onRemove(x),
+      }, icon('trash', 18)) : null);
+    if (!canRemove) return h('li', null, body);
+    const li = h('li', null, h('div', { class: 'hist-under', 'aria-hidden': 'true' }, icon('trash', 18), '삭제'), body);
+    swipeToDelete(li, body, () => onRemove(x));
+    return li;
+  }));
+}
+
+/* 손가락으로 왼쪽으로 밀면 빨간 '삭제'가 드러나고, 충분히 밀고 놓으면 삭제할지 묻는다.
+   세로 스크롤은 막지 않는다(touch-action: pan-y). 취소하면 제자리로 돌아온다. */
+function swipeToDelete(li, body, ask) {
+  let sx = 0, sy = 0, dx = 0, id = null, horiz = null;
+  const W = () => li.clientWidth;
+  const set = (x, anim) => {
+    body.style.transition = anim ? 'transform .2s ease' : 'none';
+    body.style.transform = x ? `translateX(${x}px)` : '';
+    li.classList.toggle('armed', -x >= Math.min(96, W() * 0.3));
+  };
+  li.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' || e.target.closest('button')) return;
+    id = e.pointerId; sx = e.clientX; sy = e.clientY; dx = 0; horiz = null;
+  });
+  li.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== id) return;
+    const mx = e.clientX - sx, my = e.clientY - sy;
+    if (horiz === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) {
+      horiz = Math.abs(mx) > Math.abs(my);
+      if (horiz) { try { li.setPointerCapture(id); } catch { /* 이미 끝난 터치 */ } }
+    }
+    if (!horiz) return;
+    dx = Math.max(-W() * 0.6, Math.min(0, mx));
+    set(dx, false);
+  });
+  const end = async (e) => {
+    if (e.pointerId !== id) return;
+    id = null;
+    if (!horiz) return;
+    const armed = li.classList.contains('armed');
+    if (!armed) { set(0, true); return; }
+    set(-Math.min(96, W() * 0.3), true);
+    const done = await ask();
+    if (!done) set(0, true);
+  };
+  li.addEventListener('pointerup', end);
+  li.addEventListener('pointercancel', (e) => { if (e.pointerId === id) { id = null; set(0, true); } });
+}
+
 export async function openIngredientEditor(id, onChange, preset = {}) {
   let detail = null;
   let catalog = null;
@@ -152,18 +211,50 @@ export async function openIngredientEditor(id, onChange, preset = {}) {
   size.id = 'ie-size';
   unit.id = 'ie-unit';
 
+  const histBox = h('div');
+  let histChanged = null;
+  const drawHist = () => fill(histBox, histList(detail.history, it, canWrite ? removeHist : null));
   if (detail) {
+    drawHist();
     form.append(
       h('div', { class: 'h-sec' }, '가격 이력'),
-      h('ul', { class: 'hist' }, detail.history.slice(0, 10).map((x) => h('li', null,
-        h('span', { class: 'muted' }, ymd(x.date)),
-        h('span', null, `${n3(x.pack_size)}${x.pack_unit} ${n0(x.pack_price)}원 `, h('span', { class: 'xs muted' }, SOURCE[x.source] || x.source)),
-        h('span', { class: 'nu' }, h('span', { class: 'n' }, nPrice(x.display_price)), h('span', { class: 'u' }, `원/${it.display_unit}`))))),
+      histBox,
       h('div', { class: 'h-sec' }, '쓰고 있는 메뉴'),
       detail.used_in.length
         ? h('ul', { class: 'hist' }, detail.used_in.map((m) => h('li', null,
           h('a', { href: `#/menus/${m.menu_id}` }, m.name), h('span', null), h('span', { class: 'nu' }, h('span', { class: 'n' }, n3(m.qty)), h('span', { class: 'u' }, m.unit)))))
         : h('p', { class: 'small muted' }, '아직 어느 메뉴에도 넣지 않았습니다.'));
+  }
+
+  // 가격 이력 한 줄 지우기. 가장 최근 기록이면 서버가 지금 단가를 바로 전 기록으로 되돌리므로
+  // 위의 규격·가격 칸도 그 값으로 바꿔 둔다(그대로 저장을 눌러 지운 가격이 되살아나지 않게).
+  async function removeHist(x) {
+    const latest = detail.history[0].id === x.id;
+    const prev = detail.history[1];
+    const uses = it.used_in > 0 ? ` 이 식자재를 쓰는 메뉴 ${it.used_in}개의 원가도 다시 계산돼요.` : '';
+    const message = latest
+      ? `${ymd(x.date)} 가격 기록을 지웁니다. 지금 단가가 바로 전 가격(${nPrice(prev.display_price)}원/${it.display_unit})으로 돌아가요.${uses}`
+      : `${ymd(x.date)} 가격 기록(${nPrice(x.display_price)}원/${it.display_unit})을 지웁니다. 지금 단가는 그대로예요.`;
+    const ok = await confirmDialog({ title: '가격 기록 삭제', message, confirmText: '삭제', danger: true });
+    if (!ok) return false;
+    let res;
+    try {
+      res = await api(`/api/ingredients/${it.id}/history/${x.id}`, { method: 'DELETE' });
+    } catch (e) { toast(errMsg(e), 'err'); return false; }
+    detail.history = res.history;
+    drawHist();
+    if (res.rolled_back) {
+      size.value = n3(res.item.pack_size);
+      unit.value = res.item.pack_unit;
+      price.value = n3(res.item.pack_price);
+      upd();
+      toast('삭제했어요. 단가를 바로 전 가격으로 되돌렸어요.');
+    } else {
+      toast('삭제했어요.');
+    }
+    // 목록 화면은 대화상자를 닫을 때 새로 그린다(지금 새로 그리면 열린 대화상자가 닫혀 버린다).
+    histChanged = res.item;
+    return true;
   }
 
   async function onDelete() {
@@ -172,6 +263,7 @@ export async function openIngredientEditor(id, onChange, preset = {}) {
     try {
       await api(`/api/ingredients/${it.id}`, { method: 'DELETE' });
     } catch (e) { toast(errMsg(e), 'err'); return; }
+    histChanged = null;
     dlg.close();
     toast('삭제했습니다.');
     if (onChange) onChange(null);
@@ -195,13 +287,17 @@ export async function openIngredientEditor(id, onChange, preset = {}) {
       try {
         res = await api(it ? `/api/ingredients/${it.id}` : '/api/ingredients', { method: it ? 'PUT' : 'POST', body });
       } catch (e) { err.textContent = errMsg(e); err.hidden = false; return; }
+      histChanged = null;
       dlg.close();
       toast(it ? '저장했습니다.' : `'${res.item.name}'을(를) 등록했습니다.`);
       if (onChange) onChange(res.item);
     });
   });
 
-  const dlg = openDialog({ title: it ? '식자재 수정' : '식자재 추가', content: form });
+  const dlg = openDialog({
+    title: it ? '식자재 수정' : '식자재 추가', content: form,
+    onClose: () => { if (histChanged && onChange) onChange(histChanged); },
+  });
   if (!it) name.focus();
   return dlg;
 }

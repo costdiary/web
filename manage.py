@@ -97,7 +97,8 @@ def cmd_stats(db, args):
     print(f"식자재 {q('SELECT COUNT(*) FROM ingredients')}개, 메뉴 {q('SELECT COUNT(*) FROM menus')}개, 반영한 명세서 {q('SELECT COUNT(*) FROM invoices')}장")
     ym = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m")
     used = db.execute("SELECT COALESCE(SUM(count),0) FROM ocr_usage WHERE ym = ?", (ym,)).fetchone()[0]
-    print(f"이번 달({ym}) 자동 인식 사용 {used}회, 도입 문의 {q('SELECT COUNT(*) FROM leads')}건")
+    fb_new = q("SELECT COUNT(*) FROM feedback WHERE status = 'new'")
+    print(f"이번 달({ym}) 자동 인식 사용 {used}회, 새 개선사항 요청 {fb_new}건")
     from app import visits
     st = visits.summary(db, 30)
     v, sg = st["visits"], st["signups"]
@@ -236,7 +237,7 @@ def main() -> None:
     sw = sub.add_parser("set-password", help="비밀번호를 잊은 사용자에게 임시 비밀번호 발급")
     sw.add_argument("email")
     sw.set_defaults(fn=cmd_set_password)
-    sl = sub.add_parser("leads", help="도입 문의 보기/내보내기")
+    sl = sub.add_parser("leads", help="예전 도입 문의 보기/내보내기(지금은 개선사항 요청으로 바뀜, 운영자 화면 #/admin/feedback)")
     sl.add_argument("--csv", help="CSV 파일로 저장")
     sl.set_defaults(fn=cmd_leads)
     sb = sub.add_parser("backup", help="DB 백업(최근 14개 보관)")

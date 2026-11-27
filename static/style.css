@@ -2100,6 +2100,18 @@ a.dm-stat:active { transform: scale(0.98); }
 .ad-f-bar { display: block; height: 100%; background: var(--bar); border-radius: 0 4px 4px 0; }
 .ad-tbl-wrap { overflow-x: auto; margin-top: 8px; border: 1px solid var(--rule); border-radius: var(--r-sm); }
 .ad-tbl-wrap td { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+/* 개선사항 요청(#/admin/feedback, feedback.js) */
+.ad-fb-alert { display: flex; align-items: center; gap: 10px; padding: 14px 16px; color: var(--ink); text-decoration: none; border-color: var(--blue); background: var(--blue-soft); }
+.ad-fb-alert span { flex: 1; }
+.ad-fb-list > li.ad-fb { display: grid; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.ad-fb-list > li.ad-fb:last-child { border-bottom: 0; }
+.ad-fb-top { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; }
+.ad-fb-msg { white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
+.ad-fb .textarea { min-height: 0; font-size: 0.875rem; }
+.ad-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--sheet-2); color: var(--ink-2); }
+.ad-pill.is-new { background: var(--blue-soft); color: var(--blue-2); }
+.ad-pill.is-done { background: var(--green-soft); color: var(--green); }
+.fb-done { padding: 14px 0; font-weight: 600; }
 @media (max-width: 720px) {
   .ad-tiles-sm { grid-template-columns: 1fr 1fr; }
   .ad-tiles-sm .ad-tile:nth-child(odd) { padding-left: 0; border-left: 0; }

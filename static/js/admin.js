@@ -1,6 +1,7 @@
-/* 운영자(ADMIN_EMAILS)만 보는 화면 — 사이드바에는 안 올리고 주소(#/admin/ocr)로 직접 들어간다.
+/* 운영자(ADMIN_EMAILS)만 보는 화면 — 운영자에게만 전체 메뉴의 '운영자' 묶음으로 보인다.
    권한 자체는 서버(deps.current_admin)가 막으므로, 여긴 화면만 그린다. */
 import { h, api, icon, toast, errMsg, segGroup, confirmDialog, openDialog } from './core.js';
+import { CATEGORIES } from './feedback.js';
 import { emptyBlock } from './ui.js';
 
 const KIND_LABEL = { invoice: '거래명세서', recipe: '요리 사진' };
@@ -157,6 +158,8 @@ export async function renderStats(box) {
       .map(([k, n]) => `${METHOD_LABEL[k] || k} ${n}`).join(' · ');
     const conv = v.period ? `방문자 100명 중 ${(sg.period / v.period * 100).toFixed(1)}명 가입` : '';
     body.replaceChildren(
+      s.feedback_new ? h('a', { class: 'sheet ad-fb-alert', href: '#/admin/feedback' },
+        icon('chat', 20), h('span', null, h('b', null, `새 개선사항 요청 ${nf.format(s.feedback_new)}건`), '이 들어와 있어요.'), icon('chevron', 18)) : null,
       h('section', { class: 'sheet' },
         h('div', { class: 'ad-tiles' },
           tile('전체 가입자', sg.total, '명', `오늘 +${sg.today} · 7일 +${sg.week}`),
@@ -186,7 +189,7 @@ export async function renderStats(box) {
 
 
 /* 운영자 화면 위쪽의 묶음 이동 */
-const ADMIN_TABS = [['#/admin/stats', '운영 현황'], ['#/admin/users', '사장님 계정'], ['#/admin/db', 'DB 보기'], ['#/admin/ocr', 'OCR 로그']];
+const ADMIN_TABS = [['#/admin/stats', '운영 현황'], ['#/admin/feedback', '개선 요청'], ['#/admin/users', '사장님 계정'], ['#/admin/db', 'DB 보기'], ['#/admin/ocr', 'OCR 로그']];
 function adminNav(cur) {
   return h('nav', { class: 'seg ad-nav', 'aria-label': '운영자 화면' }, ADMIN_TABS.map(([href, label]) =>
     h('a', { class: `btn sm${href === cur ? '' : ' ghost'}`, href, 'aria-current': href === cur ? 'page' : null }, label)));
@@ -212,6 +215,79 @@ function funnelBlock(s) {
         h('div', { class: 'ad-f-track' }, h('span', { class: 'ad-f-bar', style: `width:${st.count ? Math.max((st.count / top) * 100, 1.5) : 0}%` })));
     })),
     h('p', { class: 'hint', style: 'margin-top:10px' }, '오른쪽 %는 바로 윗단계에서 몇 %가 넘어왔는지예요. 예시 데이터로 시작한 계정도 식자재·메뉴가 있는 것으로 잡혀요.'));
+}
+
+/* ---------------------------------------------------------------- 개선사항 요청(#/admin/feedback) */
+
+const FB_CAT = Object.fromEntries(CATEGORIES);
+const FB_CAT_SHORT = { idea: '기능 제안', inconvenience: '불편한 점', bug: '오류', other: '기타' };
+const FB_STATUS = { new: '새 요청', seen: '확인함', done: '반영함' };
+
+function fbCard(item, onChanged) {
+  const pill = h('span', { class: `ad-pill is-${item.status}` }, FB_STATUS[item.status]);
+  const note = h('textarea', { class: 'textarea', rows: 2, maxLength: 1000, placeholder: '운영자 메모(나만 봐요). 예: 12월 업데이트에 넣기',
+    'aria-label': '운영자 메모' });
+  note.value = item.admin_note || '';
+  async function save(fields, okMsg) {
+    try {
+      const r = await api(`/api/admin/feedback/${item.id}`, { method: 'PATCH', body: fields });
+      Object.assign(item, r);
+      if (okMsg) toast(okMsg);
+      if (fields.status) onChanged(); // 메모만 바꿨으면 목록을 다시 그리지 않는다
+    } catch (e) { toast(errMsg(e), 'err'); }
+  }
+  note.addEventListener('change', () => save({ admin_note: note.value }, '메모를 저장했어요.'));
+  const who = item.user_id
+    ? h('a', { href: `#/admin/users/${item.user_id}` }, item.store_name || item.email || `계정 ${item.user_id}`)
+    : h('span', null, item.email ? `${item.email}(탈퇴)` : '로그인 안 한 방문자');
+  const btn = (status, label) => (item.status === status ? null
+    : h('button', { class: 'btn ghost sm', type: 'button', onclick: () => save({ status }, `${FB_STATUS[status]}(으)로 옮겼어요.`) }, label));
+  return h('li', { class: 'ad-fb' },
+    h('div', { class: 'ad-fb-top' },
+      h('b', null, FB_CAT_SHORT[item.category] || item.category), pill,
+      h('span', { class: 'xs muted', style: 'margin-left:auto' }, fmt(item.created_at))),
+    h('p', { class: 'ad-fb-msg', title: FB_CAT[item.category] || '' }, item.message),
+    h('p', { class: 'row-sub' }, who,
+      item.contact ? ` · 연락처 ${item.contact}` : (item.user_id && item.email ? ` · ${item.email}` : ''),
+      item.page ? ` · ${item.page === 'landing' ? '첫 화면에서' : '앱에서'} 보냄` : ''),
+    note,
+    h('div', { class: 'btn-row' }, btn('seen', '확인함'), btn('done', '반영함'), btn('new', '새 요청으로 되돌리기')));
+}
+
+export async function renderFeedback(box) {
+  box.append(adminNav('#/admin/feedback'), h('div', { class: 'page-h' }, h('h1', null, '개선사항 요청')));
+  box.append(h('p', { class: 'hint' }, '첫 화면과 앱의 "개선사항 요청"으로 들어온 내용이에요. 읽었으면 확인함, 업데이트에 넣었으면 반영함으로 옮겨 두세요.'));
+  let status = 'new';
+  const seg = segGroup('상태', [['new', '새 요청'], ['seen', '확인함'], ['done', '반영함'], ['', '전체']], status, (v) => { status = v; offset = 0; load(true); });
+  const info = h('p', { class: 'hint' });
+  const list = h('ul', { class: 'rows ad-fb-list' });
+  const more = h('button', { class: 'btn ghost sm', type: 'button', hidden: true }, '더 보기');
+  const legacy = h('p', { class: 'hint', hidden: true });
+  box.append(h('div', { class: 'sheet-tools', style: 'margin:0 0 14px' }, seg), h('section', { class: 'sheet' }, info, list, more), legacy);
+  let offset = 0;
+  async function load(reset) {
+    if (reset) list.replaceChildren(h('li', null, h('div', { class: 'skel' })));
+    let r;
+    try { r = await api(`/api/admin/feedback?${new URLSearchParams({ status, offset, limit: 50 })}`); } catch (e) {
+      list.replaceChildren(h('li', null, emptyBlock({ title: '불러오지 못했습니다', text: errMsg(e) }))); return;
+    }
+    if (reset) list.replaceChildren();
+    const c = r.counts;
+    info.textContent = `새 요청 ${c.new}건 · 확인함 ${c.seen}건 · 반영함 ${c.done}건`;
+    if (!r.total) {
+      list.replaceChildren(h('li', null, emptyBlock({ title: status === 'new' ? '새 요청이 없어요' : '아직 없어요',
+        text: status === 'new' ? '들어온 요청을 모두 확인했어요.' : '이 상태의 요청이 없어요.' })));
+    } else {
+      // 상태를 바꾸면 지금 보고 있는 목록(예: 새 요청)에서 빠져야 하므로 처음부터 다시 불러온다
+      list.append(...r.items.map((it) => fbCard(it, () => load(true))));
+    }
+    offset = (reset ? 0 : offset) + r.items.length;
+    more.hidden = offset >= r.total;
+    legacy.hidden = !r.legacy_leads;
+    legacy.replaceChildren('예전 도입 문의 ', h('b', null, `${r.legacy_leads}건`), '은 ', h('a', { href: '#/admin/db/leads' }, 'DB 보기의 leads 표'), '에 그대로 있어요.');
+  }
+  more.addEventListener('click', () => load(false));
+  load(true);
 }
 
 /* ---------------------------------------------------------------- 사장님 계정 */

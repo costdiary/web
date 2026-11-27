@@ -1,4 +1,4 @@
-"""가입·로그인·내 계정·도입 문의."""
+"""가입·로그인·내 계정·개선사항 요청."""
 from __future__ import annotations
 
 import hmac
@@ -16,7 +16,7 @@ from .db import ISO, get_db, now_iso, parse_iso, transaction
 from .deps import current_user
 from .routes_market import market_me_summary
 from .schemas import (
-    ChangePasswordIn, DeleteAccountIn, ForgotPasswordIn, LeadIn, LoginIn, ResetPasswordIn, SettingsIn, SignupIn,
+    ChangePasswordIn, DeleteAccountIn, FeedbackIn, ForgotPasswordIn, LoginIn, ResetPasswordIn, SettingsIn, SignupIn,
 )
 
 OAUTH_STATE_COOKIE = "oauth_state"
@@ -292,15 +292,21 @@ def update_settings(body: SettingsIn, user: dict = Depends(current_user), db=Dep
     return me_payload(db, fresh)
 
 
-@router.post("/leads")
-def create_lead(body: LeadIn, request: Request, db=Depends(get_db)):
+@router.post("/feedback")
+def create_feedback(body: FeedbackIn, request: Request, db=Depends(get_db)):
+    """개선사항 요청. 로그인하지 않아도 보낼 수 있고, 로그인했으면 계정이 함께 붙는다(운영자만 본다)."""
     ip = client_ip(request)
-    if _too_many(f"lead:{ip}", 5, 3600):
-        raise HTTPException(429, "문의가 너무 많이 접수되었습니다. 잠시 후 다시 시도해 주세요.")
-    _record(f"lead:{ip}")
+    user = auth.user_for_token(db, request.cookies.get(auth.COOKIE_NAME))
+    key = f"feedback:{user['id']}" if user else f"feedback:{ip}"
+    if _too_many(key, 8, 3600):
+        raise HTTPException(429, "요청이 너무 많이 접수되었습니다. 잠시 후 다시 보내 주세요.")
+    message = body.message.strip()
+    if len(message) < 5:
+        raise HTTPException(400, "내용을 5자 이상 적어 주세요.")
+    _record(key)
     db.execute(
-        "INSERT INTO leads(name, contact, biz_type, message, created_at) VALUES (?,?,?,?,?)",
-        (body.name, body.contact, body.biz_type, body.message, now_iso()),
+        "INSERT INTO feedback(user_id, category, message, contact, page, created_at) VALUES (?,?,?,?,?,?)",
+        (user["id"] if user else None, body.category, message, body.contact.strip(), body.page.strip(), now_iso()),
     )
     return {"ok": True}
 

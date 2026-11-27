@@ -1,4 +1,4 @@
-"""운영자(ADMIN_EMAILS) 전용 화면 — 가입자·방문자 수(운영 현황)와 OCR 인식 로그. 사장님이 올린 거래명세서/요리
+"""운영자(ADMIN_EMAILS) 전용 화면 — 가입자·방문자 수(운영 현황), 개선사항 요청, OCR 인식 로그. 사장님이 올린 거래명세서/요리
 사진이 Claude(비전)에 어떻게 읽혔는지(또는 왜 실패했는지) 확인하는 용도.
 
 메뉴·사이드바에는 노출하지 않는다(일반 사용자에게 보일 이유가 없음) — 운영자가 주소를
@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from .db import get_db, now_iso, transaction
 from . import auth, security, visits
 from .deps import current_admin
+from .schemas import FeedbackUpdateIn
 
 router = APIRouter(prefix="/api/admin")
 
@@ -65,7 +66,9 @@ def get_ocr_log(log_id: int, admin: dict = Depends(current_admin), db=Depends(ge
 @router.get("/stats")
 def site_stats(days: int = 30, admin: dict = Depends(current_admin), db=Depends(get_db)):
     """가입자 수와 방문자 수(한국 날짜 기준). 방문자는 visits.py 가 첫 화면 요청을 센 값."""
-    return visits.summary(db, days)
+    out = visits.summary(db, days)
+    out["feedback_new"] = db.execute("SELECT COUNT(*) FROM feedback WHERE status = 'new'").fetchone()[0]
+    return out
 
 
 # ---------------------------------------------------------------- 사장님 계정 찾기·관리
@@ -136,6 +139,44 @@ def force_logout(uid: int, request: Request, admin: dict = Depends(current_admin
     n = db.execute("DELETE FROM sessions WHERE user_id = ?", (uid,)).rowcount
     security.audit("admin_logout_all", user_id=uid, ip=security.client_ip(request), detail=f"by {admin['email']}")
     return {"ended": n}
+
+
+# ---------------------------------------------------------------- 개선사항 요청
+
+@router.get("/feedback")
+def list_feedback(status: str = "", limit: int = 50, offset: int = 0,
+                  admin: dict = Depends(current_admin), db=Depends(get_db)):
+    limit = max(1, min(limit, 200))
+    offset = max(0, offset)
+    where, params = "", []
+    if status in ("new", "seen", "done"):
+        where, params = "WHERE f.status = ?", [status]
+    total = db.execute(f"SELECT COUNT(*) FROM feedback f {where}", params).fetchone()[0]
+    rows = db.execute(
+        "SELECT f.id, f.user_id, f.category, f.message, f.contact, f.page, f.status, f.admin_note, f.created_at, "
+        "f.updated_at, u.email, u.store_name "
+        f"FROM feedback f LEFT JOIN users u ON u.id = f.user_id {where} ORDER BY f.id DESC LIMIT ? OFFSET ?",
+        [*params, limit, offset],
+    ).fetchall()
+    counts = {r["status"]: r["n"] for r in db.execute("SELECT status, COUNT(*) AS n FROM feedback GROUP BY status")}
+    return {
+        "total": total,
+        "counts": {k: counts.get(k, 0) for k in ("new", "seen", "done")},
+        "legacy_leads": db.execute("SELECT COUNT(*) FROM leads").fetchone()[0],
+        "items": [dict(r) for r in rows],
+    }
+
+
+@router.patch("/feedback/{fid}")
+def update_feedback(fid: int, body: FeedbackUpdateIn, admin: dict = Depends(current_admin), db=Depends(get_db)):
+    fields = body.model_dump(exclude_none=True)
+    if not db.execute("SELECT 1 FROM feedback WHERE id = ?", (fid,)).fetchone():
+        raise HTTPException(404, "요청을 찾지 못했습니다.")
+    if fields:
+        # 키는 FeedbackUpdateIn 에 정의된 이름(status, admin_note)만 올 수 있다.
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        db.execute(f"UPDATE feedback SET {sets}, updated_at = ? WHERE id = ?", (*fields.values(), now_iso(), fid))  # nosec B608
+    return dict(db.execute("SELECT id, status, admin_note, updated_at FROM feedback WHERE id = ?", (fid,)).fetchone())
 
 
 # ---------------------------------------------------------------- DB 둘러보기(읽기 전용)

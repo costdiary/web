@@ -38,11 +38,16 @@ class SettingsIn(Base):
     vat_mode: Optional[Literal["incl", "excl"]] = None
 
 
-class LeadIn(Base):
-    name: str = Field("", max_length=60)
-    contact: str = Field(min_length=3, max_length=120)
-    biz_type: str = Field("", max_length=60)
-    message: str = Field("", max_length=1000)
+class FeedbackIn(Base):
+    category: Literal["idea", "inconvenience", "bug", "other"] = "idea"
+    message: str = Field(min_length=5, max_length=2000)
+    contact: str = Field("", max_length=120)
+    page: str = Field("", max_length=120)
+
+
+class FeedbackUpdateIn(Base):
+    status: Optional[Literal["new", "seen", "done"]] = None
+    admin_note: Optional[str] = Field(None, max_length=1000)
 
 
 class DeleteAccountIn(BaseModel):

@@ -2422,3 +2422,10 @@ input.mb-sc-num:disabled { opacity: 1; -webkit-text-fill-color: currentColor; }
 .mb-stage .mb-blob img { filter: drop-shadow(0 6px 5px rgba(0, 0, 0, 0.5)); }
 .mb-stage .mb-tok.unlinked .mb-blob { outline-color: rgba(255, 255, 255, 0.55); }
 @media (prefers-reduced-motion: reduce) { .mb-pc.land { animation: none; } }
+
+/* 그릇은 한 접시처럼: 식자재 연결 안 된 재료의 점선 원은 그릇에서 빼고(오른쪽 목록에 '새 재료'로 보임),
+   이름표는 지금 든 재료와 마우스를 올린 재료에만 보여 서로 겹치지 않게 합니다. */
+.mb-stage .mb-tok.unlinked .mb-blob { outline: none; }
+.mb-tok.big:not(.held):not(:hover):not(:focus-within) .mb-tag { opacity: 0; pointer-events: none; }
+.mb-tok.held .mb-blob { outline: none; }
+.mb-tok.held .mb-blob img { filter: drop-shadow(0 0 0 #f3a952) drop-shadow(0 0 6px rgba(243, 169, 82, 0.9)) drop-shadow(0 6px 5px rgba(0, 0, 0, 0.5)); }

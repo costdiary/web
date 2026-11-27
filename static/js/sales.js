@@ -23,6 +23,44 @@ export async function render(box) {
       h('div', { class: 'bar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(pct), 'aria-label': label }, h('span', { style: `width:${pct}%` })));
   }
 
+
+  // 한 달 달력: 칸마다 그 날 매출을 적고, 하루 목표(월 목표 ÷ 영업일)를 넘었는지 색으로 보여 준다.
+  // 날짜를 누르면 아래 '하루 매출 입력'의 날짜가 그 날로 바뀌고 매출 칸으로 이동한다.
+  function calendarGrid(s, onPick) {
+    const [y, m] = s.month.split('-').map(Number);
+    const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(); // 0=일
+    const byDay = Object.fromEntries(s.days.map((d) => [d.day, d]));
+    const goal = s.target_sales || s.breakeven_sales;
+    const daily = goal && s.open_days ? goal / s.open_days : null;
+    const short = (v) => v >= 1e6 ? `${Math.round(v / 1e4).toLocaleString('ko-KR')}만` : v >= 1e4 ? `${Math.round(v / 1e3) / 10}만` : n0(v);
+    const cells = [];
+    for (let i = 0; i < first; i++) cells.push(h('div', { class: 'cal-cell blank', 'aria-hidden': 'true' }));
+    for (let dnum = 1; dnum <= s.days_in_month; dnum++) {
+      const key = `${s.month}-${String(dnum).padStart(2, '0')}`;
+      const d = byDay[key];
+      const amt = d ? d.amount : 0;
+      const future = key > s.today;
+      const state = !d || !amt ? (future ? 'future' : 'empty') : !daily ? 'has' : amt >= daily ? 'hit' : 'miss';
+      const dow = (first + dnum - 1) % 7;
+      const label = `${m}월 ${dnum}일${d && amt ? ` 매출 ${n0(amt)}원` : ' 입력 없음'}${state === 'hit' ? ', 하루 목표 달성' : state === 'miss' ? ', 하루 목표 미달' : ''}`;
+      cells.push(h('button', {
+        class: `cal-cell ${state}${key === s.today ? ' today' : ''}${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}`,
+        type: 'button', 'aria-label': label, title: label, disabled: future && !d,
+        onclick: () => onPick(key),
+      },
+        h('span', { class: 'cal-d' }, String(dnum)),
+        d && amt ? h('span', { class: 'cal-amt n' }, short(amt)) : null,
+        d && d.net_profit != null ? h('span', { class: 'cal-np', 'aria-hidden': 'true' }) : null));
+    }
+    return h('div', { class: 'cal' },
+      h('div', { class: 'cal-head', 'aria-hidden': 'true' }, ['일', '월', '화', '수', '목', '금', '토'].map((w, i) => h('span', { class: i === 0 ? 'sun' : i === 6 ? 'sat' : '' }, w))),
+      h('div', { class: 'cal-grid' }, cells),
+      h('div', { class: 'cal-legend xs muted' },
+        daily ? [h('span', null, h('i', { class: 'cal-sw hit' }), `하루 목표 ${n0(Math.round(daily))}원 이상`), h('span', null, h('i', { class: 'cal-sw miss' }), '못 미침')]
+          : h('span', null, '손익분기·목표 매출을 계산해 두면 하루 목표를 넘은 날을 색으로 보여 드립니다.'),
+        h('span', null, h('i', { class: 'cal-sw np' }), '메뉴별 판매 넣은 날')));
+  }
+
   function paint(s) {
     const date = h('input', { class: 'input', type: 'date', value: s.month === thisMonth() ? new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10) : `${s.month}-01`, disabled: !canWrite });
     const ch = selectOf(Object.entries(s.labels), 'store', { disabled: !canWrite, 'aria-label': '채널' });
@@ -52,6 +90,7 @@ export async function render(box) {
     });
 
     const goal = s.target_sales || s.breakeven_sales;
+    let dayForm = null;
 
     // 메뉴별 판매 수량 입력(선택): 날짜 + 메뉴 + 수량을 고르면, 그 날 매출에서 재료비를 빼서
     // 실제 순이익을 계산해 보여 준다. 메뉴가 하나도 없으면 안내만 하고 입력칸은 보여주지 않는다.
@@ -87,6 +126,15 @@ export async function render(box) {
           h('button', { class: 'btn ghost sm', type: 'button', 'aria-label': '지난 달', onclick: () => load(shift(s.month, -1)) }, '‹'),
           h('h2', null, `${s.month.replace('-', '년 ')}월 매출`),
           h('button', { class: 'btn ghost sm', type: 'button', 'aria-label': '다음 달', onclick: () => load(shift(s.month, 1)) }, '›')),
+        calendarGrid(s, (day) => {
+          if (!canWrite) return;
+          date.value = day; miDate.value = day;
+          const d = s.days.find((x) => x.day === day);
+          const cur = d && d.channels[ch.value];
+          amt.value = cur ? n0(cur) : '';
+          dayForm.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+          amt.focus({ preventScroll: true });
+        }),
         s.entered_days ? h('div', null,
           h('div', { class: 'be-big' }, h('div', null, h('span', { class: 'small muted' }, `입력한 ${s.entered_days}일 합계`), num(n0(s.total), '원'))),
           s.breakeven_sales ? progress('본전 매출', s.total, s.breakeven_sales) : null,
@@ -96,7 +144,7 @@ export async function render(box) {
           s.total_net_profit != null ? h('p', { class: 'small' }, '메뉴별 판매를 넣은 날짜만 더하면 재료비 ', h('b', null, `${n0(s.total_ingredient_cost)}원`), '을 뺀 실제 순이익은 ', h('b', null, `${n0(s.total_net_profit)}원`), '입니다.') : null,
           h('ul', { class: 'plain' }, s.by_channel.map((c) => h('li', null, `${c.label} ${n0(c.amount)}원`)))) :
           emptyBlock({ title: '이 달에 입력한 매출이 없습니다', text: '아래에서 하루씩 입력하거나, 날짜·채널·매출이 있는 엑셀/CSV 파일을 올려 주세요.' })),
-      h('section', { class: 'sheet' },
+      dayForm = h('section', { class: 'sheet' },
         h('h2', null, '하루 매출 입력'),
         err,
         h('div', { class: 'two' }, field('날짜', date), field('채널', ch)),

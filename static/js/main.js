@@ -20,6 +20,7 @@ import * as preps from './preps.js';
 import * as orders from './orders.js';
 import * as donate from './donate.js';
 import * as admin from './admin.js';
+import * as feedbackPage from './feedback.js';
 import { initAnalytics, page as gaPage } from './analytics.js';
 import { MARKET_ENABLED, setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled, DONATE_ENABLED, setDonateEnabled } from './core.js';
 import { openResetPassword, openSignup } from './auth.js';
@@ -62,6 +63,7 @@ function getRoutes() {
     { re: /^#\/import\/?$/, tab: '#/more', nav: '#/import', title: '가져오기', run: (box) => importer.render(box) },
     { re: /^#\/more\/?$/, tab: '#/more', title: '전체 메뉴', run: (box) => more.render(box) },
     { re: /^#\/revenue\/?$/, tab: '#/more', title: '전체 메뉴', run: (box) => more.render(box) }, // 예전 '매출관리' 주소
+    { re: /^#\/feedback\/?$/, tab: '#/more', nav: '#/feedback', title: '개선사항 요청', run: (box) => feedbackPage.render(box) },
     { re: /^#\/notifications\/?$/, tab: '#/more', nav: '#/notifications', title: '알림', run: (box) => notifPage.render(box) },
     { re: /^#\/breakeven\/?$/, tab: '#/more', nav: '#/breakeven', title: '손익분기·목표 매출', run: (box) => breakeven.render(box) },
     { re: /^#\/labor\/?$/, tab: '#/more', nav: '#/labor', title: '직원 급여', run: (box) => laborPage.render(box) },
@@ -80,6 +82,7 @@ function getRoutes() {
     ...(DONATE_ENABLED ? [{ re: /^#\/donate(?:\/|\?.*)?$/, tab: '#/more', nav: '#/donate', title: '후원하기', run: (box) => donate.render(box) }] : []),
     // 사이드바에는 안 보이고, 운영자가 주소를 직접 쳐서 들어가는 화면(권한은 서버가 막음).
     { re: /^#\/admin\/stats\/?$/, tab: '#/admin/stats', title: '운영 현황', run: (box) => admin.renderStats(box) },
+    { re: /^#\/admin\/feedback\/?$/, tab: '#/admin/feedback', title: '개선사항 요청', run: (box) => admin.renderFeedback(box) },
     { re: /^#\/admin\/users\/?$/, tab: '#/admin/users', title: '사장님 계정', run: (box) => admin.renderUsers(box) },
     { re: /^#\/admin\/users\/(\d+)\/?$/, tab: '#/admin/users', title: '계정 상세', run: (box, m) => admin.renderUser(box, Number(m[1])) },
     { re: /^#\/admin\/db\/?$/, tab: '#/admin/db', title: 'DB 보기', run: (box) => admin.renderTables(box) },

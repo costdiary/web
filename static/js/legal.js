@@ -82,7 +82,7 @@ const PRIVACY_SECTIONS = [
     '거래명세서·요리 사진 자동 인식(OCR) 서비스 제공',
     '자동 인식 품질 확인 및 서비스 개선(운영자의 QA 목적)',
     '부정 이용 방지 및 서비스 보안 유지(본인인증을 통한 1인 1계정 확인 포함)',
-    '도입 문의 응대, 후원 접수 및 동의한 경우 후원자 명단 표시',
+    '개선사항 요청 응대(남겨 주신 연락처로 답변), 후원 접수 및 동의한 경우 후원자 명단 표시',
     '방문 통계 분석을 통한 서비스 개선(쿠키 동의 시)',
     '광고 게재 및 이용자의 관심에 맞춘 광고 제공(광고를 게재하고 광고 쿠키에 동의한 경우)',
   ]],
@@ -103,7 +103,7 @@ const PRIVACY_SECTIONS = [
 const NO_DONATION_EDITS = [
   ['휴대폰 본인인증 시(가입 또는 후원 전)', '휴대폰 본인인증 시(가입할 때)'],
   [', 후원 시 입력한 닉네임·금액·메시지', ''],
-  ['도입 문의 응대, 후원 접수 및 동의한 경우 후원자 명단 표시', '도입 문의 응대'],
+  ['개선사항 요청 응대(남겨 주신 연락처로 답변), 후원 접수 및 동의한 경우 후원자 명단 표시', '개선사항 요청 응대(남겨 주신 연락처로 답변)'],
 ];
 const DONATION_ONLY = ['후원 정보: '];
 
@@ -186,7 +186,7 @@ export function openDataNotice() {
       PRIVACY_SECTIONS_COOKIE.map(legalBlock),
       h('div', null, h('div', { class: 'h-sec' }, '10. 개인정보 보호책임자'),
         h('p', null, '이용자는 서비스 이용 중 발생하는 개인정보 보호 관련 문의, 불만처리, 피해구제 등에 관한 사항을 아래로 문의할 수 있습니다.'),
-        officer.length ? h('p', null, officer.join(' · ')) : h('p', { class: 'muted' }, '문의 방법은 서비스 내 도입 문의를 통해 안내받을 수 있습니다.')),
+        officer.length ? h('p', null, officer.join(' · ')) : h('p', { class: 'muted' }, '문의 방법은 서비스 내 개선사항 요청을 통해 안내받을 수 있습니다.')),
       PRIVACY_SECTIONS_END.map(legalBlock),
       p.business_name || p.biz_reg_no ? h('div', null, h('div', { class: 'h-sec' }, '사업자 정보'),
         h('p', null, [p.business_name, p.biz_ceo && `대표 ${p.biz_ceo}`, p.biz_reg_no && `사업자등록번호 ${p.biz_reg_no}`, p.biz_address].filter(Boolean).join(' · '))) : null,

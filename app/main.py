@@ -176,7 +176,14 @@ def robots():
 
 # ---------------------------------------------------------------- 검색엔진·AI 검색용 공개 문서
 GUIDE_DIR = STATIC_DIR / "guide"
-GUIDES = ("menu-cost-rate",)  # static/guide/<이름>.html. 새 안내 글을 넣으면 여기에도 더한다(사이트맵에 실림).
+# static/guide/<이름>.html → 마지막으로 고친 날. 새 안내 글을 넣거나 내용을 고치면 여기도 고친다(사이트맵 lastmod로 실림).
+GUIDES = {
+    "cost-calculator": "2026-11-27",
+    "restaurant-cost": "2026-11-27",
+    "menu-cost-rate": "2026-11-26",
+    "receipt-management": "2026-11-27",
+}
+HOME_UPDATED = "2026-11-27"
 
 
 @app.get("/llms.txt", include_in_schema=False)
@@ -188,8 +195,8 @@ def llms_txt():
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap():
     base = security.site_url()
-    urls = [f"{base}/"] + [f"{base}/guide/{g}" for g in GUIDES]
-    body = "".join(f"<url><loc>{u}</loc></url>" for u in urls)
+    urls = [(f"{base}/", HOME_UPDATED)] + [(f"{base}/guide/{g}", d) for g, d in GUIDES.items()]
+    body = "".join(f"<url><loc>{u}</loc><lastmod>{d}</lastmod></url>" for u, d in urls)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</urlset>'
     return Response(xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
 

@@ -1,7 +1,7 @@
 /* 앱 시작: 로그인 확인 → 소개 화면 또는 앱 틀 + 화면 전환 */
 import { h, $, api, app, bus, refreshMe, icon, toast, errMsg, ApiError, openDialog } from './core.js';
 import { skeleton, emptyBlock } from './ui.js';
-import { renderLanding } from './landing.js?v=22';
+import { renderLanding } from './landing.js?v=23';
 import * as dashboard from './dashboard.js';
 import * as ingredients from './ingredients.js';
 import * as menus from './menus.js';
@@ -217,7 +217,7 @@ async function boot() {
     try { await refreshMe(); } catch { app.me = null; }
   }
   if (!app.me) {
-    document.title = '원가다이어리 · 식당 식자재 단가와 메뉴 원가율 관리';
+    document.title = '원가다이어리 · 식당 원가계산기, 메뉴 원가율·영수증 관리 무료 앱';
     renderLanding(root, boot);
     gaPage('/');
     await finishIdentityReturn(ivReturn);
@@ -236,7 +236,7 @@ function leaveApp(message) {
   app.me = null;
   noticeShown = false;
   if (location.hash) history.replaceState(null, '', location.pathname);
-  document.title = '원가다이어리 · 식당 식자재 단가와 메뉴 원가율 관리';
+  document.title = '원가다이어리 · 식당 원가계산기, 메뉴 원가율·영수증 관리 무료 앱';
   renderLanding(root, boot);
   gaPage('/');
   window.scrollTo(0, 0);

@@ -140,11 +140,14 @@ def create_ingredient(body: IngredientIn, user: dict = Depends(writable_user), d
 
 @router.get("/ingredients/{iid}")
 def get_ingredient(iid: int, user: dict = Depends(current_user), db=Depends(get_db)):
-    uid = user["id"]
+    return _ing_detail(db, user["id"], iid)
+
+
+def _ing_detail(db, uid: int, iid: int) -> dict:
     item = _ing_one(db, uid, iid)
     kind = item["kind"]
     hist = db.execute(
-        "SELECT unit_price, pack_size, pack_unit, pack_price, source, created_at FROM price_history "
+        "SELECT id, unit_price, pack_size, pack_unit, pack_price, source, created_at FROM price_history "
         "WHERE ingredient_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC LIMIT 40",
         (iid, uid),
     ).fetchall()
@@ -157,6 +160,7 @@ def get_ingredient(iid: int, user: dict = Depends(current_user), db=Depends(get_
         "item": item,
         "history": [
             {
+                "id": h["id"],
                 "date": h["created_at"],
                 "display_price": round(units.display_price(kind, h["unit_price"])[0], 2),
                 "pack_size": h["pack_size"],
@@ -171,6 +175,45 @@ def get_ingredient(iid: int, user: dict = Depends(current_user), db=Depends(get_
             for u in used
         ],
     }
+
+
+@router.delete("/ingredients/{iid}/history/{hid}")
+def delete_price_history(iid: int, hid: int, user: dict = Depends(writable_user), db=Depends(get_db)):
+    """가격 이력 한 줄을 지웁니다. 가장 최근 기록을 지우면 지금 단가도 그 바로 전 기록으로 되돌려서
+    식자재 단가·메뉴 원가·프렙 원가가 남은 이력과 어긋나지 않게 합니다. 마지막 한 줄은 지울 수 없습니다
+    (단가가 사라지면 메뉴 원가가 비어 버리므로, 틀린 가격은 구매 가격을 고쳐 저장하면 됩니다)."""
+    uid = user["id"]
+    ing = _owned(db, "ingredients", iid, uid)
+    if ing["from_prep_id"] is not None:
+        raise HTTPException(409, "이 식자재는 프렙 레시피에서 자동으로 계산됩니다. 프렙 화면에서 수정해 주세요.")
+    rows = db.execute(
+        "SELECT * FROM price_history WHERE ingredient_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC",
+        (iid, uid),
+    ).fetchall()
+    target = next((r for r in rows if r["id"] == hid), None)
+    if target is None:
+        raise HTTPException(404, "찾을 수 없습니다.")
+    if len(rows) == 1:
+        raise HTTPException(409, "마지막 남은 가격 기록은 지울 수 없어요. 가격이 틀렸다면 위의 구매 가격을 고쳐 저장해 주세요.")
+    notifications.touch(uid)  # 가격 변동 알림 숫자를 다시 센다
+    rolled_back = rows[0]["id"] == hid
+    with transaction(db):
+        db.execute("DELETE FROM price_history WHERE id = ? AND user_id = ?", (hid, uid))
+        if rolled_back:
+            prev = rows[1]
+            db.execute(
+                "UPDATE ingredients SET unit_price=?, pack_size=?, pack_unit=?, pack_price=?, price_checked_at=?, updated_at=? "
+                "WHERE id=? AND user_id=?",
+                (prev["unit_price"], prev["pack_size"], prev["pack_unit"], prev["pack_price"], prev["created_at"], now_iso(), iid, uid),
+            )
+            from . import preps as preps_mod
+
+            preps_mod.recompute_preps_using(db, uid, iid)  # 이 식자재를 쓰는 프렙 원가도 따라 바뀐다
+            if ing["mk_item_id"]:
+                market.recompute_signal(db, uid, iid)
+    out = _ing_detail(db, uid, iid)
+    out["rolled_back"] = rolled_back
+    return out
 
 
 @router.put("/ingredients/{iid}")

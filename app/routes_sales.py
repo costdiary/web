@@ -90,6 +90,8 @@ def _summary(db, user: dict, q: str | None) -> dict:
         "days": sorted(by_day.values(), key=lambda d: d["day"]),
         "pace_total": pace,
         "breakeven_sales": res.get("breakeven_sales"), "target_sales": res.get("target_sales"),
+        "open_days": be["profile"]["open_days"],  # 달력에서 하루 목표(월 목표 ÷ 영업일)를 낼 때 쓴다
+        "today": today.isoformat(),
         "delivery_total": sum(v for k, v in by_ch.items() if k != "store"),
         "labels": sales.CHANNEL_LABEL,
         "menus": [{"id": mid, "name": name} for mid, (name, _) in cost_by_menu.items()],

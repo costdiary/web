@@ -84,11 +84,22 @@ const spoonOf = (ln) => {
   const hit = SPOON.find(([re]) => re.test(ln.name));
   return hit ? (ln.kind === 'ml' ? 15 : hit[1]) : null;
 };
-/* 받침이 있으면 '을/이', 없으면 '를/가' */
-const josa = (w, withF, without) => {
-  const c = (w || '').trim().slice(-1).charCodeAt(0);
-  return c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 ? withF : without;
-};
+/* 재료 성질에 따라 넣는 동작이 다릅니다.
+   spoon: 양념 → 숟가락, 누를 때마다 1작은술 / ladle: 육수·양념장·소스 → 국자, 누를 때마다 한 국자
+   pour: 간장·기름·우유 같은 액체 → 꾹 누르는 동안 따르기 / piece: 개수 재료 → 하나씩 올리기
+   grab: 김치·고기·채소·면 같은 건더기 → 집게(밥은 주걱)로 한 번에 한 집게씩 올리기 */
+const LADLE = /육수|국물|양념장|소스$|카레|짜장|드레싱|다시$/;
+const POUR = /간장|식초|맛술|미림|기름|액젓|청주|소주|즙|우유|생크림|^물$/;
+const niceAmt = (x) => (x >= 20 ? Math.max(5, Math.round(x / 5) * 5) : x >= 5 ? Math.round(x) : Math.max(0.5, Math.round(x * 2) / 2));
+function modeOf(ln) {
+  const sp = spoonOf(ln);
+  if (sp) return { kind: 'spoon', step: sp / 3, tool: '숟가락' };
+  if (ln.batch || LADLE.test(ln.name)) return { kind: 'ladle', step: niceAmt(ln.base / 2), tool: '국자' };
+  if (ln.kind === 'ml' || POUR.test(ln.name)) return { kind: 'pour', step: null, tool: '' };
+  if (ln.kind === 'ea') return { kind: 'piece', step: ln.base < 1 ? 0.5 : 1, tool: '' };
+  const rice = /^쌀$|밥/.test(ln.name);
+  return { kind: 'grab', step: niceAmt(ln.base / (rice ? 2 : 5)), tool: rice ? '주걱' : '집게' };
+}
 /* 0.33 → '1작은술', 1 → '1큰술', 1.67 → '1큰술 2작은술' */
 const spoonText = (tbsp) => {
   const tsp = Math.round(tbsp * 3);
@@ -483,11 +494,13 @@ export async function render(box) {
     stickyText.textContent = `${hl ? `${hl.name} ${n3(hl.qty)}${hl.unit} · ` : ''}1인분 ${priced.length ? `${n0(t.cost)}원` : '–'}${t.ratio != null ? ` · 원가율 ${n1(t.ratio)}%` : ''}`;
   }
 
-  /* ---------------- 집어서 붓기 ----------------
-     재료를 눌러 손에 들고, 그릇을 꾹 누르고 있으면 계속 부어집니다. 오래 누를수록 빨리 담기고(1배 → 2배 → 3.5배),
-     손을 떼면 멈춥니다. 키보드로는 그릇에 초점을 두고 스페이스/엔터를 누르고 있으면 됩니다. */
+  /* ---------------- 집어서 담기 ----------------
+     재료를 눌러 손에 들고 그릇을 누르면 담깁니다. 넣는 동작은 재료 성질(modeOf)에 따라 다릅니다:
+     액체는 꾹 누르는 동안 따라지고(오래 누를수록 빨리, 1배 → 2배 → 3.5배), 건더기는 집게로 한 번에 한 집게씩,
+     양념은 숟가락으로 1작은술씩, 육수·양념장은 국자로 한 국자씩 들어갑니다. 손을 떼면 멈춥니다. 키보드로는 그릇에 초점을 두고 스페이스/엔터를 누르고 있으면 됩니다. */
   const lineOf = (key) => lines.find((l) => l.key === key);
   const tspOf = (ln) => { const sp = spoonOf(ln); return sp ? sp / 3 : null; };
+  const stepOf = (ln) => modeOf(ln).step; // null 이면 꾹 누르는 동안 계속 따르기
   const fineStep = (ln) => tspOf(ln) ?? (ln.kind === 'ea' ? 0.5 : ln.base >= 100 ? 5 : ln.base >= 20 ? 1 : 0.5);
   const pourGrain = (ln) => (spoonOf(ln) ? 0.1 : ln.kind === 'ea' ? 0.5 : ln.base >= 20 ? 1 : 0.5);
   const capOf = (ln) => Math.max(ln.high * 4, DEFAULT_QTY[ln.kind] * 4);
@@ -518,11 +531,27 @@ export async function render(box) {
     }
   }
 
+  function signFor(ln) {
+    const m = modeOf(ln);
+    if (m.kind === 'spoon') return `${ln.name} 숟가락으로 떴어요 · 그릇을 누를 때마다 1작은술`;
+    if (m.kind === 'ladle') return `${ln.name} 국자로 떴어요 · 누를 때마다 한 국자(${n3(m.step)}${ln.unit})`;
+    if (m.kind === 'pour') return `${ln.name} 들었어요 · 그릇을 꾹 누르는 동안 따라져요`;
+    if (m.kind === 'piece') return `${ln.name} 들었어요 · 누를 때마다 ${n3(m.step)}개씩 올라가요`;
+    return `${ln.name} ${m.tool === '주걱' ? '주걱으로 펐어요' : '집게로 집었어요'} · 누를 때마다 한 ${m.tool}(약 ${n3(m.step)}${ln.unit})`;
+  }
+  const countText = (ln) => {
+    const m = modeOf(ln);
+    if (m.kind === 'spoon') return `약 ${spoonText(ln.qty / (m.step * 3))}`;
+    if (m.kind === 'ladle' || m.kind === 'grab') return `약 ${n1(Math.round((ln.qty / m.step) * 2) / 2).replace(/\.0$/, '')}${m.tool}`;
+    return '';
+  };
+  const handPic = (ln) => (modeOf(ln).kind === 'spoon' ? '/static/img/ing/1f944.svg' : picOf(ln.name));
+
   function paintSign() {
     const ln = held != null ? lineOf(held) : null;
     const text = !lines.length ? '메뉴를 고르면 재료가 그릇에 담겨요'
-      : ln ? (spoonOf(ln) ? `${ln.name} 숟가락 들었어요 · 그릇을 누를 때마다 1작은술` : `${ln.name} 집었어요 · 그릇을 꾹 누르면 부어져요`)
-        : '재료 그림을 눌러 손에 집어 보세요';
+      : ln ? signFor(ln)
+        : '재료 그림을 눌러 집어 보세요';
     if (signText.textContent === text) return;
     signText.textContent = text;
     sign.classList.toggle('on', !!ln);
@@ -537,7 +566,7 @@ export async function render(box) {
     scale.hidden = !lines.length;
     bowl3d.classList.toggle('holding', !!ln);
     bowl3d.tabIndex = ln ? 0 : -1;
-    bowl3d.setAttribute('aria-label', ln ? `그릇. 스페이스를 누르고 있으면 ${ln.name}${josa(ln.name, '이', '가')} 부어져요` : '그릇');
+    if (!ln) bowl3d.setAttribute('aria-label', '그릇');
     for (const [k, row] of rowMap) row.classList.toggle('held', k === held);
     bowl.querySelectorAll('.mb-tok').forEach((t) => {
       const on = Number(t.dataset.key) === held;
@@ -556,17 +585,20 @@ export async function render(box) {
     }
     if (scale.dataset.key !== String(ln.key)) {
       scale.dataset.key = String(ln.key);
-      const pic = spoonOf(ln) ? '/static/img/ing/1f944.svg' : picOf(ln.name);
+      const pic = handPic(ln);
       scPic.replaceChildren(pic ? h('img', { src: pic, alt: '' }) : h('i', { style: { background: toneOf(ln.name)[0] } }));
       scName.textContent = ln.name;
+      scNum.dataset.v = 'x'; // 다른 재료로 바꿔 들면 숫자를 굴리지 않고 바로 보여 줌
       lastWhere = where(ln);
     }
     scMinus.disabled = scPlus.disabled = false; scDrop.hidden = false;
-    const sp = spoonOf(ln);
-    scale.classList.toggle('spoon', !!sp);
-    scSpoon.textContent = sp ? `약 ${spoonText(ln.qty / sp)}` : ln.batch ? `약 한 통의 1/${n0(Math.round(ln.batch.total / Math.max(ln.qty, 0.001)))}` : '';
+    const md = modeOf(ln);
+    const sp = md.kind === 'spoon';
+    scale.classList.toggle('spoon', sp);
+    scSpoon.textContent = [countText(ln), ln.batch ? `약 한 통의 1/${n0(Math.round(ln.batch.total / Math.max(ln.qty, 0.001)))}` : ''].filter(Boolean).join(' · ');
     scMinus.setAttribute('aria-label', sp ? '1작은술 덜기' : '조금 덜기');
     scPlus.setAttribute('aria-label', sp ? '1작은술 더 넣기' : '조금 더 담기');
+    bowl3d.setAttribute('aria-label', `그릇. 스페이스: ${signFor(ln).split(' · ')[1]}`);
     scUnit.textContent = ln.unit;
     const g = pourGrain(ln);
     rollTo(scNum, ln.qty, (v) => n3(Math.round(v / g) * g));
@@ -590,8 +622,9 @@ export async function render(box) {
     const ln = lineOf(key);
     if (!ln) return;
     held = key;
-    const pic = spoonOf(ln) ? '/static/img/ing/1f944.svg' : picOf(ln.name);
-    hand.classList.toggle('spoon', !!spoonOf(ln));
+    const pic = handPic(ln);
+    hand.dataset.mode = modeOf(ln).kind;
+    hand.classList.toggle('spoon', modeOf(ln).kind === 'spoon');
     hand.replaceChildren(pic ? h('img', { src: pic, alt: '' }) : h('i', { style: { background: toneOf(ln.name)[0] } }));
     hand.classList.remove('pour');
     sfx('pick');
@@ -643,13 +676,16 @@ export async function render(box) {
     if (!pour) return;
     const { ln } = pour;
     const secs = (now - pour.t0) / 1000;
-    const tsp = tspOf(ln);
-    if (tsp) { // 양념: 한 숟갈씩
+    const m = modeOf(ln);
+    if (m.step) { // 숟가락·국자·집게·하나씩: 누를 때마다 한 번, 누르고 있으면 이어서
       if (now >= pour.nextDrop) {
-        setQty(ln, Math.round((ln.qty + tsp) * 10) / 10);
-        for (let i = 0; i < 6; i++) drop(ln, pour.px + (Math.random() - 0.5) * 18, pour.py, true);
-        sfx('tick', 0.6);
-        pour.nextDrop = now + (secs < 1.2 ? 480 : 300);
+        setQty(ln, Math.round((ln.qty + m.step) * 10) / 10);
+        if (m.kind === 'spoon') for (let i = 0; i < 6; i++) drop(ln, pour.px + (Math.random() - 0.5) * 18, pour.py, 'fine');
+        else if (m.kind === 'ladle') for (let i = 0; i < 4; i++) drop(ln, pour.px + (Math.random() - 0.5) * 26, pour.py, 'splash');
+        else drop(ln, pour.px, pour.py, 'chunk');
+        if (!REDUCED) { hand.classList.remove('dip'); void hand.offsetWidth; hand.classList.add('dip'); }
+        sfx('tick', m.kind === 'spoon' ? 0.6 : 0.2);
+        pour.nextDrop = now + (secs < 1.2 ? 520 : 340);
       }
       pour.raf = requestAnimationFrame(pourFrame);
       return;
@@ -661,7 +697,7 @@ export async function render(box) {
     const g = pourGrain(ln);
     const v = Math.round(pour.acc / g) * g;
     if (v !== ln.qty) setQty(ln, v);
-    if (now >= pour.nextDrop) { drop(ln, pour.px, pour.py); pour.nextDrop = now + (speed > 2 ? 60 : speed > 1 ? 90 : 130); }
+    if (now >= pour.nextDrop) { drop(ln, pour.px + (Math.random() - 0.5) * 8, pour.py, 'stream'); pour.nextDrop = now + (speed > 2 ? 40 : speed > 1 ? 60 : 90); }
     if (now >= pour.nextTick) { sfx('tick', Math.min(1, secs / 2.5)); pour.nextTick = now + (speed > 2 ? 70 : 110); }
     pour.raf = requestAnimationFrame(pourFrame);
   }
@@ -686,11 +722,13 @@ export async function render(box) {
     paintReceipt();
   }
   /* 떨어지는 알갱이: 손 위치에서 그릇으로 */
-  function drop(ln, px, py, fine = false) {
+  function drop(ln, px, py, how = 'chunk') {
     if (REDUCED) return;
-    const pic = fine ? null : picOf(ln.name);
-    const kind = fine ? (LIQUID.test(ln.name) || ln.kind === 'ml' ? ' drip' : ' dust') : '';
-    const d = h('span', { class: `mb-drop${kind}`, 'aria-hidden': 'true', style: { left: `${px}px`, top: `${py}px`, '--dx': `${(Math.random() - 0.5) * 50}px`, '--rot': `${(Math.random() - 0.5) * 300}deg`, '--s': String(0.5 + Math.random() * 0.4) } },
+    const pic = how === 'chunk' ? picOf(ln.name) : null;
+    const kind = how === 'fine' ? (LIQUID.test(ln.name) || ln.kind === 'ml' ? ' drip' : ' dust')
+      : how === 'stream' || how === 'splash' ? ' drip' : ' chunk';
+    const spread = how === 'stream' ? 6 : how === 'chunk' ? 20 : 40;
+    const d = h('span', { class: `mb-drop${kind}`, 'aria-hidden': 'true', style: { left: `${px}px`, top: `${py}px`, '--dx': `${(Math.random() - 0.5) * spread}px`, '--rot': `${(Math.random() - 0.5) * 300}deg`, '--s': String(0.5 + Math.random() * 0.4) } },
       pic ? h('img', { src: pic, alt: '' }) : h('i', { style: { background: toneOf(ln.name)[0] } }));
     d.addEventListener('animationend', () => d.remove());
     bowl3d.append(d);

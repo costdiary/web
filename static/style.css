@@ -2385,3 +2385,12 @@ a.dm-stat:active { transform: scale(0.98); }
 .mb-sauce .mb-add-row > .select { grid-column: 1 / -1; }
 .mb-sauce-note { margin-top: 6px; }
 .mb-sticky.held { border-color: var(--blue); }
+
+/* 건더기·국자·하나씩은 기울여 붓지 않고 '내려놓듯' 콕 찍습니다. 기울이는 건 액체(pour)와 숟가락만. */
+.mb-hand[data-mode="grab"].pour img, .mb-hand[data-mode="piece"].pour img, .mb-hand[data-mode="ladle"].pour img,
+.mb-hand[data-mode="grab"].pour i, .mb-hand[data-mode="piece"].pour i, .mb-hand[data-mode="ladle"].pour i { transform: rotate(-8deg); animation: none; }
+.mb-hand.dip img, .mb-hand.dip i { animation: mbDip .32s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes mbDip { 0% { translate: 0 0; } 40% { translate: 0 16px; } 100% { translate: 0 0; } }
+.mb-drop.chunk { width: 30px; height: 30px; margin: -15px 0 0 -15px; animation: mbChunk .45s cubic-bezier(.5, 0, .7, 1.4) forwards; }
+@keyframes mbChunk { 0% { transform: translate(0, 0) scale(.9) rotate(0); opacity: 1; } 75% { opacity: 1; } 100% { transform: translate(var(--dx), 48px) scale(.55) rotate(calc(var(--rot) / 4)); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mb-hand.dip img, .mb-hand.dip i { animation: none; } }

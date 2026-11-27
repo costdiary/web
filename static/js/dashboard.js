@@ -186,7 +186,6 @@ export async function render(box) {
   if (d.unpriced_count) notes.push(h('p', null, h('b', null, `단가가 없는 식자재 ${d.unpriced_count}개. `), '이 재료는 메뉴 원가에 아직 들어가지 않습니다. ', h('a', { href: '#/invoice' }, '거래명세서를 올리거나'), ' ', h('a', { href: '#/ingredients' }, '직접 단가를 넣어'), ' 주세요.'));
   if (d.estimated_menu_count) notes.push(h('p', null, h('b', null, `사진으로 추정한 양이 들어 있는 메뉴 ${d.estimated_menu_count}개. `), '실제로 재 보고 고치면 원가율이 정확해집니다. ', h('a', { href: '#/menus' }, '메뉴에서 확인하기')));
   if (notes.length) box.append(h('div', { class: 'note-warn', role: 'status', style: 'margin:12px 0' }, notes));
-  // 도매마켓 새 소식(더 싼 제안·떨이)은 이제 상단 종(알림 센터)으로 모았다.
   const unread = app.me.notifications?.unread || 0;
   if (unread) {
     box.append(h('a', { class: 'notif-strip', href: '#/notifications' },

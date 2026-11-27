@@ -1,7 +1,7 @@
 /* 식자재: 목록·검색, 추가/수정 대화상자(단가 계산, 가격 이력, 쓰는 메뉴) */
 import {
   h, api, app, field, numInput, selectOf, comboSelect, parseNum, n0, n3, nPrice, ago, ymd, daysSince, openDialog, confirmDialog,
-  busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS, DISPLAY, icon, refreshRoute, fill, MARKET_ENABLED,
+  busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS, DISPLAY, icon, refreshRoute, fill,
 } from './core.js';
 import { chg, num, emptyBlock, termInput } from './ui.js';
 
@@ -151,23 +151,6 @@ export async function openIngredientEditor(id, onChange, preset = {}) {
     !canWrite ? h('p', { class: 'hint', style: 'margin-top:10px' }, '지금은 수정할 수 없습니다.') : null);
   size.id = 'ie-size';
   unit.id = 'ie-unit';
-
-  if (it && MARKET_ENABLED) {
-    const marketBody = h('div', { class: 'skel' });
-    const marketSec = h('details', { class: 'more' }, h('summary', null, '단가 제안 받기'), marketBody);
-    form.append(marketSec);
-    api('/api/market/ingredients').then(({ items: mkItems }) => {
-      const mk = mkItems.find((x) => x.ingredient_id === it.id);
-      marketBody.classList.remove('skel');
-      if (!mk) { fill(marketBody, h('p', { class: 'small muted' }, '불러오지 못했습니다.')); return; }
-      const statusTag = mk.exposed ? h('span', { class: 'tag ok' }, '노출 중')
-        : h('span', { class: 'tag warn' }, { unmapped: '원산지 필요', optout: '노출 꺼짐', no_region: '권역 미설정', stale: '매칭 대기' }[mk.why_hidden] || '노출 안 됨');
-      fill(marketBody,
-        h('p', { class: 'small' }, mk.item && mk.origin ? `${mk.origin || ''} · ${mk.grade || ''}` : '아직 단가 제안받기를 켜지 않았습니다.', ' ', statusTag),
-        h('p', { class: 'hint', style: 'margin-top:6px' }, '원산지를 넣고 단가 제안받기를 켜면, 평균 매입가보다 싼 제안을 받을 수 있습니다.'),
-        h('div', { class: 'btn-row', style: 'margin-top:8px' }, h('a', { class: 'btn ghost sm', href: '#/market/offers' }, '단가제안받기에서 설정')));
-    }).catch(() => { marketBody.classList.remove('skel'); fill(marketBody, h('p', { class: 'small muted' }, '불러오지 못했습니다.')); });
-  }
 
   if (detail) {
     form.append(

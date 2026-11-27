@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
 
-from . import auth, config, market, market_catalog, notifications, ocr, payments, security, services, units, wholesale_verify
+from . import auth, config, market, market_catalog, ocr, payments, security, services, units, wholesale_verify
 from .db import connect, get_db, now_iso, transaction
 from .deps import current_wholesaler, verified_wholesaler
 from .schemas import AdIn, AdPayIn, BidIn, LoginIn, OutcomeIn, PgConfirmIn, RespondIn, WsProfileIn, WsSignupIn, WsVerifyIn
@@ -490,7 +490,6 @@ def ws_respond(conn_id: int, body: RespondIn, ws: dict = Depends(verified_wholes
         db.execute("UPDATE mk_connections SET status=?, responded_at=? WHERE id=?", (status, ts, conn_id))
         market.recompute_ws_stats(db)
         fresh = db.execute("SELECT * FROM mk_connections WHERE id = ?", (conn_id,)).fetchone()
-        notifications.notify_connection_answer(db, fresh)  # 사장님 알림 센터로 바로
     return _ws_connection_payload(db, fresh)
 
 
@@ -636,12 +635,12 @@ def request_payment(ad_id: int, body: AdPayIn, ws: dict = Depends(verified_whole
 @router.post("/ads/{ad_id}/pay/pg")
 def request_payment_pg(ad_id: int, ws: dict = Depends(verified_wholesaler), db=Depends(get_db)):
     """PG(카드결제) 신청 — 결제위젯이 쓸 주문정보를 내려준다. 승인은 프런트가
-    /api/ws/ads/pay/pg/confirm 을 부르거나, PG사 웹훅(/api/payments/toss/webhook)으로 이뤄진다."""
+    /api/ws/ads/pay/pg/confirm 을 부르거나, PG사 웹훅(/api/ws/payments/toss/webhook)으로 이뤄진다."""
     ad = _own_ad(db, ws["id"], ad_id)
     if ad["status"] not in ("draft", "rejected"):
         raise HTTPException(409, "이미 결제를 신청했습니다.")
     amount = ad["run_days"] * config.env_int("MK_AD_PRICE_PER_DAY", 5000)
-    provider = payments.get_provider()
+    provider = payments.get_provider("market")
     ts = now_iso()
     with transaction(db):
         cur = db.execute(
@@ -650,10 +649,10 @@ def request_payment_pg(ad_id: int, ws: dict = Depends(verified_wholesaler), db=D
             (ad_id, ws["id"], amount, provider.name, ts),
         )
         payment_id = cur.lastrowid
-        order_id = payments.make_order_id("ad", payment_id)
+        order_id = payments.make_order_id("ad", payment_id, "market")
         db.execute("UPDATE ws_ad_payments SET pg_order_id = ? WHERE id = ?", (order_id, payment_id))
         db.execute("UPDATE ws_ads SET status='pending_payment', updated_at=? WHERE id=?", (ts, ad_id))
-    intent = provider.create_intent(order_id, amount, f"원가노트 떨이 광고({ad['run_days']}일)")
+    intent = provider.create_intent(order_id, amount, f"도매마켓 떨이 광고({ad['run_days']}일)")
     return {
         "ad": _ad_payload(db, db.execute("SELECT * FROM ws_ads WHERE id = ?", (ad_id,)).fetchone()),
         "payment": {
@@ -666,7 +665,7 @@ def request_payment_pg(ad_id: int, ws: dict = Depends(verified_wholesaler), db=D
 @router.post("/ads/pay/pg/confirm")
 def confirm_payment_pg(body: PgConfirmIn, ws: dict = Depends(verified_wholesaler), db=Depends(get_db)):
     """결제위젯 완료 후 프런트가 돌려받은 paymentKey 로 승인을 마무리할 때 부른다.
-    (토스가 직접 보내는 서버-서버 웹훅은 /api/payments/toss/webhook 에서 별도로 처리한다.)"""
+    (토스가 직접 보내는 서버-서버 웹훅은 routes_payments.py의 /api/ws/payments/toss/webhook 에서 처리한다.)"""
     order_id = body.order_id
     payment_key = body.payment_key
     pay = db.execute(
@@ -677,7 +676,7 @@ def confirm_payment_pg(body: PgConfirmIn, ws: dict = Depends(verified_wholesaler
         raise HTTPException(404, "결제 신청을 찾지 못했습니다.")
     if pay["status"] == "paid":
         return {"ad_id": pay["ad_id"], "payment_id": pay["id"], "status": "paid"}
-    provider = payments.get_provider()
+    provider = payments.get_provider("market")
     conf = provider.confirm(payment_key, order_id, pay["amount"])
     if not conf.paid:
         market.fail_pg_payment(db, order_id, conf.error or "결제 승인 실패")

@@ -47,13 +47,21 @@
    "@id": "https://mycostdiary.com/#org",
    "name": "원가다이어리",
    "url": "https://mycostdiary.com/",
-   "logo": "https://mycostdiary.com/static/brand/logo.png"
+   "logo": "https://mycostdiary.com/static/brand/logo.png",
+   "description": "식당·카페 사장님을 위한 무료 원가 관리 웹앱 원가다이어리를 만들고 운영합니다.",
+   "subjectOf": {
+    "@type": "AboutPage",
+    "url": "https://mycostdiary.com/about"
+   }
   },
   {
    "@type": "SoftwareApplication",
    "@id": "https://mycostdiary.com/#app",
    "name": "원가다이어리",
-   "alternateName": ["CostDiary", "원가다이어리 원가계산기"],
+   "alternateName": [
+    "CostDiary",
+    "원가다이어리 원가계산기"
+   ],
    "url": "https://mycostdiary.com/",
    "description": "식당·카페 사장님이 영수증이나 거래명세서를 입력하면 식자재 단가를 정리하고 메뉴별 원가율, 한 그릇에 남는 돈, 배달앱 수수료를 뺀 배달 손익, 손익분기 매출을 계산해 주는 무료 웹앱입니다.",
    "applicationCategory": "BusinessApplication",
@@ -90,7 +98,7 @@
    "mainEntity": [
     {
      "@type": "Question",
-     "name": "원가다이어리는 무료인가요?",
+     "name": "정말 무료인가요?",
      "acceptedAnswer": {
       "@type": "Answer",
       "text": "네. 식자재 단가 관리, 메뉴 원가 계산, 배달 손익, 손익분기, 엑셀 가져오기·내려받기 등 지금 있는 기능은 개수 제한 없이 모두 무료예요. 거래명세서 사진 자동 인식만 한 달 5회인데, 인식할 때마다 외부 API 비용이 나가기 때문이에요. 테스트중이라 결과가 부정확할 수 있고, 넘기면 직접 입력하면 돼요."
@@ -101,7 +109,7 @@
      "name": "쓰던 앱이나 엑셀 자료를 옮길 수 있나요?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "엑셀(.xlsx)과 CSV 파일을 올리면 제목 줄을 읽어 칸을 자동으로 맞추고, 저장하기 전에 미리 보여 드려요. 칸이 틀리면 직접 고를 수 있어요."
+      "text": "엑셀(.xlsx)과 CSV 파일을 올리면 제목 줄을 읽어 칸을 자동으로 맞추고, 저장하기 전에 미리 보여 드려요. 칸이 틀리면 직접 고를 수 있어요. 가격이 없는 식자재도 '단가 없음'으로 옮겨 두었다가 명세서로 채울 수 있어요."
      }
     },
     {
@@ -122,6 +130,14 @@
     },
     {
      "@type": "Question",
+     "name": "명세서 사진은 어디에 저장되나요?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "글자를 읽기 위해 사진을 Anthropic의 Claude API로 보내고, 잘못 읽었을 때 확인할 수 있도록 원가다이어리 서버에도 보관해요. 계정을 삭제하면 사진도 함께 삭제돼요. 반영하기 전에 모든 줄을 보여 드리고, 확인하고 누르기 전에는 아무것도 저장되지 않아요."
+     }
+    },
+    {
+     "@type": "Question",
      "name": "명세서마다 식자재 이름이 달라요.",
      "acceptedAnswer": {
       "@type": "Answer",
@@ -138,7 +154,7 @@
     },
     {
      "@type": "Question",
-     "name": "그만 쓰고 싶으면 어떻게 하나요?",
+     "name": "그만 쓰고 싶어요.",
      "acceptedAnswer": {
       "@type": "Answer",
       "text": "설정에서 계정을 삭제하면 입력한 식자재·메뉴·가격 이력이 모두 지워져요. 그 전에 엑셀(CSV)로 내려받아 둘 수 있어요."
@@ -174,6 +190,10 @@
         </ul>
       </section>
       <section>
+        <h2>팔아도 남는 게 없다면</h2>
+        <p>손님은 있는데 남는 돈이 없다면 대개 재료값이 올랐는데 그대로인 판매가, 배달 수수료와 배달비, 사장님 부담 할인, 폐기와 과다 담기, 손익분기 근처의 매출, 주휴수당 같은 빠진 인건비, 세금·대출 원금 중 어딘가에서 돈이 샙니다. 원가다이어리는 메뉴별 원가율과 배달 한 건에 남는 돈, 손익분기 매출을 계산해 어디서 새는지 숫자로 보여 줍니다. 확인 순서는 <a href="/guide/no-profit">장사해도 남는 게 없을 때: 원인 7가지와 확인 순서</a>에 정리했습니다.</p>
+      </section>
+      <section>
         <h2>할 수 있는 일</h2>
         <ul>
           <li>거래명세서 사진을 올리면 품목·규격·단가를 읽어 지난 단가와 비교해 보여 줘요(월 5회, 테스트중). 영수증은 직접 입력해도 돼요.</li>
@@ -195,28 +215,33 @@
       </section>
       <section>
         <h2>자주 묻는 질문</h2>
-        <h3>원가다이어리는 무료인가요?</h3>
+        <h3>정말 무료인가요?</h3>
         <p>네. 식자재 단가 관리, 메뉴 원가 계산, 배달 손익, 손익분기, 엑셀 가져오기·내려받기 등 지금 있는 기능은 개수 제한 없이 모두 무료예요. 거래명세서 사진 자동 인식만 한 달 5회인데, 인식할 때마다 외부 API 비용이 나가기 때문이에요. 테스트중이라 결과가 부정확할 수 있고, 넘기면 직접 입력하면 돼요.</p>
         <h3>쓰던 앱이나 엑셀 자료를 옮길 수 있나요?</h3>
-        <p>엑셀(.xlsx)과 CSV 파일을 올리면 제목 줄을 읽어 칸을 자동으로 맞추고, 저장하기 전에 미리 보여 드려요. 칸이 틀리면 직접 고를 수 있어요.</p>
+        <p>엑셀(.xlsx)과 CSV 파일을 올리면 제목 줄을 읽어 칸을 자동으로 맞추고, 저장하기 전에 미리 보여 드려요. 칸이 틀리면 직접 고를 수 있어요. 가격이 없는 식자재도 '단가 없음'으로 옮겨 두었다가 명세서로 채울 수 있어요.</p>
         <h3>메뉴별 재료 양(g)을 몰라도 쓸 수 있나요?</h3>
         <p>어림잡아 넣어 두고 단가만 먼저 넣어도 돼요. 나중에 실제로 계량한 값으로 고치면 원가율이 자동으로 다시 계산돼요.</p>
         <h3>배달의민족·쿠팡이츠 수수료도 반영되나요?</h3>
         <p>쓰는 앱을 켜고 구간·요율을 맞추면 메뉴마다 배달 한 건에 남는 돈과 배달용 권장 판매가를 계산해요. 앱과 연동하는 것이 아니라 공개된 안내를 바탕으로 한 기본값이라, 정산서와 다르면 직접 고쳐 쓰세요.</p>
+        <h3>명세서 사진은 어디에 저장되나요?</h3>
+        <p>글자를 읽기 위해 사진을 Anthropic의 Claude API로 보내고, 잘못 읽었을 때 확인할 수 있도록 원가다이어리 서버에도 보관해요. 계정을 삭제하면 사진도 함께 삭제돼요. 반영하기 전에 모든 줄을 보여 드리고, 확인하고 누르기 전에는 아무것도 저장되지 않아요.</p>
         <h3>명세서마다 식자재 이름이 달라요.</h3>
         <p>비슷한 이름은 자동으로 연결하고, 못 찾은 이름은 한 번만 골라 주시면 다음부터 기억해요.</p>
         <h3>수율은 어떻게 계산하나요?</h3>
         <p>식자재마다 수율(다듬고 남는 비율)을 넣으면 실제로 쓰는 양 기준으로 계산해요. 수율이 90%이면 단가를 0.9로 나눈 값을 원가에 써요.</p>
-        <h3>그만 쓰고 싶으면 어떻게 하나요?</h3>
+        <h3>그만 쓰고 싶어요.</h3>
         <p>설정에서 계정을 삭제하면 입력한 식자재·메뉴·가격 이력이 모두 지워져요. 그 전에 엑셀(CSV)로 내려받아 둘 수 있어요.</p>
       </section>
       <section>
         <h2>더 읽어 보기</h2>
         <ul>
+          <li><a href="/guide/no-profit">장사해도 남는 게 없을 때: 원인 7가지와 확인 순서</a></li>
+          <li><a href="/guide/delivery-profit">배달 한 건에 실제로 남는 돈 계산</a></li>
           <li><a href="/guide/cost-calculator">음식 원가계산기 (가입 없이 바로 계산)</a></li>
           <li><a href="/guide/restaurant-cost">음식점 원가 계산 방법: 식재료비, 인건비, 고정비까지</a></li>
           <li><a href="/guide/menu-cost-rate">식당 메뉴 원가율 계산하는 법 (공식과 예시)</a></li>
           <li><a href="/guide/receipt-management">식당 영수증 관리 방법 (거래명세서 포함)</a></li>
+          <li><a href="/guide">안내 글 전체</a> · <a href="/about">원가다이어리 소개</a></li>
         </ul>
       </section>
       <p><a href="https://mycostdiary.com/">원가다이어리 무료로 시작하기</a></p>
@@ -224,7 +249,7 @@
   </div>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
   <noscript><p class="noscript">원가다이어리는 자바스크립트를 켜야 사용할 수 있습니다.</p></noscript>
-  <script type="module" src="/static/js/main.js?v=25"></script>
+  <script type="module" src="/static/js/main.js?v=26"></script>
   <script type="module" src="/static/js/inspect.js"></script>
 </body>
 </html>

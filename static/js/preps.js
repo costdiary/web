@@ -1,6 +1,7 @@
 /* 미리 만든 재료(예전 이름 '프렙 레시피'): 육수·양념장·반죽처럼 미리 만들어 두고 여러 메뉴에 덜어 쓰는 것의 원가.
    g·ml당, 또는 1장·1국자당 원가로 바꿔 둡니다. 만들면 전용 식자재 한 줄이 자동으로 생겨,
    메뉴 재료 목록에서 식자재처럼 바로 쓸 수 있습니다. */
+import { menuTabs } from './menutabs.js';
 import {
   h, api, app, field, numInput, selectOf, parseNum, n0, n3, icon, go, refreshRoute, fill,
   confirmDialog, busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS, segGroup,
@@ -26,8 +27,8 @@ export async function renderList(box) {
   const canWrite = app.me.plan.writable;
   box.append(
     h('div', { class: 'page-h' },
-      h('a', { class: 'btn ghost sm', href: '#/menus' }, icon('back', 18), '메뉴 목록'),
       h('h1', null, '미리 만든 재료', h('span', { class: 'sub' }, `${items.length}개`))),
+    menuTabs('#/preps'),
     h('div', { class: 'prep-intro' },
       h('p', null, h('b', null, '육수·양념장·반죽'), '처럼 미리 만들어 두고 여러 메뉴에 덜어 쓰는 것을 여기에 적어 두세요. 한 통 만드는 데 든 돈을 ', h('b', null, '1장·1국자·1g당'), ' 얼마인지로 바꿔서, 메뉴 원가에 식자재처럼 넣을 수 있어요.'),
       h('p', { class: 'hint' }, '주방에서 "프렙"이라고 부르는 것과 같아요. ', h('a', { href: '#/help/prep' }, '쉽게 쓰는 법 보기'))));

@@ -17,6 +17,8 @@ import * as laborPage from './labor.js';
 import * as more from './more.js';
 import * as notifPage from './notifications.js';
 import * as preps from './preps.js';
+import * as menuMap from './menumap.js';
+import * as menuIdeas from './ideas.js';
 import * as orders from './orders.js';
 import * as donate from './donate.js';
 import * as admin from './admin.js';
@@ -54,6 +56,8 @@ function getRoutes() {
     { re: /^#\/ingredients\/?$/, tab: '#/ingredients', title: '식자재', run: (box) => ingredients.render(box) },
     { re: /^#\/menus\/?$/, tab: '#/menus', title: '메뉴', run: (box) => menus.renderList(box) },
     { re: /^#\/menus\/photo\/?$/, tab: '#/menus', title: '사진으로 메뉴 만들기', run: (box) => recipe.render(box) },
+    { re: /^#\/menus\/map\/?$/, tab: '#/menus', nav: '#/menus/map', title: '재료 연결표', run: (box) => menuMap.render(box) },
+    { re: /^#\/menus\/ideas\/?$/, tab: '#/menus', nav: '#/menus/ideas', title: '메뉴 추천', run: (box) => menuIdeas.render(box) },
     { re: /^#\/menus\/new\/?$/, tab: '#/menus', title: '새 메뉴', run: (box) => menus.renderEditor(box, null) },
     { re: /^#\/menus\/(\d+)\/?$/, tab: '#/menus', title: '메뉴 수정', run: (box, m) => menus.renderEditor(box, Number(m[1])) },
     { re: /^#\/preps\/?$/, tab: '#/menus', nav: '#/preps', title: '미리 만든 재료', run: (box) => preps.renderList(box) },

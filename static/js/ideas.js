@@ -88,7 +88,7 @@ function card(x, target) {
   return h('article', { class: `id-card${x.missing.length ? '' : ' is-ready'}` },
     h('header', { class: 'id-h' },
       h('div', { class: 'id-meta' }, h('span', { class: 'id-cat xs' }, x.category || '메뉴'), badge(x),
-        isNew ? h('span', { class: 'tag' }, x.src === 'public' ? '공공 레시피' : '자주 파는 메뉴') : null),
+        isNew ? h('span', { class: 'tag' }, x.src === 'stores' ? `${x.stores}곳에서 팔아요` : x.src === 'public' ? '공공 레시피' : '자주 파는 메뉴') : null),
       h('h3', { class: 'id-name' }, x.name),
       x.pitch ? h('p', { class: 'id-pitch small' }, x.pitch) : null),
     recipeMath(x),
@@ -130,7 +130,9 @@ export async function render(box) {
         ready.length && almost.length ? ', ' : null,
         almost.length ? ['1~2개만 더 사면 되는 메뉴 ', h('b', { class: 'n' }, String(almost.length)), '개'] : null,
         '를 찾았어요.'),
-      h('p', { class: 'xs muted' }, `식자재 ${sum.ingredient_count}개와 메뉴 ${sum.menu_count}개의 레시피를 기본 레시피 ${sum.checked}개와 맞춰 봤어요. 재료비·판매가는 보통 1인분 어림값이에요.`),
+      h('p', { class: 'xs muted' }, sum.from_stores
+        ? `식자재 ${sum.ingredient_count}개와 메뉴 ${sum.menu_count}개의 레시피를 레시피 ${sum.checked}개와 맞춰 봤어요. 그중 ${sum.from_stores}개는 여러 사장님이 실제로 파는 메뉴예요. 재료비·판매가는 보통 1인분 어림값이에요.`
+        : `식자재 ${sum.ingredient_count}개와 메뉴 ${sum.menu_count}개의 레시피를 기본 레시피 ${sum.checked}개와 맞춰 봤어요. 재료비·판매가는 보통 1인분 어림값이에요.`),
       h('p', { class: 'xs muted id-legend' }, h('i', { class: 'id-core-dot' }), ' 표시는 ', h('a', { href: '#/menus/map' }, '핵심 식자재'), '예요. 핵심 식자재를 더 쓰는 메뉴는 한 번에 많이 사서 단가를 낮추기 좋아요.')));
 
   let filter = 'all';
@@ -145,6 +147,6 @@ export async function render(box) {
   };
   paint();
   box.append(lead, chips, list,
-    h('p', { class: 'xs muted id-foot' }, '추천은 가게 데이터만으로 계산해요(밖으로 보내지 않아요). ', h('a', { href: '#/menus/map' }, '재료 연결표'), `에서 어떤 재료가 많이 쓰이는지도 볼 수 있어요.`));
+    h('p', { class: 'xs muted id-foot' }, '추천은 원가다이어리 안에서만 계산해요(밖으로 보내지 않아요). 다른 가게의 메뉴는 여러 곳에서 공통으로 쓰는 재료 조합만 모아 쓰고, 가게 이름과 정확한 양은 보여 주지 않아요. ', h('a', { href: '#/menus/map' }, '재료 연결표'), `에서 어떤 재료가 많이 쓰이는지도 볼 수 있어요.`));
 }
 

@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager, closing
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__, config, market, security, routes_account, routes_channels, routes_data, routes_import, routes_breakeven, routes_recipe, routes_sales, routes_area, routes_labor, routes_market, routes_payments, routes_ws, routes_preps, routes_orders, routes_donations, routes_identity, routes_admin, routes_notifications, visits
@@ -178,12 +178,16 @@ def robots():
 GUIDE_DIR = STATIC_DIR / "guide"
 # static/guide/<이름>.html → 마지막으로 고친 날. 새 안내 글을 넣거나 내용을 고치면 여기도 고친다(사이트맵 lastmod로 실림).
 GUIDES = {
-    "cost-calculator": "2026-11-27",
-    "restaurant-cost": "2026-11-27",
-    "menu-cost-rate": "2026-11-26",
-    "receipt-management": "2026-11-27",
+    "no-profit": "2026-11-28",
+    "delivery-profit": "2026-11-28",
+    "cost-calculator": "2026-11-28",
+    "restaurant-cost": "2026-11-28",
+    "menu-cost-rate": "2026-11-28",
+    "receipt-management": "2026-11-28",
 }
-HOME_UPDATED = "2026-11-27"
+# 안내 글 목록(/guide)과 원가다이어리 소개(/about). 사이트맵에 함께 싣는다.
+PAGES = {"guide": ("guide/index.html", "2026-11-28"), "about": ("about.html", "2026-11-28")}
+HOME_UPDATED = "2026-11-28"
 
 
 @app.get("/llms.txt", include_in_schema=False)
@@ -195,10 +199,43 @@ def llms_txt():
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap():
     base = security.site_url()
-    urls = [(f"{base}/", HOME_UPDATED)] + [(f"{base}/guide/{g}", d) for g, d in GUIDES.items()]
+    urls = [(f"{base}/", HOME_UPDATED)] + [(f"{base}/{k}", d) for k, (_, d) in PAGES.items()]
+    urls += [(f"{base}/guide/{g}", d) for g, d in GUIDES.items()]
     body = "".join(f"<url><loc>{u}</loc><lastmod>{d}</lastmod></url>" for u, d in urls)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</urlset>'
     return Response(xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/guide", include_in_schema=False)
+def guide_index(request: Request):
+    visits.record(request)
+    return FileResponse(STATIC_DIR / PAGES["guide"][0], headers={"Cache-Control": "public, max-age=600"})
+
+
+@app.get("/about", include_in_schema=False)
+def about(request: Request):
+    visits.record(request)
+    return FileResponse(STATIC_DIR / PAGES["about"][0], headers={"Cache-Control": "public, max-age=600"})
+
+
+# 같은 글이 /static/... 주소로도 열리면 검색엔진이 중복으로 볼 수 있어, 정식 주소로 옮겨 보낸다.
+@app.get("/static/guide/{name}.html", include_in_schema=False)
+def guide_static_redirect(name: str):
+    if name == "index":
+        return RedirectResponse("/guide", status_code=301)
+    if name in GUIDES:
+        return RedirectResponse(f"/guide/{name}", status_code=301)
+    return PlainTextResponse("찾는 글이 없습니다.", status_code=404)
+
+
+@app.get("/static/about.html", include_in_schema=False)
+def about_static_redirect():
+    return RedirectResponse("/about", status_code=301)
+
+
+@app.get("/static/index.html", include_in_schema=False)
+def index_static_redirect():
+    return RedirectResponse("/", status_code=301)
 
 
 @app.get("/guide/{slug}", include_in_schema=False)

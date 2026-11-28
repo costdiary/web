@@ -106,3 +106,44 @@ def test_share_images_exist():
 def test_google_search_console_verification_tag():
     # 구글 서치 콘솔 소유 확인(URL 접두어 속성). 지우면 서치 콘솔 확인이 풀린다.
     assert '<meta name="google-site-verification" content="QmUOVdTK9b9-jFluD5OaLgMmxPDYIrHWNC1UXkKVSLg">' in c.get("/").text
+
+
+def _faq_pairs(html: str):
+    for block in re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.S):
+        for g in json.loads(block)["@graph"]:
+            if g["@type"] == "FAQPage":
+                return [(q["name"], q["acceptedAnswer"]["text"]) for q in g["mainEntity"]]
+    return []
+
+
+def test_every_guide_shows_its_faq_and_date():
+    from app.main import GUIDES
+    for slug, day in GUIDES.items():
+        html = c.get(f"/guide/{slug}").text
+        pairs = _faq_pairs(html)
+        assert pairs, slug
+        for q, a in pairs:  # 구조화 데이터의 질문·답이 화면에도 그대로 보여야 한다(구글 규칙)
+            assert f"<h3>{q}</h3>" in html and a in html, (slug, q)
+        assert f'datetime="{day}"' in html and f'"dateModified":"{day}"' in html, slug
+        assert 'class="answer"' in html, slug
+
+
+def test_hub_about_redirects_and_sitemap():
+    assert "/guide/no-profit" in c.get("/guide").text
+    about = c.get("/about")
+    assert about.status_code == 200 and "하지 않는 일" in about.text
+    sm = c.get("/sitemap.xml").text
+    for path in ("/guide<", "/about<", "/guide/no-profit<", "/guide/delivery-profit<"):
+        assert path in sm, path
+    r = c.get("/static/guide/no-profit.html", follow_redirects=False)
+    assert r.status_code == 301 and r.headers["location"] == "/guide/no-profit"
+    assert c.get("/static/index.html", follow_redirects=False).headers["location"] == "/"
+    assert c.get("/static/guide/guide.css").status_code == 200
+
+
+def test_home_faq_schema_matches_visible_landing_faq():
+    js = open("static/js/landing.js", encoding="utf-8").read()
+    pairs = _faq_pairs(c.get("/").text)
+    assert len(pairs) == 8
+    for q, _ in pairs:
+        assert f"'{q}'" in js, q

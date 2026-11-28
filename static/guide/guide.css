@@ -67,3 +67,11 @@ header nav a { font-weight: 500; color: var(--link); text-decoration: underline;
   .calc tr.ing td:last-child { justify-self: end; align-self: center; }
 }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* 글 머리: 날짜와 AI·검색이 인용하기 좋은 한 줄 답 */
+.meta { margin: 0 0 16px; font-size: 14px; color: var(--ink-2); }
+.answer { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--btn); border-radius: 12px; padding: 14px 18px; }
+.answer b:first-child { display: block; font-size: 14px; color: var(--ink-2); margin-bottom: 2px; }
+.guide-list { padding-left: 20px; }
+.guide-list li { margin: 14px 0; }
+table.wrap td, table.wrap th { white-space: normal; }

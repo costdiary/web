@@ -6,11 +6,14 @@ import { h, icon, app, ORDERS_ENABLED, DONATE_ENABLED } from './core.js';
 /* main.js의 PC 왼쪽 메뉴도 이 목록을 그대로 쓴다. [주소, 이름, 아이콘, 한 줄 설명] */
 export function sections() {
   return [
+    { title: '처음이세요?', items: [
+      ['#/help', '사용 설명서', 'book', '하나씩 차근차근 따라 하는 설명서. 글자 크게 보기도 여기서 해요.'],
+    ] },
     { title: '원가', items: [
       ['#/invoice', '명세서 올리기', 'camera', '거래명세서·영수증 사진을 올리면 단가가 바뀐 식자재를 찾아 반영해요.'],
       ['#/ingredients', '식자재', 'box', '사 오는 재료와 단가, 가격이 바뀐 기록.'],
       ['#/menus', '메뉴', 'list', '메뉴별 재료비와 원가율, 목표에 맞는 판매가.'],
-      ['#/preps', '프렙 레시피', 'cook', '육수·소스처럼 미리 만들어 두는 것의 원가.'],
+      ['#/preps', '미리 만든 재료', 'cook', '육수·양념장·반죽처럼 미리 만들어 두는 것(프렙)의 원가.'],
     ] },
     { title: '매출·손익', items: [
       ['#/sales', '내 매출', 'trend', '날짜별 매출을 넣고 이번 달 목표와 비교해요.'],

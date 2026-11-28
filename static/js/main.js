@@ -25,6 +25,7 @@ import { initAnalytics, page as gaPage } from './analytics.js';
 import { MARKET_ENABLED, setMarketEnabled, ORDERS_ENABLED, setOrdersEnabled, DONATE_ENABLED, setDonateEnabled } from './core.js';
 import { openResetPassword, openSignup } from './auth.js';
 import { consumeIdentityReturn, identityBox } from './identity.js';
+import * as help from './help.js';
 
 const root = document.getElementById('app');
 let token = 0;
@@ -55,14 +56,16 @@ function getRoutes() {
     { re: /^#\/menus\/photo\/?$/, tab: '#/menus', title: '사진으로 메뉴 만들기', run: (box) => recipe.render(box) },
     { re: /^#\/menus\/new\/?$/, tab: '#/menus', title: '새 메뉴', run: (box) => menus.renderEditor(box, null) },
     { re: /^#\/menus\/(\d+)\/?$/, tab: '#/menus', title: '메뉴 수정', run: (box, m) => menus.renderEditor(box, Number(m[1])) },
-    { re: /^#\/preps\/?$/, tab: '#/menus', nav: '#/preps', title: '프렙 레시피', run: (box) => preps.renderList(box) },
-    { re: /^#\/preps\/new\/?$/, tab: '#/menus', nav: '#/preps', title: '새 프렙', run: (box) => preps.renderEditor(box, null) },
-    { re: /^#\/preps\/(\d+)\/?$/, tab: '#/menus', nav: '#/preps', title: '프렙 수정', run: (box, m) => preps.renderEditor(box, Number(m[1])) },
+    { re: /^#\/preps\/?$/, tab: '#/menus', nav: '#/preps', title: '미리 만든 재료', run: (box) => preps.renderList(box) },
+    { re: /^#\/preps\/new\/?$/, tab: '#/menus', nav: '#/preps', title: '미리 만든 재료 추가', run: (box) => preps.renderEditor(box, null) },
+    { re: /^#\/preps\/(\d+)\/?$/, tab: '#/menus', nav: '#/preps', title: '미리 만든 재료 고치기', run: (box, m) => preps.renderEditor(box, Number(m[1])) },
     { re: /^#\/invoice\/?$/, tab: '#/invoice', title: '거래명세서', run: (box) => invoice.render(box) },
     { re: /^#\/settings\/?$/, tab: '#/more', nav: '#/settings', title: '설정', run: (box) => settings.render(box) },
     { re: /^#\/import\/?$/, tab: '#/more', nav: '#/import', title: '가져오기', run: (box) => importer.render(box) },
     { re: /^#\/more\/?$/, tab: '#/more', title: '전체 메뉴', run: (box) => more.render(box) },
     { re: /^#\/revenue\/?$/, tab: '#/more', title: '전체 메뉴', run: (box) => more.render(box) }, // 예전 '매출관리' 주소
+    { re: /^#\/help\/?$/, tab: '#/more', nav: '#/help', title: '사용 설명서', run: (box) => help.render(box, null) },
+    { re: /^#\/help\/([a-z]+)\/?$/, tab: '#/more', nav: '#/help', title: '사용 설명서', run: (box, m) => help.render(box, m[1]) },
     { re: /^#\/feedback\/?$/, tab: '#/more', nav: '#/feedback', title: '개선사항 요청', run: (box) => feedbackPage.render(box) },
     { re: /^#\/notifications\/?$/, tab: '#/more', nav: '#/notifications', title: '알림', run: (box) => notifPage.render(box) },
     { re: /^#\/breakeven\/?$/, tab: '#/more', nav: '#/breakeven', title: '손익분기·목표 매출', run: (box) => breakeven.render(box) },
@@ -255,6 +258,7 @@ bus.addEventListener('me-changed', () => {
   if (app.me?.notifications) notifPage.setUnread(app.me.notifications.unread);
 });
 
+help.applyTextSize(); // 사용 설명서에서 고른 글자 크기(이 기기에 저장)
 boot();
 
 if ('serviceWorker' in navigator) {

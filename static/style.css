@@ -102,7 +102,7 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font: 400 16px/1.6 var(--font-ui);
+  font: 400 1rem/1.6 var(--font-ui);
   word-break: keep-all;
   overflow-wrap: anywhere;
   -webkit-font-smoothing: antialiased;
@@ -2185,3 +2185,94 @@ a.dm-stat:active { transform: scale(0.98); }
 .cal-sw.miss { background: var(--amber-soft); box-shadow: inset 0 0 0 1px var(--amber); }
 .cal-sw.np { border-radius: 50%; width: 6px; height: 6px; background: var(--btn); }
 @media (max-width: 380px) { .cal-cell { min-height: 46px; padding: 4px 2px 5px; } .cal-amt { font-size: 0.6875rem; } }
+
+/* ---------- 글자 크기 (사용 설명서에서 고름, 이 기기에만 저장: help.js) ----------
+   화면 글자는 대부분 rem이라 html 글자 크기만 키우면 앱 전체가 같이 커진다. */
+html[data-text="lg"] { font-size: 112.5%; }
+html[data-text="xl"] { font-size: 125%; }
+
+/* ---------- 사용 설명서 (#/help) ----------
+   어르신 사장님도 읽기 쉽게: 본문 1.0625rem 이상, 줄 간격 넉넉히, 번호는 크게, 누를 곳은 44px 이상. */
+.hp { max-width: 760px; }
+.hp-lead { font-size: 1.0625rem; line-height: 1.75; }
+.hp-sizebox { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hp-size-t { font-weight: 700; font-size: 1.0625rem; }
+.hp-size { display: flex; gap: 8px; flex-wrap: wrap; }
+.hp-size-btn { display: inline-flex; align-items: baseline; gap: 6px; min-height: 48px; padding: 0 14px; border: 1.5px solid var(--rule-2); border-radius: var(--r); background: var(--sheet); font-weight: 600; }
+.hp-size-btn[aria-pressed="true"] { border-color: var(--btn); background: var(--btn); color: #fff; }
+.hp-size-a { font-family: var(--font-head); font-weight: 700; line-height: 48px; }
+.s-md .hp-size-a { font-size: 1rem; }
+.s-lg .hp-size-a { font-size: 1.25rem; }
+.s-xl .hp-size-a { font-size: 1.5rem; }
+
+.hp-list { display: grid; gap: 10px; }
+.hp-item { display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 14px 16px; border: 1px solid var(--rule); border-radius: var(--r-lg); background: var(--sheet); color: var(--ink); text-decoration: none; box-shadow: var(--shadow-1); }
+.hp-item:hover { border-color: var(--rule-2); }
+.hp-item > svg { flex: none; color: var(--ink-3); margin-left: auto; }
+.hp-num { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 999px; background: var(--amber-soft); color: var(--ink); font-size: 1.125rem; }
+.hp-item-t { display: grid; gap: 2px; min-width: 0; }
+.hp-item-t b { font-size: 1.125rem; font-family: var(--font-head); }
+.hp-item-t span { color: var(--ink-2); font-size: 0.9375rem; }
+
+.hp-head { display: flex; align-items: center; gap: 14px; margin: 4px 2px 14px; }
+.hp-head h1 { font-family: var(--font-head); font-size: 1.5rem; line-height: 1.3; letter-spacing: -0.02em; }
+.hp-sub { color: var(--ink-2); font-size: 1rem; margin-top: 2px; }
+.hp-ic { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: var(--r-lg); background: var(--amber-soft); color: var(--btn); }
+.hp-body { display: grid; gap: 16px; padding: 20px 18px; font-size: 1.0625rem; line-height: 1.75; }
+.hp-body p { margin: 0; }
+.main .hp-body > .hp-h2 { font-family: var(--font-head); font-size: 1.375rem; font-weight: 700; color: var(--ink); line-height: 1.35; margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--rule); }
+
+.hp-steps { counter-reset: hp; display: grid; gap: 0; }
+.hp-steps > li { counter-increment: hp; position: relative; display: flex; gap: 14px; padding-bottom: 18px; }
+.hp-steps > li::before { content: counter(hp); flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: var(--btn); color: #fff; font-family: var(--font-num); font-weight: 700; font-size: 1.0625rem; position: relative; z-index: 1; }
+.hp-steps > li:not(:last-child)::after { content: ''; position: absolute; left: 17px; top: 36px; bottom: 0; width: 2px; background: var(--rule-2); }
+.hp-step-body { display: grid; gap: 6px; padding-top: 4px; min-width: 0; }
+.hp-step-body h3 { font-size: 1.125rem; line-height: 1.6; font-weight: 700; }
+.hp-step-body p { color: var(--ink-2); }
+
+/* 화면 속 버튼·아래 메뉴를 그대로 닮은 그림: "이걸 누르세요" */
+.hp-btn, .hp-tab { display: inline-flex; align-items: center; gap: 4px; vertical-align: 1px; padding: 1px 10px; border-radius: var(--r); font-size: 0.9375rem; font-weight: 700; line-height: 1.7; white-space: nowrap; }
+.hp-btn { background: var(--btn); color: #fff; }
+.hp-tab { border: 1.5px solid var(--rule-2); background: var(--sheet-2); color: var(--ink); }
+.hp-btn svg, .hp-tab svg { display: inline-block; }
+
+.hp-tip { padding: 14px 16px; border-radius: var(--r); background: var(--amber-soft); }
+.hp-tip > b { display: block; margin-bottom: 4px; }
+.hp-tip p { line-height: 1.9; }
+.hp-go { justify-self: start; min-height: 52px; padding: 0 20px; font-size: 1.0625rem; }
+.hp-next { display: flex; align-items: center; gap: 10px; margin-top: 14px; min-height: 64px; padding: 12px 16px; border: 1px solid var(--rule); border-radius: var(--r-lg); background: var(--sheet); color: var(--ink); text-decoration: none; }
+.hp-next b { font-size: 1.0625rem; }
+.hp-next svg { margin-left: auto; color: var(--ink-3); }
+
+.hp-example { padding: 16px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--sheet-2); display: grid; gap: 8px; }
+.hp-ex-title { font-weight: 700; font-size: 1.125rem; }
+.hp-eq { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; font-size: 1.0625rem; }
+.hp-eq .op { color: var(--ink-3); font-weight: 700; }
+.hp-eq .res b { font-size: 1.5rem; color: var(--btn); }
+
+.hp-choice, .hp-two { display: grid; gap: 10px; margin-top: 4px; }
+@media (min-width: 640px) { .hp-two { grid-template-columns: 1fr 1fr; } }
+.hp-choice > div, .hp-card { padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: var(--r); background: var(--sheet); display: grid; gap: 4px; }
+.hp-choice p { color: var(--ink-2); }
+.hp-card > b { font-size: 1.0625rem; }
+
+.hp-table-wrap { overflow-x: auto; }
+.hp-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
+.hp-table th, .hp-table td { padding: 10px 8px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+.hp-table th { color: var(--ink-2); font-size: 0.875rem; font-weight: 600; }
+.hp-table td.n { white-space: nowrap; font-size: 1.0625rem; }
+.hp-src { color: var(--ink-3); font-size: 0.875rem; line-height: 1.6; }
+
+/* ---------- 미리 만든 재료(프렙) 입력 ---------- */
+.prep-intro { display: grid; gap: 6px; margin: 0 2px 14px; line-height: 1.7; }
+.prep-mode { padding: 14px; min-height: 64px; }
+.prep-mode > span { display: grid; gap: 2px; }
+.prep-mode b { font-size: 1.0625rem; }
+.prep-mode input { flex: none; width: 22px; height: 22px; margin-top: 2px; }
+.prep-mode:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+.prep-yield { margin-top: 14px; }
+.prep-help { margin-top: 10px; border: 1px solid var(--rule-2); border-radius: var(--r); background: var(--sheet-2); }
+.prep-help > summary { min-height: 48px; display: flex; align-items: center; padding: 0 14px; font-weight: 700; color: var(--blue); cursor: pointer; }
+.prep-help-body { padding: 4px 14px 14px; display: grid; gap: 6px; }
+.prep-calc { padding: 10px 12px; border-radius: var(--r); background: var(--amber-soft); font-size: 1rem; }
+.prep-calc b { font-size: 1.25rem; }

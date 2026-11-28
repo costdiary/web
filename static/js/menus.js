@@ -45,7 +45,7 @@ export async function renderList(box) {
   const add = h('a', { class: 'btn sm', href: '#/menus/new', 'aria-disabled': String(!canWrite) }, icon('plus', 18), '메뉴 추가');
   // 사진으로 만들기 — 정확도 부족으로 비공개 처리
   // const photo = h('a', { class: 'btn ghost sm', href: '#/menus/photo', 'aria-disabled': String(!canWrite) }, icon('camera', 18), '사진으로 만들기');
-  const preps = h('a', { class: 'btn ghost sm', href: '#/preps' }, '프렙 레시피');
+  const preps = h('a', { class: 'btn ghost sm', href: '#/preps' }, '미리 만든 재료');
   box.append(h('div', { class: 'page-h' }, h('h1', null, '메뉴', h('span', { class: 'sub' }, `${items.length}개`)), h('div', { class: 'btn-row' }, preps, add)));
 
   if (!items.length) {
@@ -112,11 +112,13 @@ export async function renderEditor(box, id) {
   const rows = [];
   const defaultUnit = (kind) => ({ g: 'g', ml: 'ml', ea: '개' }[kind]);
 
+  /* 미리 만든 재료를 장·국자로 세면(unit_label) 값은 '개' 그대로 두고 보이는 글자만 바꾼다. */
   function setUnits(r, kind) {
     const opts = kind ? UI_UNITS[kind] : ALL_UNITS;
+    const label = byName.get(r.name.value.trim())?.unit_label || '개';
     const cur = r.unit.value;
-    if ([...r.unit.options].map((o) => o.value).join() === opts.join()) return;
-    r.unit.replaceChildren(...opts.map((u) => h('option', { value: u }, u)));
+    if ([...r.unit.options].map((o) => `${o.value}:${o.textContent}`).join() === opts.map((u) => `${u}:${u === '개' ? label : u}`).join()) return;
+    r.unit.replaceChildren(...opts.map((u) => h('option', { value: u }, u === '개' ? label : u)));
     r.unit.value = opts.includes(cur) ? cur : (kind ? defaultUnit(kind) : 'g');
   }
 

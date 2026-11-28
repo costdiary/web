@@ -131,7 +131,8 @@ function jump(id) {
 export async function render(box) {
   const d = await api('/api/dashboard');
   const s = d.summary;
-  box.append(h('div', { class: 'page-h' }, h('h1', null, '오늘의 원가', h('span', { class: 'sub' }, todayLabel()))));
+  box.append(h('div', { class: 'page-h' }, h('h1', null, '오늘의 원가', h('span', { class: 'sub' }, todayLabel())),
+    h('a', { class: 'btn ghost sm', href: '#/help' }, icon('book', 18), '사용 설명서')));
   if (s.menu_count || s.ingredient_count) box.append(quickActions());
   if (!s.menu_count && !s.ingredient_count) {
     box.append(onboarding());

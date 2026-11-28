@@ -13,7 +13,7 @@ function row(it) {
   const sub = [it.supplier, it.used_in ? `메뉴 ${it.used_in}개에 사용` : '아직 메뉴에 안 씀', it.yield_pct < 100 ? `수율 ${n3(it.yield_pct)}%` : null].filter(Boolean).join(' · ');
   const main = h('div', { class: 'row-main' },
     h('span', { class: 'row-title' }, it.name, newTag(it),
-      it.from_prep_id ? h('span', { class: 'tag' }, '프렙') : (stale ? h('span', { class: 'tag warn' }, `${ago(it.price_checked_at)} 확인`) : null)),
+      it.from_prep_id ? h('span', { class: 'tag' }, '미리 만든') : (stale ? h('span', { class: 'tag warn' }, `${ago(it.price_checked_at)} 확인`) : null)),
     h('div', { class: 'row-sub' }, sub));
   const end = h('div', { class: 'row-end' },
     it.display_price == null

@@ -325,7 +325,7 @@ export async function renderUsers(box) {
   load(true);
 }
 
-const COUNT_LABEL = { ingredients: '식자재', menus: '메뉴', invoices: '명세서', preps: '프렙', daily_sales: '매출 입력일', staff: '직원', ocr_logs: '사진 인식', donations: '후원' };
+const COUNT_LABEL = { ingredients: '식자재', menus: '메뉴', invoices: '명세서', preps: '미리 만든 재료', daily_sales: '매출 입력일', staff: '직원', ocr_logs: '사진 인식', donations: '후원' };
 
 export async function renderUser(box, id) {
   box.append(adminNav('#/admin/users'), h('div', { class: 'page-h' },

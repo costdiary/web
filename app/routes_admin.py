@@ -14,7 +14,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .db import get_db, now_iso, transaction
-from . import auth, security, visits
+from . import auth, mail_guard, security, visits
 from .deps import current_admin
 from .schemas import FeedbackUpdateIn
 
@@ -68,6 +68,7 @@ def site_stats(days: int = 30, admin: dict = Depends(current_admin), db=Depends(
     """가입자 수와 방문자 수(한국 날짜 기준). 방문자는 visits.py 가 첫 화면 요청을 센 값."""
     out = visits.summary(db, days)
     out["feedback_new"] = db.execute("SELECT COUNT(*) FROM feedback WHERE status = 'new'").fetchone()[0]
+    out["mail"] = mail_guard.stats(db)
     return out
 
 

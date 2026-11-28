@@ -165,7 +165,8 @@ export async function renderStats(box) {
           tile('전체 가입자', sg.total, '명', `오늘 +${sg.today} · 7일 +${sg.week}`),
           tile(`최근 ${s.days}일 가입`, sg.period, '명', methods || '아직 없음'),
           tile('오늘 방문자', v.today, '명', `화면 열림 ${nf.format(v.today_views)}회`),
-          tile(`최근 ${s.days}일 방문자`, v.period, '명', [`7일 ${nf.format(v.week)}명`, conv].filter(Boolean).join(' · '))),
+          tile(`최근 ${s.days}일 방문자`, v.period, '명', [`7일 ${nf.format(v.week)}명`, conv].filter(Boolean).join(' · ')),
+          s.mail ? tile('최근 24시간 보낸 메일', s.mail.day, '통', `한도 ${nf.format(s.mail.day_limit)}통 · 가입 인증은 ${nf.format(s.mail.signup_cap)}통까지`) : null),
         h('p', { class: 'hint', style: 'margin-top:12px' },
           v.tracking_since
             ? `방문자는 ${v.tracking_since.replace(/-/g, '.')}부터 세고 있어요. 그 전 날짜는 0으로 보입니다. `

@@ -122,11 +122,13 @@ export async function renderEditor(box, id) {
   const rows = [];
   const defaultUnit = (kind) => ({ g: 'g', ml: 'ml', ea: '개' }[kind]);
 
+  /* 미리 만든 재료를 장·국자로 세면(unit_label) 값은 '개' 그대로 두고 보이는 글자만 바꾼다. */
   function setUnits(r, kind) {
     const opts = kind ? UI_UNITS[kind] : ALL_UNITS;
+    const label = byName.get(r.name.value.trim())?.unit_label || '개';
     const cur = r.unit.value;
-    if ([...r.unit.options].map((o) => o.value).join() === opts.join()) return;
-    r.unit.replaceChildren(...opts.map((u) => h('option', { value: u }, u)));
+    if ([...r.unit.options].map((o) => `${o.value}:${o.textContent}`).join() === opts.map((u) => `${u}:${u === '개' ? label : u}`).join()) return;
+    r.unit.replaceChildren(...opts.map((u) => h('option', { value: u }, u === '개' ? label : u)));
     r.unit.value = opts.includes(cur) ? cur : (kind ? defaultUnit(kind) : 'g');
   }
 

@@ -635,7 +635,7 @@ CREATE TABLE IF NOT EXISTS preps (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  unit_kind TEXT NOT NULL CHECK (unit_kind IN ('g', 'ml')),
+  unit_kind TEXT NOT NULL CHECK (unit_kind IN ('g', 'ml', 'ea')),
   yield_qty REAL NOT NULL DEFAULT 0,
   ingredient_id INTEGER REFERENCES ingredients(id) ON DELETE CASCADE,
   updated_at TEXT NOT NULL,
@@ -834,7 +834,10 @@ def connect() -> sqlite3.Connection:
 #     기존 행은 언제 만들었는지 몰라 비워 둔다(NEW로 보이지 않음). 예시 데이터(seed.py)도 비워 둔다.
 # 23: 분류·등급·부위 자동완성 후보를 정육 밖의 분류까지 넉넉히(TERMS_SEED_V23, 약 640개) — INSERT OR IGNORE라 사장님 값은 그대로.
 # 24: 보낸 메일 기록(mail_log) — 새 표라 SCHEMA의 CREATE TABLE IF NOT EXISTS로 적용됨(ALTER 불필요). 번호만 올린다.
-SCHEMA_VERSION = 24
+# 25: 미리 만든 재료(프렙)를 개수(장·개)나 국자 수로도 셀 수 있게 — preps.unit_kind에 'ea'를 허용한다.
+#     SQLite는 CHECK를 고칠 수 없어 preps 표를 새로 만들어 옮긴다(다른 표가 preps를 가리키므로 그동안만
+#     외래 키 검사를 끈다). ingredients.unit_label: '개' 대신 보여 줄 말(장·국자·개). 비어 있으면 '개'.
+SCHEMA_VERSION = 25
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
@@ -846,6 +849,11 @@ def migrate(conn: sqlite3.Connection) -> None:
     """예전 버전으로 만든 데이터베이스를 지금 구조로 맞춥니다. 칸만 더하고 기존 데이터는 건드리지 않습니다."""
     if conn.execute("PRAGMA user_version").fetchone()[0] >= SCHEMA_VERSION:
         return
+    # 25번: preps 표를 새로 만들 때 DROP TABLE이 연결된 식자재·재료 줄까지 지우지 않게, 트랜잭션 밖에서 외래 키를 끈다.
+    preps_sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='preps'").fetchone()
+    rebuild_preps = bool(preps_sql) and "'ea'" not in preps_sql[0]
+    if rebuild_preps:
+        conn.execute("PRAGMA foreign_keys = OFF")
     conn.execute("BEGIN IMMEDIATE")
     try:
         # 다른 프로세스가 먼저 끝냈을 수 있어 잠근 뒤에 한 번 더 확인합니다.
@@ -972,11 +980,38 @@ def migrate(conn: sqlite3.Connection) -> None:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN created_at TEXT")
         if conn.execute("PRAGMA user_version").fetchone()[0] < 23:
             conn.executemany("INSERT OR IGNORE INTO mk_terms(kind, category, term) VALUES (?,?,?)", market_catalog.TERMS_SEED_V23)
+        if conn.execute("PRAGMA user_version").fetchone()[0] < 25:
+            if "unit_label" not in _columns(conn, "ingredients"):
+                conn.execute("ALTER TABLE ingredients ADD COLUMN unit_label TEXT")
+            if rebuild_preps:
+                cols = [c for c in ("id", "user_id", "name", "unit_kind", "yield_qty", "ingredient_id", "updated_at", "created_at")
+                        if c in _columns(conn, "preps")]
+                conn.execute(
+                    "CREATE TABLE preps_v25 ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    "user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, "
+                    "name TEXT NOT NULL, "
+                    "unit_kind TEXT NOT NULL CHECK (unit_kind IN ('g', 'ml', 'ea')), "
+                    "yield_qty REAL NOT NULL DEFAULT 0, "
+                    "ingredient_id INTEGER REFERENCES ingredients(id) ON DELETE CASCADE, "
+                    "updated_at TEXT NOT NULL, "
+                    "created_at TEXT, "
+                    "UNIQUE (user_id, name))"
+                )
+                col_sql = ", ".join(cols)  # 위의 고정 목록에서만 고른 이름
+                conn.execute(f"INSERT INTO preps_v25({col_sql}) SELECT {col_sql} FROM preps")  # nosec B608
+                conn.execute("DROP TABLE preps")
+                conn.execute("ALTER TABLE preps_v25 RENAME TO preps")
+                if conn.execute("PRAGMA foreign_key_check").fetchone():
+                    raise RuntimeError("preps 표를 옮기는 중 연결이 깨졌습니다.")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.execute("COMMIT")
     except BaseException:
         conn.execute("ROLLBACK")
         raise
+    finally:
+        if rebuild_preps:
+            conn.execute("PRAGMA foreign_keys = ON")
 
 
 def init_db() -> None:

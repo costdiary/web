@@ -43,6 +43,9 @@ def ing_view(r, chg: dict | None = None, used: int = 0) -> dict:
     kind = r["unit_kind"]
     up = r["unit_price"]
     disp_unit = units.DISPLAY[kind][0]
+    label = r.get("unit_label") if kind == "ea" else None  # 미리 만든 재료를 장·국자로 셀 때
+    if label:
+        disp_unit = label
     disp_price = units.display_price(kind, up)[0] if up is not None else None
     eff = costing.eff_unit_cost(up, r["yield_pct"]) if up is not None else None
     eff_disp = units.display_price(kind, eff)[0] if eff is not None else None
@@ -56,6 +59,7 @@ def ing_view(r, chg: dict | None = None, used: int = 0) -> dict:
         "cut": r["cut"],
         "from_prep_id": r["from_prep_id"],
         "kind": kind,
+        "unit_label": label or None,
         "unit_choices": units.UI_UNITS[kind],
         "pack_size": r["pack_size"],
         "pack_unit": r["pack_unit"],
@@ -185,7 +189,7 @@ def delete_price_history(iid: int, hid: int, user: dict = Depends(writable_user)
     uid = user["id"]
     ing = _owned(db, "ingredients", iid, uid)
     if ing["from_prep_id"] is not None:
-        raise HTTPException(409, "이 식자재는 프렙 레시피에서 자동으로 계산됩니다. 프렙 화면에서 수정해 주세요.")
+        raise HTTPException(409, "이 식자재는 '미리 만든 재료'에서 자동으로 계산됩니다. 그 화면에서 고쳐 주세요.")
     rows = db.execute(
         "SELECT * FROM price_history WHERE ingredient_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC",
         (iid, uid),
@@ -222,7 +226,7 @@ def update_ingredient(iid: int, body: IngredientIn, user: dict = Depends(writabl
     uid = user["id"]
     ing = _owned(db, "ingredients", iid, uid)
     if ing["from_prep_id"] is not None:
-        raise HTTPException(409, "이 식자재는 프렙 레시피에서 자동으로 계산됩니다. 프렙 화면에서 수정해 주세요.")
+        raise HTTPException(409, "이 식자재는 '미리 만든 재료'에서 자동으로 계산됩니다. 그 화면에서 고쳐 주세요.")
     unit = _canon(body.pack_unit)
     kind, _ = units.to_base(body.pack_size, unit)
     kind_changed = kind != ing["unit_kind"]
@@ -263,7 +267,7 @@ def delete_ingredient(iid: int, user: dict = Depends(writable_user), db=Depends(
     uid = user["id"]
     ing = _owned(db, "ingredients", iid, uid)
     if ing["from_prep_id"] is not None:
-        raise HTTPException(409, "이 식자재는 프렙 레시피에서 자동으로 만들어집니다. 프렙 화면에서 삭제해 주세요.")
+        raise HTTPException(409, "이 식자재는 '미리 만든 재료'에서 자동으로 만들어집니다. 그 화면에서 지워 주세요.")
     menus = db.execute(
         "SELECT DISTINCT m.name FROM menu_items mi JOIN menus m ON m.id = mi.menu_id WHERE mi.ingredient_id = ?",
         (iid,),

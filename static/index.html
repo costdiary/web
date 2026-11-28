@@ -83,7 +83,7 @@
     "식자재 단가와 가격 변동 이력",
     "수율을 반영한 실제 사용 단가",
     "메뉴별 원가율·남는 돈·목표 원가율 권장 판매가",
-    "육수·소스 같은 프렙 레시피 원가",
+    "육수·양념장·반죽 같은 미리 만든 재료(프렙) 원가",
     "배달의민족·쿠팡이츠 수수료와 배달비를 뺀 배달 손익",
     "고정비·직원 급여(주휴수당 포함)로 손익분기 매출",
     "엑셀·CSV 가져오기와 내려받기"
@@ -168,7 +168,7 @@
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/brand/touch-icon-192.png">
-  <link rel="stylesheet" href="/static/style.css?v=15">
+  <link rel="stylesheet" href="/static/style.css?v=16">
   <link rel="stylesheet" href="/static/fonts/noto/noto.css?v=1">
   <link rel="stylesheet" href="/static/landing.css?v=6">
 </head>
@@ -199,7 +199,7 @@
           <li>거래명세서 사진을 올리면 품목·규격·단가를 읽어 지난 단가와 비교해 보여 줘요(월 5회, 테스트중). 영수증은 직접 입력해도 돼요.</li>
           <li>식자재 단가와 가격 변동 이력을 한곳에 모으고, 수율을 반영한 실제 사용 단가를 계산해요.</li>
           <li>메뉴에 재료와 양을 담으면 원가율과 한 그릇에 남는 돈, 목표 원가율에 맞춘 권장 판매가가 나와요. 단가가 바뀌면 영향받는 메뉴가 모두 다시 계산돼요.</li>
-          <li>육수·소스 같은 프렙 레시피도 g·ml당 원가로 계산해요. 부가세 포함·별도 기준을 고를 수 있어요.</li>
+          <li>육수·양념장·반죽 같은 미리 만든 재료(프렙)도 1장·1국자·g·ml당 원가로 계산해요. 부가세 포함·별도 기준을 고를 수 있어요.</li>
           <li>배달의민족·쿠팡이츠 중개 수수료, 결제 수수료, 배달비, 부가세를 뺀 배달 한 건의 남는 돈과 앱별 권장 판매가를 계산해요. 앱과 자동 연동하지는 않아요.</li>
           <li>월세 같은 고정비와 직원 급여(주휴수당 포함)를 넣으면 하루 몇 그릇을 팔아야 본전인지, 손익분기 매출을 계산해요.</li>
           <li>쓰던 엑셀(.xlsx)·CSV를 그대로 올려 옮기고, 언제든 엑셀(CSV)로 내려받을 수 있어요.</li>
@@ -249,7 +249,7 @@
   </div>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
   <noscript><p class="noscript">원가다이어리는 자바스크립트를 켜야 사용할 수 있습니다.</p></noscript>
-  <script type="module" src="/static/js/main.js?v=26"></script>
+  <script type="module" src="/static/js/main.js?v=27"></script>
   <script type="module" src="/static/js/inspect.js"></script>
 </body>
 </html>

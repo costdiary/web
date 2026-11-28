@@ -133,9 +133,11 @@ class PrepItemIn(Base):
 
 class PrepIn(Base):
     name: str = Field(min_length=1, max_length=60)
-    unit_kind: Literal["g", "ml"]
+    unit_kind: Literal["g", "ml", "ea"]
     yield_qty: float = Field(gt=0, le=1_000_000)
     yield_unit: str = Field(min_length=1, max_length=10)
+    # 개수로 셀 때(unit_kind='ea') 화면에 보여 줄 말. 김치전 반죽 → '장', 몇 국자 나오는지로 셀 때 → '국자'.
+    count_label: Literal["개", "장", "국자", "인분"] | None = None
     items: list[PrepItemIn] = Field(default_factory=list, max_length=30)
 
 

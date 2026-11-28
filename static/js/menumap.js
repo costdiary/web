@@ -89,7 +89,7 @@ export async function render(box) {
       'aria-label': `${m.name}, 재료 ${m.ingredients.length}개`,
     },
     h('span', { class: 'mm-name' }, m.name),
-    h('span', { class: 'mm-msub' }, `재료 ${m.ingredients.length}`, m.preps.length ? h('span', { class: 'mm-prep-dot', title: `프렙: ${m.preps.join(', ')}` }, '프렙') : null));
+    h('span', { class: 'mm-msub' }, `재료 ${m.ingredients.length}`, m.preps.length ? h('span', { class: 'mm-prep-dot', title: `미리 만든 재료: ${m.preps.join(', ')}` }, '미리 만든') : null));
     menuNodes.set(m.id, b);
     return h('li', null, b);
   }));
@@ -213,7 +213,7 @@ export async function render(box) {
     if (!sel) {
       fill(panel, h('div', { class: 'mm-hint' },
         h('p', { class: 'small' }, h('b', null, '재료나 메뉴를 눌러 보세요.')),
-        h('p', { class: 'xs muted' }, '선이 많이 모이는 재료일수록 여러 메뉴에 들어가요. 점선은 육수·양념장 같은 프렙에 들어가서 메뉴로 이어지는 재료예요.')));
+        h('p', { class: 'xs muted' }, '선이 많이 모이는 재료일수록 여러 메뉴에 들어가요. 점선은 육수·양념장 같은 미리 만든 재료에 들어가서 메뉴로 이어지는 재료예요.')));
       panel.classList.remove('open');
       return;
     }
@@ -265,7 +265,7 @@ export async function render(box) {
     h('li', null, h('i', { class: 'lg core' }), '핵심 식자재'),
     h('li', null, h('i', { class: 'lg often' }), '여러 메뉴'),
     h('li', null, h('i', { class: 'lg some' }), '한 메뉴'),
-    h('li', null, h('i', { class: 'lg via' }), '프렙을 거쳐서'));
+    h('li', null, h('i', { class: 'lg via' }), '미리 만든 재료를 거쳐서'));
   const grid = h('div', { class: 'mm-wrap' }, h('div', { class: 'mm-main' }, graph), panel);
   let ro = null;
   function paintView() {

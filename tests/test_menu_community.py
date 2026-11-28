@@ -67,8 +67,9 @@ def test_shared_menus_become_ideas():
         by = {x["name"]: x for x in res["items"]}
         assert "목살김치볶음" in by, list(by)
         x = by["목살김치볶음"]
-        assert x["src"] == "stores" and x["stores"] == 3
-        assert "3곳" in x["pitch"]
+        assert x["src"] == "stores" and "stores" not in x
+        assert x["pitch"] == "바로 만들 수 있는 추천 메뉴예요."
+        assert "곳" not in x["pitch"]
         names = {ln["name"] for ln in x["lines"]}
         # 세 곳 모두 쓰는 재료만, 재료 가족 이름으로
         assert names == {"돼지고기", "배추김치", "양파"}, names
@@ -77,7 +78,27 @@ def test_shared_menus_become_ideas():
         assert qty["돼지고기"] == 180 and qty["배추김치"] == 120 and qty["양파"] == 40  # 가운데 값
         assert not any(s in str(x) for s in ("가게A", "가게B", "가게C", "비밀소스"))
         assert "두 곳만 파는 볶음" not in by
-        assert res["summary"]["from_stores"] >= 1
+
+
+def test_secret_ingredient_hidden():
+    """열 곳 중 한 곳만 넣는 조미료(비법)나 일곱 곳만 넣는 재료는 안 나오고, 가장 많이 겹치는 재료만 나온다."""
+    with TestClient(app) as c:
+        for i in range(10):
+            items = [("돼지 앞다리살", 200), ("양파", 50), ("고추장", 30)]
+            if i == 0:
+                items.append(("혼다시", 3))
+            if i < 7:
+                items.append(("깻잎", 5))
+            _store(c, f"제육집{i}", [("비법제육", items)])
+        menu_community.clear()
+        from app.db import connect
+        conn = connect()
+        try:
+            r = next(r for r in menu_community.recipes(conn) if r["name"] == "비법제육")
+            names = {n for n, _q, _u in r["lines"]}
+            assert names == {"돼지고기", "양파", "고추장"}, names
+        finally:
+            conn.close()
 
 
 def test_own_store_not_counted():

@@ -10,6 +10,8 @@ build_map(): 어떤 식자재가 어떤 메뉴(프렙 레시피를 거쳐 들어
 suggest(): 가게가 이미 사 오는 식자재와 기본 레시피(menu_ideas_data.IDEAS), 공공 레시피(refdata,
   있을 때만), 자주 파는 메뉴의 기본 레시피(menu_presets, 있을 때만)를 맞춰 보고,
   새로 살 재료가 없거나 1~2개뿐인 메뉴를 추천합니다. 이미 파는 메뉴와 이름이 겹치면 뺍니다.
+  사장님들이 등록한 메뉴가 쌓이면 여러 가게에서 공통으로 나타나는 재료 조합(app/menu_community.py)도
+  후보로 쓰고, 파는 가게가 많을수록 점수를 더 줘서 기본 레시피보다 앞에 나오게 합니다.
 """
 from __future__ import annotations
 
@@ -238,18 +240,32 @@ def build_map(db, user: dict) -> dict:
 
 # ------------------------------------------------------------------ 메뉴 추천
 
-def _recipes() -> list[dict]:
-    """추천 후보 레시피(이름이 같으면 먼저 넣은 것만). 기본 레시피 → 자주 파는 메뉴 → 공공 레시피 순."""
+def _recipes(db=None, uid: int | None = None) -> list[dict]:
+    """추천 후보 레시피(이름이 같으면 먼저 넣은 것만).
+    여러 가게가 함께 파는 메뉴(menu_community) → 기본 레시피 → 자주 파는 메뉴 → 공공 레시피 순.
+    같은 이름이면 실제 가게 데이터가 기본 레시피를 대신합니다."""
     out: list[dict] = []
     seen: set[str] = set()
 
-    def put(name, category, aliases, lines, pitch, src):
+    def put(name, category, aliases, lines, pitch, src, stores=0):
         k = key(name)
         if not k or k in seen or len(lines) < 2:
             return
         seen.add(k)
-        out.append({"name": name, "category": category, "aliases": tuple(aliases), "lines": lines, "pitch": pitch, "src": src})
+        for a in aliases:
+            if key(a):
+                seen.add(key(a))
+        out.append({"name": name, "category": category, "aliases": tuple(aliases), "lines": lines, "pitch": pitch,
+                    "src": src, "stores": stores})
 
+    if db is not None:
+        try:
+            from . import menu_community
+            for r in menu_community.recipes(db, exclude_user_id=uid):
+                put(r["name"], r["category"], r["aliases"], r["lines"],
+                    f"사장님 {r['stores']}곳이 파는 메뉴예요. 재료와 양은 여러 가게를 모은 어림값이에요.", "stores", r["stores"])
+        except Exception:  # noqa: BLE001 - 모으기에 실패해도 추천은 기본 레시피로 계속
+            pass
     for name, cat, aliases, lines, pitch in IDEAS:
         put(name, cat, aliases, [(n, q, u) for n, q, u in lines], pitch, "basic")
     try:  # 메뉴 만들기(그릇 채우기) 화면의 기본 레시피가 들어와 있으면 같이 씁니다.
@@ -355,8 +371,9 @@ def suggest(db, user: dict, limit: int = 12) -> dict:
     target = user["target_cost_ratio"]
     vat = user["vat_mode"]
     ideas = []
-    recipes = _recipes()
+    recipes = _recipes(db, uid)
     n_recipes = len(recipes)
+    n_stores_recipes = sum(1 for r in recipes if r["src"] == "stores")
     for rec in recipes:
         if already_sold(rec):
             continue
@@ -425,6 +442,9 @@ def suggest(db, user: dict, limit: int = 12) -> dict:
         real_adds = [a for a in add_list if a["id"]]
         score = (100 * have / mains - 18 * len(missing) + 7 * min(len(real_adds), 3) + 4 * min(len(core_used), 3)
                  - (8 if not add_list and not missing else 0) + (16 if from_side else 0) - (12 if side_cat else 0))
+        if rec["stores"]:
+            from .menu_community import store_bonus
+            score += store_bonus(rec["stores"])  # 실제로 파는 가게가 많을수록 앞으로
         sources = ([base] if base else []) + real_adds
         cost = sum(ln["cost"] or 0 for ln in lines)
         unknown = [ln["name"] for ln in lines if ln["cost"] is None and not ln["basic"]]
@@ -436,7 +456,7 @@ def suggest(db, user: dict, limit: int = 12) -> dict:
         if price and price < 5000 and not side_cat:
             score -= 8  # 한 끼 메인으로는 너무 싼 것(콩나물밥 3천 원 같은)은 조금 뒤로
         ideas.append({
-            "name": rec["name"], "category": rec["category"], "pitch": rec["pitch"], "src": rec["src"],
+            "name": rec["name"], "category": rec["category"], "pitch": rec["pitch"], "src": rec["src"], "stores": rec["stores"],
             "lines": lines, "missing": missing, "have": have, "mains": mains,
             "sources": sources, "base": base, "adds": add_list,
             "core_used": core_used, "score": round(score, 1), "from_side": from_side,
@@ -445,24 +465,35 @@ def suggest(db, user: dict, limit: int = 12) -> dict:
         })
     ideas.sort(key=lambda x: (len(x["missing"]), -x["score"], x["name"]))
 
-    def pick(group: list[dict], n: int) -> list[dict]:
+    # 여러 가게가 실제로 파는 메뉴는 자리를 따로 맡아 둔다. 처음(모인 메뉴가 적을 때)은 2자리,
+    # 모인 메뉴가 5개 늘 때마다 1자리씩 늘어 최대 6자리. 나머지는 기본 레시피와 같은 순서로 채운다.
+    reserve = min(6, 2 + n_stores_recipes // 5) if n_stores_recipes else 0
+
+    def pick(group: list[dict], n: int, keep: int = 0) -> list[dict]:
         # 한 분류(찌개·볶음…)로 몰리지 않게 같은 분류는 3개까지
         out, per_cat = [], defaultdict(int)
+        chosen: set[int] = set()
+        if keep:
+            for x in [x for x in group if x["src"] == "stores"][:keep]:
+                chosen.add(id(x))
+                per_cat[x["category"]] += 1
         for x in group:
-            if per_cat[x["category"]] >= 3:
+            if len(out) + len(chosen) >= n:
+                break
+            if id(x) in chosen or per_cat[x["category"]] >= 3:
                 continue
             per_cat[x["category"]] += 1
             out.append(x)
-            if len(out) >= n:
-                break
-        return out
+        picked = {id(x) for x in out} | chosen
+        return [x for x in group if id(x) in picked]
 
-    ready = pick([x for x in ideas if not x["missing"]], 8)
-    almost = pick([x for x in ideas if x["missing"]], max(0, limit - len(ready)) or 4)
+    ready = pick([x for x in ideas if not x["missing"]], 8, reserve)
+    almost = pick([x for x in ideas if x["missing"]], max(0, limit - len(ready)) or 4, min(2, reserve))
     return {
         "items": ready + almost,
         "summary": {
             "ingredient_count": len(raw), "menu_count": len(menus), "target": target,
             "ready": len(ready), "almost": len(almost), "candidates": len(ideas), "checked": n_recipes,
+            "from_stores": n_stores_recipes,
         },
     }

@@ -1,5 +1,6 @@
 /* 프렙 레시피: 미리 끓여 두는 육수·소스처럼 메뉴에 재사용하는 중간 재료를 g(또는 ml)당 원가로 관리합니다.
    만들면 전용 식자재 한 줄이 자동으로 생겨, 메뉴 재료 목록에서 식자재처럼 바로 쓸 수 있습니다. */
+import { menuTabs } from './menutabs.js';
 import {
   h, api, app, field, numInput, selectOf, parseNum, n0, n3, icon, go, refreshRoute, fill,
   confirmDialog, busy, toast, errMsg, UNIT, UI_UNITS, ALL_UNITS,
@@ -24,8 +25,8 @@ export async function renderList(box) {
   const canWrite = app.me.plan.writable;
   box.append(
     h('div', { class: 'page-h' },
-      h('a', { class: 'btn ghost sm', href: '#/menus' }, icon('back', 18), '메뉴 목록'),
       h('h1', null, '프렙 레시피', h('span', { class: 'sub' }, `${items.length}개`))),
+    menuTabs('#/preps'),
     h('p', { class: 'hint', style: 'margin-bottom:10px' }, '멸치육수·양념소스처럼 미리 만들어 두는 중간 재료의 재료비를 g(ml)당 원가로 바꿔서, 메뉴 원가 계산에 식자재처럼 바로 씁니다.'));
 
   if (!items.length) {

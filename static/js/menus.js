@@ -5,6 +5,14 @@ import {
 } from './core.js';
 import { marginBar, stamp, num, emptyBlock, stmt, sgn, localSuggest } from './ui.js';
 import { menuTotals, channelResult, flatChannel, effUnitCost } from './calc.js';
+import { menuTabs } from './menutabs.js';
+
+/* 메뉴 추천(ideas.js)에서 '이 메뉴 만들어 보기'를 누르면 새 메뉴 화면을 이 값으로 미리 채워 연다. */
+let draft = null;
+export function openDraft(d) {
+  draft = d;
+  go('#/menus/new');
+}
 
 /* ------------------------------------------------------------ 목록 */
 
@@ -45,8 +53,8 @@ export async function renderList(box) {
   const add = h('a', { class: 'btn sm', href: '#/menus/new', 'aria-disabled': String(!canWrite) }, icon('plus', 18), '메뉴 추가');
   // 사진으로 만들기 — 정확도 부족으로 비공개 처리
   // const photo = h('a', { class: 'btn ghost sm', href: '#/menus/photo', 'aria-disabled': String(!canWrite) }, icon('camera', 18), '사진으로 만들기');
-  const preps = h('a', { class: 'btn ghost sm', href: '#/preps' }, '프렙 레시피');
-  box.append(h('div', { class: 'page-h' }, h('h1', null, '메뉴', h('span', { class: 'sub' }, `${items.length}개`)), h('div', { class: 'btn-row' }, preps, add)));
+  box.append(h('div', { class: 'page-h' }, h('h1', null, '메뉴', h('span', { class: 'sub' }, `${items.length}개`)), h('div', { class: 'btn-row' }, add)),
+    menuTabs('#/menus'));
 
   if (!items.length) {
     box.append(h('section', { class: 'sheet' }, emptyBlock({
@@ -93,19 +101,21 @@ export async function renderEditor(box, id) {
   const ings = ingRes.items;
   const byName = new Map(ings.map((i) => [i.name, i]));
   const menu = menuRes?.item ?? null;
+  const fromIdea = !id && draft ? draft : null;
+  draft = null;
   const chans = chRes.items.filter((c) => c.state.enabled);
   const { target_cost_ratio: target, vat_mode: vat } = app.me.settings;
   const canWrite = app.me.plan.writable;
 
   const ingNames = ings.map((i) => i.name);
   const err = h('div', { class: 'form-err', role: 'alert', hidden: true });
-  const name = h('input', { class: 'input', type: 'text', maxLength: 60, autocomplete: 'off', value: menu?.name ?? '', placeholder: '예: 제육볶음' });
-  const price = numInput({ value: menu ? n3(menu.price) : '', placeholder: '예: 9,500' });
+  const name = h('input', { class: 'input', type: 'text', maxLength: 60, autocomplete: 'off', value: menu?.name ?? fromIdea?.name ?? '', placeholder: '예: 제육볶음' });
+  const price = numInput({ value: menu ? n3(menu.price) : fromIdea?.price ? n3(fromIdea.price) : '', placeholder: '예: 9,500' });
   const deliveryPrice = numInput({ value: menu?.delivery_price ? n3(menu.delivery_price) : '', placeholder: '비워 두면 매장 판매가' });
-  const category = h('input', { class: 'input', type: 'text', maxLength: 30, autocomplete: 'off', value: menu?.category ?? '', placeholder: '예: 볶음, 찌개' });
+  const category = h('input', { class: 'input', type: 'text', maxLength: 30, autocomplete: 'off', value: menu?.category ?? fromIdea?.category ?? '', placeholder: '예: 볶음, 찌개' });
   const other = numInput({ value: menu ? n3(menu.other_cost) : '0' });
   const note = h('textarea', { class: 'textarea', maxLength: 300, placeholder: '조리법이나 1인분 기준 메모' });
-  note.value = menu?.note ?? '';
+  note.value = menu?.note ?? fromIdea?.note ?? '';
 
   /* ----- 재료 줄 ----- */
   const rowsBox = h('div', { 'aria-label': '재료 목록' });
@@ -319,7 +329,7 @@ export async function renderEditor(box, id) {
   applyRec.addEventListener('click', () => { price.value = n3(recommended); recalc(); });
   for (const el of [price, other, deliveryPrice]) el.addEventListener('input', recalc);
 
-  const lines = menu?.lines ?? [];
+  const lines = menu?.lines ?? (fromIdea?.lines || []).filter((l) => byName.has(l.name)).map((l) => ({ ...l, qty: l.qty != null ? Math.round(l.qty * 100) / 100 : null }));
   if (lines.length) {
     lines.forEach((l) => addRow({ name: l.name, qty: l.qty, unit: l.unit, estimated: l.estimated, qty_low: l.qty_low, qty_high: l.qty_high }));
   } else addRow();
@@ -413,9 +423,13 @@ export async function renderEditor(box, id) {
 
   box.append(
     h('div', { class: 'page-h' },
-      h('a', { class: 'btn ghost sm', href: '#/menus' }, icon('back', 18), '메뉴 목록'),
+      h('a', { class: 'btn ghost sm', href: fromIdea ? '#/menus/ideas' : '#/menus' }, icon('back', 18), fromIdea ? '메뉴 추천' : '메뉴 목록'),
       h('h1', { style: 'font-size:1.125rem' }, menu ? '메뉴 수정' : '새 메뉴')),
+    fromIdea ? h('div', { class: 'banner info', role: 'status' }, icon('spark', 20), h('div', null,
+      h('b', null, `추천 메뉴 '${fromIdea.from}'에서 가져왔어요. `),
+      '재료 양과 판매가는 보통 1인분 어림값이니 실제로 재 보고 고쳐 주세요.',
+      fromIdea.missing?.length ? h('p', { class: 'small', style: 'margin-top:4px' }, `아직 식자재에 없는 재료(${fromIdea.missing.join(', ')})는 빠져 있어요. `, h('a', { href: '#/ingredients' }, '식자재에 먼저 추가'), '하면 재료 목록에서 고를 수 있어요.') : null)) : null,
     form);
   recalc();
-  if (!menu) name.focus();
+  if (!menu && !fromIdea) name.focus();
 }

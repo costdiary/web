@@ -263,7 +263,7 @@ def _recipes(db=None, uid: int | None = None) -> list[dict]:
             from . import menu_community
             for r in menu_community.recipes(db, exclude_user_id=uid):
                 put(r["name"], r["category"], r["aliases"], r["lines"],
-                    f"사장님 {r['stores']}곳이 파는 메뉴예요. 재료와 양은 여러 가게를 모은 어림값이에요.", "stores", r["stores"])
+                    "", "stores", r["stores"])
         except Exception:  # noqa: BLE001 - 모으기에 실패해도 추천은 기본 레시피로 계속
             pass
     for name, cat, aliases, lines, pitch in IDEAS:
@@ -455,8 +455,11 @@ def suggest(db, user: dict, limit: int = 12) -> dict:
         b = basis_price(price, vat) if price else 0
         if price and price < 5000 and not side_cat:
             score -= 8  # 한 끼 메인으로는 너무 싼 것(콩나물밥 3천 원 같은)은 조금 뒤로
+        pitch = rec["pitch"]
+        if rec["src"] == "stores":
+            pitch = "바로 만들 수 있는 추천 메뉴예요." if not missing else f"{len(missing)}개만 더 사면 만들 수 있는 추천 메뉴예요."
         ideas.append({
-            "name": rec["name"], "category": rec["category"], "pitch": rec["pitch"], "src": rec["src"], "stores": rec["stores"],
+            "name": rec["name"], "category": rec["category"], "pitch": pitch, "src": rec["src"],
             "lines": lines, "missing": missing, "have": have, "mains": mains,
             "sources": sources, "base": base, "adds": add_list,
             "core_used": core_used, "score": round(score, 1), "from_side": from_side,
@@ -494,6 +497,5 @@ def suggest(db, user: dict, limit: int = 12) -> dict:
         "summary": {
             "ingredient_count": len(raw), "menu_count": len(menus), "target": target,
             "ready": len(ready), "almost": len(almost), "candidates": len(ideas), "checked": n_recipes,
-            "from_stores": n_stores_recipes,
         },
     }

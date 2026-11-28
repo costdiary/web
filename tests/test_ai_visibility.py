@@ -101,3 +101,8 @@ def test_share_images_exist():
     for path in ("/static/og-image.png", "/static/brand/logo.png"):
         r = c.get(path)
         assert r.status_code == 200 and r.headers["content-type"] == "image/png", path
+
+
+def test_google_search_console_verification_tag():
+    # 구글 서치 콘솔 소유 확인(URL 접두어 속성). 지우면 서치 콘솔 확인이 풀린다.
+    assert '<meta name="google-site-verification" content="QmUOVdTK9b9-jFluD5OaLgMmxPDYIrHWNC1UXkKVSLg">' in c.get("/").text

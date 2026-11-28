@@ -21,6 +21,11 @@ def enabled() -> bool:
 
 
 def send(to: str, subject: str, body: str) -> None:
+    # 마지막 안전장치: 어떤 경로든 하루·한 달 전체 한도를 넘겨 보내지 않는다(자세한 방어는 mail_guard.py).
+    from . import mail_guard
+    if mail_guard.over_total():
+        log.warning("mail skipped: daily/monthly budget used up to=%s subject=%s", to, subject)
+        return
     if not enabled():
         log.info("mail(mock, SMTP_HOST 없음) to=%s subject=%s\n%s", to, subject, body)
         return

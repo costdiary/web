@@ -29,6 +29,10 @@ class SignupIn(BaseModel):
 
 class EmailCodeIn(BaseModel):
     email: str = Field(max_length=120)
+    # 사람 확인(mail_guard.py): 브라우저가 푼 계산 문제와 답, 사람에게는 안 보이는 칸(프로그램만 채움)
+    pow_challenge: str = Field("", max_length=400)
+    pow_nonce: str = Field("", max_length=32)
+    website: str = Field("", max_length=200)
 
 
 class EmailVerifyIn(BaseModel):
@@ -70,6 +74,10 @@ class ChangePasswordIn(BaseModel):
 
 class ForgotPasswordIn(BaseModel):
     email: str = Field(max_length=120)
+    # 사람 확인(mail_guard.py): 브라우저가 푼 계산 문제와 답, 사람에게는 안 보이는 칸(프로그램만 채움)
+    pow_challenge: str = Field("", max_length=400)
+    pow_nonce: str = Field("", max_length=32)
+    website: str = Field("", max_length=200)
 
 
 class ResetPasswordIn(BaseModel):

@@ -2,8 +2,15 @@
 import { h, api, app, field, openDialog, busy, errMsg, toast } from './core.js';
 import { openDataNotice, openTerms } from './legal.js';
 import { identityBox } from './identity.js';
+import { mailProof } from './mailproof.js';
 
 const SOCIAL_LABEL = { kakao: '카카오로 계속하기', naver: '네이버로 계속하기', google: '구글로 계속하기' };
+
+/* 사람에게는 보이지 않는 칸. 자동 입력 프로그램만 채운다(app/mail_guard.py). */
+function honeypot() {
+  return h('input', { type: 'text', name: 'website', tabindex: '-1', autocomplete: 'off', 'aria-hidden': 'true',
+    style: 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0' });
+}
 
 function errorBox() {
   const box = h('div', { class: 'form-err', role: 'alert', hidden: true });
@@ -28,14 +35,18 @@ export function openForgotPassword() {
   const email = h('input', { class: 'input', type: 'email', name: 'email', autocomplete: 'email', required: true });
   const submit = h('button', { class: 'btn block', type: 'submit' }, '재설정 링크 받기');
   const done = h('p', { class: 'hint', hidden: true }, '입력하신 이메일로 재설정 안내를 보냈어요. 안 보이면 스팸함도 한 번 확인해 주세요.');
-  const form = h('form', { novalidate: true }, err, field('가입한 이메일', email), submit, done);
+  const hp = honeypot();
+  const proof = mailProof();
+  proof.warm();
+  const form = h('form', { novalidate: true }, err, hp, field('가입한 이메일', email), submit, done);
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     err.clear();
     if (!email.value.trim()) { err.show('이메일을 입력해 주세요.'); return; }
     await busy(submit, async () => {
       try {
-        await api('/api/auth/password/forgot', { method: 'POST', body: { email: email.value } });
+        const pow = await proof.take();
+        await api('/api/auth/password/forgot', { method: 'POST', body: { email: email.value, website: hp.value, ...pow } });
       } catch (e) { err.show(errMsg(e)); return; }
       email.closest('.field').hidden = true;
       submit.hidden = true;
@@ -134,10 +145,15 @@ export function openSignup({ onDone, verified = null, prefill = {} } = {}) {
     }))
     : null;
   // 이메일 인증을 켠 운영(app.pub.email_verify_required)에서는 메일로 받은 번호를 넣어야 가입된다.
+  // 인증번호를 보내기 전 사람 확인(app/mail_guard.py). 화면을 여는 순간부터 미리 풀어 둔다.
+  const hp = honeypot();
+  const proof = app.pub?.email_verify_required ? mailProof() : null;
+  if (proof) proof.warm();
   const emailCode = app.pub?.email_verify_required ? emailCodeBox({
     send: async () => {
       if (!email.value.trim()) { err.show('이메일을 먼저 입력해 주세요.'); email.focus(); return null; }
-      return api('/api/auth/email-code', { method: 'POST', body: { email: email.value } });
+      const pow = await proof.take();
+      return api('/api/auth/email-code', { method: 'POST', body: { email: email.value, website: hp.value, ...pow } });
     },
     onError: (m) => (m ? err.show(m) : err.clear()),
   }) : null;
@@ -149,6 +165,7 @@ export function openSignup({ onDone, verified = null, prefill = {} } = {}) {
   const submit = h('button', { class: 'btn block', type: 'submit' }, '가입하고 무료로 시작');
   const form = h('form', { novalidate: true },
     err,
+    hp,
     ivField,
     emailCode
       ? h('div', { class: 'field' }, h('label', { for: 'signup-email' }, '이메일'),

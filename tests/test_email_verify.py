@@ -30,6 +30,7 @@ def outbox(monkeypatch):
     sent = []
     monkeypatch.setattr(mailer, "send", lambda to, subject, body: sent.append((to, subject, body)))
     monkeypatch.setenv("EMAIL_VERIFY", "1")
+    monkeypatch.setenv("MAIL_POW_BITS", "0")  # 사람 확인은 test_mail_guard.py에서 따로 시험한다
     routes_account.reset_rate_limits()
     yield sent
     routes_account.reset_rate_limits()
@@ -87,13 +88,17 @@ def test_wrong_code_five_times_kills_code(outbox):
         assert r.status_code == 400 and "만료" in r.json()["detail"]
 
 
-def test_resend_cooldown_and_existing_email_not_revealed(outbox):
+def test_resend_cooldown_and_existing_email_not_revealed(outbox, monkeypatch):
     email = _mail()
     with TestClient(app) as c:
         assert c.post("/api/auth/email-code", json={"email": email}, headers=H).status_code == 200
         assert c.post("/api/auth/email-code", json={"email": email}, headers=H).status_code == 429
         assert _signup(c, email, _code(outbox, email)).status_code == 200
     with TestClient(app) as other:
+        # 가입된 주소도 60초 대기는 똑같이 걸린다(대기 여부로 가입 여부가 드러나지 않게)
+        assert other.post("/api/auth/email-code", json={"email": email}, headers=H).status_code == 429
+        from app import mail_guard
+        monkeypatch.setattr(mail_guard, "ADDR_COOLDOWN", 0)
         r = other.post("/api/auth/email-code", json={"email": email}, headers=H)
         assert r.status_code == 200  # 가입된 주소여도 같은 응답
         assert "이미 가입된" in outbox[-1][1]

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
-from . import auth, config, email_verify, identity, mailer, market, notifications, oauth, security, services
+from . import auth, config, email_verify, identity, mail_guard, mailer, market, notifications, oauth, security, services
 from .db import ISO, get_db, now_iso, parse_iso, transaction
 from .deps import current_user
 from .routes_market import market_me_summary
@@ -32,6 +32,7 @@ _hits: dict[str, list[float]] = defaultdict(list)
 def reset_rate_limits() -> None:
     _hits.clear()
     security.reset()
+    mail_guard.reset()
 
 
 def _too_many(key: str, limit: int, window: float) -> bool:
@@ -171,23 +172,74 @@ def signup(body: SignupIn, request: Request, response: Response, db=Depends(get_
     return {"ok": True}
 
 
+POW_FAIL = "자동 입력 방지 확인이 끝나지 않았어요. 화면을 새로 고친 뒤 다시 눌러 주세요."
+
+
+def _device(request: Request) -> str:
+    return (request.cookies.get(mail_guard.DEVICE_COOKIE) or "")[:64]
+
+
+@router.get("/auth/mail-challenge")
+def mail_challenge(request: Request, response: Response, db=Depends(get_db)):
+    """메일을 보내는 요청(인증번호 받기·비밀번호 찾기) 전에 브라우저가 풀 계산 문제(mail_guard.py)."""
+    device = _device(request)
+    if not device:
+        device = mail_guard.new_device_id()
+        response.set_cookie(
+            mail_guard.DEVICE_COOKIE, device, max_age=400 * 86400, httponly=True, samesite="lax",
+            secure=config.env_bool("COOKIE_SECURE"), path="/api/",
+        )
+    return mail_guard.new_challenge(db, device)
+
+
+def _send_guarded(db, kind: str, email: str, src: mail_guard.Source, before_send=None):
+    """한도를 확인하고, 통과하면 기록한 뒤 (True, before_send의 결과)를 돌려준다. 막히면 (Blocked, None).
+    확인과 기록을 한 트랜잭션에서 해서, 동시에 몰려 들어온 요청이 같은 마지막 한 통을 나눠 쓰지 못하게 한다."""
+    with transaction(db):
+        try:
+            mail_guard.check(db, kind, email, src)
+        except mail_guard.Blocked as b:
+            return b, None
+        extra = before_send(db) if before_send else None
+        if extra is False:
+            return mail_guard.Blocked(f"방금 보냈어요. {email_verify.RESEND_SECONDS}초 뒤에 다시 받을 수 있어요."), None
+        mail_guard.record(db, kind, email, src)
+    return True, extra
+
+
 @router.post("/auth/email-code")
 def signup_email_code(body: EmailCodeIn, request: Request, db=Depends(get_db)):
-    """가입 화면의 '인증번호 받기'. 이미 가입된 주소여도 같은 응답을 주고, 메일로만 알려 준다."""
+    """가입 화면의 '인증번호 받기'. 이미 가입된 주소여도 같은 응답을 주고, 메일로만 알려 준다.
+    하루 메일 한도를 공격으로 다 쓰지 못하게 여러 겹으로 막는다(mail_guard.py)."""
     if not email_verify.required():
         raise HTTPException(404)
+    ok = {"ok": True, "expires_minutes": email_verify.CODE_MINUTES, "resend_seconds": email_verify.RESEND_SECONDS}
     ip = client_ip(request)
     email = body.email.strip().lower()
     if not EMAIL_RE.match(email):
         raise HTTPException(400, "이메일 형식을 확인해 주세요.")
-    # 남의 주소로 메일 폭탄을 보내지 못하게 주소마다, 접속 주소마다 횟수를 묶는다.
+    if body.website:  # 사람에게는 안 보이는 칸을 채웠으면 프로그램. 보낸 척만 한다.
+        security.audit("mail_honeypot", ip=ip, detail=email[:80], once=f"hp:{ip}")
+        return ok
+    # 빠른 첫 겹(메모리): 같은 IP·같은 주소의 연속 요청
     if _too_many(f"ecode:{ip}", 10, 3600) or _too_many(f"ecodemail:{email}", 5, 3600):
         raise HTTPException(429, "인증번호 요청이 너무 많아요. 잠시 후 다시 시도해 주세요.")
-    with transaction(db):
-        exists = db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
-        code = None if exists else email_verify.issue(db, email, email_verify.PURPOSE_SIGNUP)
-    if not exists and code is None:
-        raise HTTPException(429, f"방금 보냈어요. {email_verify.RESEND_SECONDS}초 뒤에 다시 받을 수 있어요.")
+    device = _device(request)
+    if not mail_guard.verify_pow(body.pow_challenge, body.pow_nonce, device):
+        raise HTTPException(400, POW_FAIL)
+    src = mail_guard.Source(ip=ip, device=device)
+    exists = db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone() is not None
+    kind = mail_guard.SIGNUP_EXISTS if exists else mail_guard.SIGNUP
+
+    def issue(tx):
+        if exists:
+            return None
+        return email_verify.issue(tx, email, email_verify.PURPOSE_SIGNUP) or False
+
+    result, code = _send_guarded(db, kind, email, src, issue)
+    if result is not True:
+        security.audit("mail_blocked", ip=ip, detail=f"{kind} {result.message[:60]}", once=f"mb:{ip}")
+        raise HTTPException(result.status, result.message)
     _record(f"ecode:{ip}")
     _record(f"ecodemail:{email}")
     if exists:
@@ -195,7 +247,7 @@ def signup_email_code(body: EmailCodeIn, request: Request, db=Depends(get_db)):
     else:
         email_verify.send_code(email, code)
     security.audit("email_code_sent", ip=ip, detail=email[:80])
-    return {"ok": True, "expires_minutes": email_verify.CODE_MINUTES, "resend_seconds": email_verify.RESEND_SECONDS}
+    return ok
 
 
 @router.post("/me/email-code")
@@ -207,13 +259,17 @@ def account_email_code(request: Request, user: dict = Depends(current_user), db=
         return {"ok": True, "verified": True}
     if _too_many(f"ecodeuser:{user['id']}", 5, 3600):
         raise HTTPException(429, "인증번호 요청이 너무 많아요. 잠시 후 다시 시도해 주세요.")
-    with transaction(db):
-        code = email_verify.issue(db, user["email"], email_verify.PURPOSE_ACCOUNT)
-    if code is None:
-        raise HTTPException(429, f"방금 보냈어요. {email_verify.RESEND_SECONDS}초 뒤에 다시 받을 수 있어요.")
+    ip = client_ip(request)
+    src = mail_guard.Source(ip=ip, device=_device(request))
+    result, code = _send_guarded(
+        db, mail_guard.ACCOUNT, user["email"], src,
+        lambda tx: email_verify.issue(tx, user["email"], email_verify.PURPOSE_ACCOUNT) or False,
+    )
+    if result is not True:
+        raise HTTPException(result.status, result.message)
     _record(f"ecodeuser:{user['id']}")
     email_verify.send_code(user["email"], code)
-    security.audit("email_code_sent", user_id=user["id"], ip=client_ip(request))
+    security.audit("email_code_sent", user_id=user["id"], ip=ip)
     return {"ok": True, "expires_minutes": email_verify.CODE_MINUTES, "resend_seconds": email_verify.RESEND_SECONDS}
 
 
@@ -307,14 +363,23 @@ def forgot_password(body: ForgotPasswordIn, request: Request, db=Depends(get_db)
     ip = client_ip(request)
     if _too_many(f"forgot:{ip}", 5, 3600):
         raise HTTPException(429, "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.")
+    device = _device(request)
+    # 계정이 있든 없든 똑같이 검사한다(응답 차이로 가입 여부를 알 수 없게).
+    if not body.website and not mail_guard.verify_pow(body.pow_challenge, body.pow_nonce, device):
+        raise HTTPException(400, POW_FAIL)
     _record(f"forgot:{ip}")
     email = body.email.strip().lower()
     row = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-    if row:
-        token = auth.new_reset_token(db, row["id"])
-        link = f"{config.env_str('APP_BASE_URL').rstrip('/')}/?reset_token={token}"
-        mailer.send(email, "원가노트 비밀번호 재설정", f"아래 링크에서 30분 안에 새 비밀번호를 정해 주세요.\n\n{link}")
-        security.audit("password_forgot", user_id=row["id"], ip=ip)
+    if row and not body.website:
+        result, _ = _send_guarded(db, mail_guard.RESET, email, mail_guard.Source(ip=ip, device=device))
+        if result is True:
+            token = auth.new_reset_token(db, row["id"])
+            link = f"{config.env_str('APP_BASE_URL').rstrip('/')}/?reset_token={token}"
+            mailer.send(email, "원가다이어리 비밀번호 재설정", f"아래 링크에서 30분 안에 새 비밀번호를 정해 주세요.\n\n{link}")
+            security.audit("password_forgot", user_id=row["id"], ip=ip)
+        else:
+            # 막힌 것을 화면에 알리면 '이 주소는 가입돼 있다'가 드러난다. 조용히 기록만 한다.
+            security.audit("mail_blocked", user_id=row["id"], ip=ip, detail=f"reset {result.message[:60]}", once=f"mbr:{row['id']}")
     # 가입된 이메일인지 응답으로 알려주지 않기 위해 계정이 있든 없든 같은 응답을 돌려줍니다.
     return {"ok": True}
 

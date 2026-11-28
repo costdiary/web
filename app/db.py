@@ -105,6 +105,21 @@ CREATE TABLE IF NOT EXISTS email_codes (
   PRIMARY KEY (email, purpose)
 );
 
+-- 보낸 메일 기록(24). 하루·한 달 메일 한도를 공격으로 다 쓰지 못하게 세는 용도(mail_guard.py).
+-- 주소·IP는 해시로만 남긴다. 31일 지나면 지운다.
+CREATE TABLE IF NOT EXISTS mail_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  addr_key TEXT NOT NULL,
+  domain_key TEXT,
+  ip_key TEXT,
+  net_key TEXT,
+  device_key TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_mail_log_at ON mail_log(at);
+CREATE INDEX IF NOT EXISTS idx_mail_log_addr ON mail_log(addr_key, at);
+
 CREATE TABLE IF NOT EXISTS ingredients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -818,7 +833,8 @@ def connect() -> sqlite3.Connection:
 # 22: 새로 추가한 식자재·프렙에 NEW 표시 — ingredients.created_at, preps.created_at을 ALTER로 더한다.
 #     기존 행은 언제 만들었는지 몰라 비워 둔다(NEW로 보이지 않음). 예시 데이터(seed.py)도 비워 둔다.
 # 23: 분류·등급·부위 자동완성 후보를 정육 밖의 분류까지 넉넉히(TERMS_SEED_V23, 약 640개) — INSERT OR IGNORE라 사장님 값은 그대로.
-SCHEMA_VERSION = 23
+# 24: 보낸 메일 기록(mail_log) — 새 표라 SCHEMA의 CREATE TABLE IF NOT EXISTS로 적용됨(ALTER 불필요). 번호만 올린다.
+SCHEMA_VERSION = 24
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
